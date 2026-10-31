@@ -16,25 +16,25 @@ If a request conflicts with these files, stop and ask. Do not silently change th
 
 ## Stack
 
-Java 17, Spring Boot 3.x, Spring Security, Spring Data JPA (Criteria API), Thymeleaf, small vanilla JavaScript, Maven multi-module, JUnit 5, Testcontainers, MkDocs Material for docs.
+Java 17 minimum, Spring Boot 4.1.x (latest stable patch, currently 4.1.2; Spring Boot 3.x is not supported in v0.1), Spring Security, Spring Data JPA (Criteria API), Thymeleaf, small vanilla JavaScript, Maven multi-module, JUnit 5, Testcontainers, MkDocs Material for docs.
 
 No Node, npm, React or external chart libraries. The UI ships inside the jar.
 
 ## v0.1 scope in one paragraph
 
-Auto-configuration, mandatory username and password, separate login, entity discovery and sidebar, list with search, sort, paging and filters, saved views (browser-stored), detail, create, edit, delete, bulk delete, duplicate, file and image uploads (local storage plus storage SPI), dashboard stats and a records-created chart, CSV export, sensitive field masking, light and dark theme. Out of scope: multiple admins and roles, audit log, inline child rows, embedded and composite keys, image resizing, translations, WebFlux, non-JPA stores. Optional: S3 provider.
+Auto-configuration, mandatory username and password, separate login, entity discovery and sidebar, list with search, sort, paging and filters, saved views (browser-stored), detail, create, edit, delete, bulk delete, duplicate, file and image uploads (local storage plus storage SPI), dashboard stats and a records-created chart, CSV export, sensitive field masking, light and dark theme. Out of scope: multiple admins and roles, audit log, inline child rows, embedded and composite keys, image resizing, translations, WebFlux, non-JPA stores, S3 provider (v0.2).
 
 ## Repository layout
 
 ```
 jpa-admin-core/            metadata, services, controllers, templates, static files
 jpa-admin-autoconfigure/   properties, security chain, auto-configuration
-jpa-admin-starter/         empty pom (the only dependency users add)
+jpa-admin-starter/         empty pom, published as jpa-super-admin-spring-boot-starter (the only dependency users add)
 sample-app/                demo app and integration tests
 docs/                      PLAN.md, RULES.md, PROJECT_DOCS.md, MkDocs site
 ```
 
-Package root: `io.github.<owner>.jpaadmin`. Templates go in `templates/jpa-admin/`. Static files are served from `/admin/assets/**`.
+Maven groupId: `io.github.mdmusahub`, parent artifactId: `jpa-super-admin`. Package root: `io.github.mdmusahub.jpaadmin`. Templates go in `templates/jpa-admin/`. Static files are served from `/admin/assets/**`.
 
 ## Commands
 
@@ -60,7 +60,9 @@ mkdocs serve                              # preview docs
 - Sort, search and filter parameters are untrusted. Accept only names present in the metadata.
 - Never render raw entities or collections. Map to display values.
 - The console's security chain must never alter the host application's own security rules.
-- Uploads are validated by content, size and type, stored under random names, and never executed.
+- Uploads are validated by content, size and type, need a signed upload ticket, are stored under random names, and are never executed.
+- Do not change global session cookie settings (SEC-8).
+- Verify Spring Boot, Spring Security, Spring Data JPA, Hibernate and Thymeleaf APIs and auto-configuration packages against the official 4.1 docs or source, never from memory (CODE-8).
 - Every state-changing request needs CSRF protection.
 - Keep the public API (annotations, properties) small and documented.
 

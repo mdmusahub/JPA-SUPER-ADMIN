@@ -6,12 +6,13 @@ Engineering rules for JPA Super Admin. Every rule has an ID so reviews can cite 
 
 - **SEC-1 MUST** Sensitive fields (names in `jpa.admin.sensitive-fields` plus `@AdminSensitive`) never appear in list, detail, form values, CSV export, JSON, logs or error messages.
 - **SEC-2 MUST** Sort, search, filter and column parameters are untrusted. Accept only names that exist in the entity metadata and are not hidden or sensitive.
+  Sensitive matching is case-insensitive, ignores `_` and `-`, and uses substring match against `jpa.admin.sensitive-fields`, plus `@AdminSensitive`.
 - **SEC-3 MUST** Never concatenate user input into JPQL, SQL or Criteria strings. Use the Criteria API and bound parameters.
 - **SEC-4 MUST** The console uses its own `SecurityFilterChain`, matched to the console path only. It must not change, replace or weaken the host application's security configuration.
 - **SEC-5 MUST** CSRF protection stays enabled for every state-changing request. Forms include the token. JavaScript requests send it in a header.
 - **SEC-6 MUST** Passwords are BCrypt-hashed in memory. Never log the password or the hash.
-- **SEC-7 MUST** `jpa.admin.username` and `jpa.admin.password` are validated at startup. Missing values stop the application with a message that names the property.
-- **SEC-8 MUST** Session cookie is `HttpOnly` and `SameSite=Lax`. Mark `Secure` when the request is HTTPS.
+- **SEC-7 MUST** `jpa.admin.username` and `jpa.admin.password` are validated at startup. Missing values stop the application with a message that names the property. Under the `prod` profile, a password under 12 characters or a common one also stops startup; otherwise it logs a warning.
+- **SEC-8 MUST** Do not change global session cookie settings; rely on Spring Boot defaults so the host app is unaffected. Document that host apps should set `Secure` and `SameSite`. Log a startup warning when the console runs over plain HTTP under the `prod` profile.
 - **SEC-9 MUST** Escape all database values on output. Never use `th:utext` on stored data.
 - **SEC-10 MUST** CSV cells that begin with `=`, `+`, `-` or `@` are prefixed so spreadsheets do not execute them.
 - **SEC-11 MUST** Server-side flags (`readOnly`, `creatable`, `updatable`, `deletable`, `exportable`, hidden) are enforced in the service layer, not just hidden in the UI.
@@ -24,6 +25,7 @@ Engineering rules for JPA Super Admin. Every rule has an ID so reviews can cite 
 
 - **UPL-1 MUST** Check type by an allow-list and by content sniffing, not only by the filename or the `Content-Type` header.
 - **UPL-2 MUST** Enforce a maximum size per field, with a global ceiling.
+- **UPL-2a MUST** `POST /admin/uploads` requires a valid signed upload ticket (about 10 minutes, bound to entity and field, carrying max size and expiry, signed with `jpa.admin.upload.signing-key`) in addition to the session and CSRF token.
 - **UPL-3 MUST** Store under server-generated random names in `folder/yyyy/MM/`. Never use the client's filename as a path.
 - **UPL-4 MUST** Path traversal must be impossible by construction (resolve and verify the final path is inside the storage root).
 - **UPL-5 MUST** SVG and HTML uploads are rejected unless explicitly allowed in the field's `accept` list.
@@ -44,14 +46,15 @@ Engineering rules for JPA Super Admin. Every rule has an ID so reviews can cite 
 - **ARCH-7 MUST** Auto-configuration is conditional (`@ConditionalOnClass`, servlet web app, property switch) and backs off cleanly. Use `@ConditionalOnMissingBean` for replaceable beans.
 - **ARCH-8 MUST** Do not leak bean names or packages that can clash with the host app. Prefix beans and keep templates under `jpa-admin/`.
 - **ARCH-9 SHOULD** Keep the public API (annotations, properties, SPI interfaces) small. Everything else is package-private.
-- **ARCH-10 MUST** CSV export and list use the same validated query pipeline. Export streams rows in pages and respects the row cap.
-- **CODE-1 MUST** Java 17, Jakarta namespace, no deprecated Spring APIs.
+- **ARCH-10 MUST** CSV export and list use the same validated query pipeline. Export streams rows in pages and respects the row cap. The cap has a fixed internal ceiling of 50,000 rows; `jpa.admin.export-max-rows` may lower it, never raise it.
+- **CODE-1 MUST** Java 17 minimum, Spring Boot 4.1.x, Jakarta namespace, no deprecated Spring APIs.
 - **CODE-2 SHOULD** Prefer records and constructor injection. No field injection.
 - **CODE-3 MUST** No `System.out`. Use SLF4J. Never log request bodies.
 - **CODE-4 SHOULD** Methods stay short and named for what they do. No clever generics where plain code reads better.
 - **CODE-5 MUST** No new dependency without a recorded reason. Prefer what Spring Boot already brings.
 - **CODE-6 MUST** No Node, npm or front-end build step. JavaScript is plain and lives in static files.
 - **CODE-7 SHOULD** Add Javadoc to every public type and method of the public API.
+- **CODE-8 MUST** Verify Spring Boot, Spring Security, Spring Data JPA, Hibernate and Thymeleaf APIs, and Spring Boot auto-configuration packages and class names, against the official Spring Boot 4.1 documentation or the library source for the pinned version. Do not rely on memory or on Boot 3.x examples; Boot 4 reorganised modules and packages.
 
 ## 4. UI (UI)
 
@@ -61,7 +64,7 @@ Engineering rules for JPA Super Admin. Every rule has an ID so reviews can cite 
 - **UI-4 MUST** Controls have visible keyboard focus and accessible labels. Icon-only buttons have `aria-label`.
 - **UI-5 MUST** Destructive actions always ask for confirmation.
 - **UI-6 MUST** Every list has an empty state that explains what to do next. Every error message says what went wrong and how to fix it.
-- **UI-7 SHOULD** Use the HTML prototype as the visual reference: grouped sidebar, breadcrumbs, stat cards, badges, floating bulk bar.
+- **UI-7 SHOULD** Use the HTML prototype (`docs/prototype/admin-console.html`, reference only, not shipped) as the visual reference: grouped sidebar, breadcrumbs, stat cards, badges, floating bulk bar.
 - **UI-8 MUST** Respect `prefers-reduced-motion`. No decorative animation.
 - **UI-9 SHOULD** Use sentence case, active verbs ("Save changes", not "Submit"), and the same name for an action through its whole flow.
 - **UI-10 MUST** Table state (search, filters, sort, page) lives in the URL so pages are bookmarkable and Back works.
@@ -82,6 +85,7 @@ Engineering rules for JPA Super Admin. Every rule has an ID so reviews can cite 
 - **GIT-1 MUST** One phase per branch, small commits, clear messages in imperative mood.
 - **GIT-2 MUST** Tag each finished phase (`v0.0.<phase>`) and the release (`v0.1.0`).
 - **GIT-3 MUST** Never commit secrets, passwords, upload folders or IDE files.
+- **GIT-5 MUST** `.gitattributes` enforces LF line endings for text files.
 - **GIT-4 SHOULD** Keep changes focused. Do not mix refactors with features.
 - **DOC-1 MUST** Update `CHANGELOG.md` and the relevant docs page with every user-visible change.
 - **DOC-2 MUST** Document every property and annotation option, with its default.
@@ -91,7 +95,7 @@ Engineering rules for JPA Super Admin. Every rule has an ID so reviews can cite 
 
 ## 7. Rules for Claude Code itself (AI)
 
-- **AI-1 MUST** Read `CLAUDE.md`, `docs/PLAN.md` and `docs/RULES.md` before starting a session's work.
+- **AI-1 MUST** Read `CLAUDE.md`, `docs/PLAN.md`, `docs/RULES.md` and `docs/PROJECT_DOCS.md` before starting a session's work.
 - **AI-2 MUST** Propose a plan and wait for approval before coding a phase, and before any change to security, the metadata model or the public API.
 - **AI-3 MUST** Work on one phase at a time. Do not add features from the out-of-scope list.
 - **AI-4 MUST** Do not invent requirements. If something is unclear, ask with two options and a recommendation.

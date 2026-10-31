@@ -11,7 +11,7 @@ Django developers get an admin panel for free. Spring Boot developers do not. JP
 
 **Promise:** add one dependency, set `username` and `password`, start the app, open `/admin`, log in, manage every entity.
 
-**Stack:** Java 17, Spring Boot 3.x, Spring Security, Spring Data JPA, Thymeleaf (server-rendered), small vanilla JavaScript, Maven multi-module.
+**Stack:** Java 17 minimum, Spring Boot 4.1.x (latest stable patch; Spring Boot 3.x is not supported in v0.1), Spring Security, Spring Data JPA, Thymeleaf (server-rendered), small vanilla JavaScript, Maven multi-module.
 
 ## 2. Scope
 
@@ -33,12 +33,9 @@ Django developers get an admin panel for free. Spring Boot developers do not. JP
 | UI | Light and dark theme, responsive layout, keyboard shortcuts for search and new record |
 | Quality | Sample app, tests, CI, README, docs website |
 
-### Optional inside v0.1 (ship only if Phase 14 is on schedule, otherwise move to v0.2)
-
-- S3 storage provider as an optional dependency
-
 ### Out of scope for v0.1
 
+- S3 storage provider (moved to v0.2; the storage SPI ships in v0.1)
 - Multiple admin users and per-entity roles
 - Audit log and change history
 - Inline child rows for one-to-many collections
@@ -69,18 +66,17 @@ jpa:
 ## 4. Modules
 
 ```
-jpa-super-admin/
+jpa-super-admin/             parent pom: groupId io.github.mdmusahub, artifactId jpa-super-admin
   pom.xml
   jpa-admin-core/            metadata, services, controllers, templates, static files
   jpa-admin-autoconfigure/   properties, security chain, auto-configuration
-  jpa-admin-starter/         empty pom, the only dependency users add
-  jpa-admin-storage-s3/      optional, only if the S3 stretch goal is taken
+  jpa-admin-starter/         empty pom, published as jpa-super-admin-spring-boot-starter
   sample-app/                demo shop, integration tests
   docs/                      PLAN.md, RULES.md, PROJECT_DOCS.md, MkDocs site
   CLAUDE.md
 ```
 
-Package root: `io.github.<owner>.jpaadmin` (replace `<owner>` once the name is final).
+Maven `groupId`: `io.github.mdmusahub`. Package root: `io.github.mdmusahub.jpaadmin`. The only artifact users add is `jpa-super-admin-spring-boot-starter`.
 
 ## 5. Configuration reference
 
@@ -94,14 +90,14 @@ Package root: `io.github.<owner>.jpaadmin` (replace `<owner>` once the name is f
 | `jpa.admin.primary-color` | `#0d9f6e` | Validated as `#rrggbb` only |
 | `jpa.admin.page-size` | `25` | Default rows per page |
 | `jpa.admin.export-enabled` | `true` | Global CSV export switch |
-| `jpa.admin.export-max-rows` | `50000` | Hard cap |
-| `jpa.admin.sensitive-fields` | `password, secret, token, apikey` | Field names always masked |
+| `jpa.admin.export-max-rows` | `50000` | May lower the cap, never raise it. 50,000 is a fixed internal ceiling |
+| `jpa.admin.sensitive-fields` | `password, secret, token, apikey` | Names always masked. Match is case-insensitive, ignores `_` and `-`, and is a substring match (`userPassword`, `api_key` match). `@AdminSensitive` adds to this |
 | `jpa.admin.excluded-entities` | empty | Entity names to hide |
-| `jpa.admin.storage.default.type` | `local` | `local` (or `s3` if the module is present) |
+| `jpa.admin.storage.default.type` | `local` | `local` only in v0.1 (`s3` planned for v0.2) |
 | `jpa.admin.storage.default.directory` | `./uploads` | Local storage root, outside the web root |
 | `jpa.admin.storage.default.max-size` | `5MB` | Per-file default |
 | `jpa.admin.storage.default.public-path` | none | If set, files are served publicly at this path. Off by default |
-| `jpa.admin.upload.signing-key` | random per start | Set explicitly when running several instances |
+| `jpa.admin.upload.signing-key` | random per start | Signs upload tickets (see Uploads). Set explicitly when running several instances |
 
 Startup fails fast when any `@AdminUpload` field refers to a storage that is not configured, and lists the offending fields.
 
@@ -134,8 +130,9 @@ All optional. The console works without them.
 | `ValueConverter`, `ValueFormatter` | Form string to type, and value to display text with masking |
 | `ExportService` | Streams CSV from the same query pipeline, escapes formula cells |
 | `StatsService` | Counts, largest table, records-created series |
-| `StorageProvider` (SPI) | `store`, `delete`, `open`, `url`. Implementations: local, optional S3 |
-| `UploadController` | Validated uploads, signed short-lived tickets, safe file serving |
+| `StorageProvider` (SPI) | `store`, `delete`, `open`, `url`. Implementation in v0.1: local (S3 in v0.2) |
+| `UploadController` | Ticket-checked uploads, safe file serving |
+| `UploadTicketService` | Issues and validates signed upload tickets |
 | `AdminController` | Dashboard, list, detail, form, save, delete, export |
 | `GlobalExceptionHandler` | Friendly validation and database error messages |
 
@@ -155,17 +152,23 @@ A view is a JSON object: `{ name, q, filters, sort, dir, pageSize, hiddenColumns
 
 Drag and drop or click. The client checks type and size, shows a preview and progress, and the form waits for uploads before saving. The server re-checks type (content sniffing, not only the header) and size, assigns a random file name under `folder/yyyy/MM/`, stores through `StorageProvider`, and saves the resulting URL string in the entity field.
 
+**Upload ticket.** When the server renders a form page, it issues a signed token for each upload field. The token lasts about 10 minutes, is bound to the entity and field, and carries the maximum size and an expiry. It is signed with `jpa.admin.upload.signing-key`. `POST /admin/uploads` validates the ticket in addition to the session and CSRF token, and rejects expired, tampered or mismatched tickets.
+
+**Serving.** In v0.1, `GET /admin/files/**` uses session authentication only. Thumbnails are the original image scaled by CSS. There is no server-side resizing.
+
 ## 8. Security design
 
 - Dedicated `SecurityFilterChain` matched to the console path with the highest precedence. It never changes the host application's own rules.
-- One in-memory admin, BCrypt hash. CSRF on for all state-changing requests. Session cookie `HttpOnly`, `SameSite=Lax`.
+- One in-memory admin, BCrypt hash. CSRF on for all state-changing requests. Session cookie settings are left to Spring Boot defaults. The console does not change global session cookie settings, because they would also affect the host app. The docs tell host apps to set `Secure` and `SameSite` themselves. Under the `prod` profile, a startup warning is logged when the console runs over plain HTTP.
 - Public: login page and static assets. Everything else requires the admin role.
 - Sensitive fields are masked in all responses, excluded from search, filter, sort and export.
 - Sort, search and filter parameters accept only names found in metadata.
 - CSV cells starting with `=`, `+`, `-` or `@` are prefixed so spreadsheets do not run them.
 - Uploads: allow-list of MIME types, content sniffing, size limit, random names, SVG blocked unless explicitly allowed, path traversal impossible by construction, `X-Content-Type-Options: nosniff`, `Content-Disposition: attachment` for non-images, files served only to authenticated admins unless `public-path` is set.
 - Rich text or HTML values from the database are escaped on display.
-- Production guard: weak passwords log a warning, and fail startup under a `prod` profile.
+- Sensitive field names are matched case-insensitively, ignoring `_` and `-`, as substrings of the configured names, plus `@AdminSensitive`.
+- Production guard: under the `prod` profile, startup fails if the password is shorter than 12 characters or is on a list of common passwords. Under other profiles a weak password logs a warning.
+- Uploads also require a valid signed upload ticket (see Uploads).
 - Login rate limiting is planned for v0.2. Document HTTPS, VPN or IP allow-list for internet-facing apps.
 
 ## 9. Routes
@@ -181,14 +184,14 @@ Drag and drop or click. The client checks type and size, shows a preview and pro
 | GET | `/admin/{entity}/{id}` | Detail |
 | GET/POST | `/admin/{entity}/{id}/edit`, `/admin/{entity}/{id}` | Edit and update |
 | POST | `/admin/{entity}/{id}/delete`, `/admin/{entity}/bulk-delete` | Delete |
-| POST | `/admin/uploads` | Upload a file, returns the stored URL |
+| POST | `/admin/uploads` | Upload a file (needs session, CSRF and a valid upload ticket), returns the stored URL |
 | GET | `/admin/files/**` | Authenticated file serving for local storage |
 | GET | `/admin/api/stats?range=30` | Chart data (JSON) |
 | GET | `/admin/assets/**` | CSS, JS, images from the jar |
 
 ## 10. UI
 
-Use the existing HTML prototype as the visual reference: grouped sidebar with counts, breadcrumbs, stat cards, bar chart, sortable table with badges, floating bulk bar, detail grid, form grid, light and dark themes.
+Use the HTML prototype at `docs/prototype/admin-console.html` as the visual reference (reference only, not shipped in the jar): grouped sidebar with counts, breadcrumbs, stat cards, bar chart, sortable table with badges, floating bulk bar, detail grid, form grid, light and dark themes.
 
 Templates live in `templates/jpa-admin/` with one shared layout fragment. Quality floor: responsive, visible focus, labelled controls, reduced motion respected, meaningful empty states.
 
@@ -198,7 +201,7 @@ Every phase ends with a running app, passing `mvn clean verify`, updated docs an
 
 | Phase | Build | Done when |
 |---|---|---|
-| 0 Setup | Repo, parent POM, modules, sample app with entities and seed data, CI skeleton | Build passes, sample app starts |
+| 0 Setup | Repo, `.gitattributes` (LF for text files), `.gitignore`, `CHANGELOG.md`, parent POM, modules, sample app with entities and seed data, CI skeleton | Build passes, sample app starts |
 | 1 Auto-config | Properties validation, auto-configuration, imports file, placeholder `/admin` | Starter alone makes `/admin` respond. Missing username fails startup clearly |
 | 2 Login | Security chain, login page, logout, public assets | Redirect to login, bad login rejected, good login works, host routes untouched |
 | 3 Discovery | Scanner, registry, layout, sidebar, dashboard stat cards | Every entity listed with right count, hidden ones absent |
@@ -212,7 +215,7 @@ Every phase ends with a running app, passing `mvn clean verify`, updated docs an
 | 11 CSV export | `ExportService`, export button, cap, escaping | Export respects search, filters, sort, columns. Sensitive fields absent. Formula cells escaped |
 | 12 Saved views | Save, apply, rename, delete views per entity | Views restore the exact state and survive reload |
 | 13 Polish | Styling from prototype, dark mode, toasts, empty states, shortcuts, annotations, README with screenshots | UI matches prototype, README quick start works in 5 minutes |
-| 14 Quality and release | Testcontainers (PostgreSQL, MySQL), security tests, CI, docs site, JitPack then Maven Central, optional S3 | All tests green, docs live, `v0.1.0` tagged |
+| 14 Quality and release | Testcontainers (PostgreSQL, MySQL), security tests, CI, docs site, JitPack then Maven Central | All tests green, docs live, `v0.1.0` tagged |
 
 ## 12. Testing strategy
 
@@ -222,7 +225,7 @@ Every phase ends with a running app, passing `mvn clean verify`, updated docs an
 | Slice | MockMvc for controllers, security rules, CSRF |
 | Integration | CRUD on every sample entity with H2, then PostgreSQL and MySQL (Testcontainers) |
 | Security | Unauthenticated access blocked, no sensitive value in any response or export, unknown sort field rejected, path traversal and disguised file uploads rejected |
-| Compatibility | Sample app on supported Spring Boot versions |
+| Compatibility | Sample app on Spring Boot 4.1.x (latest patch) with Java 17 and the newest supported Java LTS. A 3.5 compatibility build is not planned for v0.1 |
 | Manual | Browser pass on desktop and mobile, light and dark |
 
 Add a regression test for every bug.
@@ -242,15 +245,15 @@ Name checked on Maven Central and GitHub. Apache 2.0 licence. README, CONTRIBUTI
 | Exposed admin panel is a high-value target | Secure defaults, HTTPS guidance, rate limiting in v0.2, Security page |
 | Uploads open an attack surface | Strict validation, random names, no execution, authenticated serving, tests |
 | Lazy loading and entity cycles | Read-only transactions, map to display values, never render collections |
-| Larger v0.1 scope | Strict phase order, each phase shippable, S3 is the pressure valve |
+| Larger v0.1 scope | Strict phase order, each phase shippable, S3 already moved to v0.2 |
 | Large CSV exports hurt memory | Stream rows, hard cap, paged fetching |
 | Composite keys and embeddables | Unsupported in v0.1, clear message |
 | Name collision | Verify the name early |
-| Spring Boot version drift | CI matrix and support policy |
+| Spring Boot version drift | Track 4.1.x patches. Boot 4.1 OSS support runs to 2027-07-31, so plan a move to the next minor before then. Re-check APIs against the official docs (CODE-8) |
 
 ## 16. Roadmap after v0.1
 
-v0.2 login rate limiting, S3 provider if skipped, multi-value filters. v0.3 audit log. v0.4 multiple admins and enforced per-entity permissions. v0.5 inline child rows and quick-create from relation pickers. v0.6 galleries and image thumbnails. v1.0 stable API, Spring Boot 4, `@Embedded`, composite keys, translations.
+v0.2 login rate limiting, S3 storage provider, multi-value filters. v0.3 audit log. v0.4 multiple admins and enforced per-entity permissions. v0.5 inline child rows and quick-create from relation pickers. v0.6 galleries and image thumbnails. v1.0 stable API, `@Embedded`, composite keys, translations.
 
 ## 17. Timeline (solo developer with Claude Code)
 
@@ -263,11 +266,13 @@ v0.2 login rate limiting, S3 provider if skipped, multi-value filters. v0.3 audi
 | 5 | 11 to 13 |
 | 6 | 14 |
 
-## 18. Open decisions
+## 18. Decisions
 
-1. Final project name and Maven `groupId`.
-2. Minimum Spring Boot version (recommended 3.2+).
-3. S3 provider inside v0.1 or in v0.2.
-4. Whether local uploads are public by default (recommended: no, authenticated only).
-5. Default console path `/admin` or a less guessable one.
-6. How strict the production password check should be.
+All earlier open decisions are resolved. See `docs/DECISIONS.md` for date and reason.
+
+1. `groupId` is `io.github.mdmusahub`. Starter artifactId is `jpa-super-admin-spring-boot-starter`. Parent artifactId is `jpa-super-admin`.
+2. v0.1 targets Spring Boot 4.1.x (latest stable patch, currently 4.1.2) with Java 17 minimum. Spring Boot 3.x is not supported in v0.1 (D-16, supersedes D-3). The exact version is confirmed with the maintainer before it is pinned.
+3. S3 provider is in v0.2.
+4. Uploads are private by default (authenticated only).
+5. Default console path stays `/admin`.
+6. Production password check: fail startup under `prod` for passwords under 12 characters or common ones, otherwise warn.

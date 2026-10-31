@@ -45,9 +45,7 @@ Spring Boot developers repeatedly build the same internal screens to view and ed
 
 In scope for v0.1: auto-configuration, mandatory admin credentials, separate login, entity discovery, list with search, sort, paging and filters, saved views, detail, create, edit, delete, bulk delete, duplicate, file and image uploads, dashboard stats and chart, CSV export, sensitive field masking, light and dark theme, sample app, tests, docs.
 
-Optional in v0.1: S3 storage provider.
-
-Out of scope for v0.1: multiple admins and roles, audit log, inline child rows, embedded and composite keys, image resizing and galleries, server-side saved views, XLSX export, translations, WebFlux and non-JPA stores.
+Out of scope for v0.1: S3 storage provider (planned for v0.2), multiple admins and roles, audit log, inline child rows, embedded and composite keys, image resizing and galleries, server-side saved views, XLSX export, translations, WebFlux and non-JPA stores.
 
 ## A6. User stories and acceptance criteria
 
@@ -119,14 +117,15 @@ Out of scope for v0.1: multiple admins and roles, audit log, inline child rows, 
 - Upload fields support drag and drop or click to browse, show a preview and progress, and block saving until the upload finishes.
 - Type and size are checked in the browser and again on the server by content.
 - Disallowed or disguised files are rejected with a clear message.
-- Stored files get random names. Images show as thumbnails in tables and on detail pages.
+- Stored files get random names. Images show as thumbnails in tables and on detail pages (the original image scaled by CSS, with no server-side resizing).
+- Uploads need a short-lived signed ticket issued with the form page, in addition to the session and CSRF token.
 - Files are served only to signed-in admins unless a public path is configured.
 - Startup fails if an upload field refers to an unconfigured storage.
 
 ### Output
 
 **US-13 Export CSV.** As a QA or support user, I export the current results.
-- Export respects search, filters, sort and visible columns, up to the configured row cap.
+- Export respects search, filters, sort and visible columns, up to the configured row cap (never more than 50,000).
 - Sensitive fields are never included.
 - Cells that could run as spreadsheet formulas are neutralised.
 - Export can be turned off globally or per entity.
@@ -167,7 +166,7 @@ Out of scope for v0.1: multiple admins and roles, audit log, inline child rows, 
 |---|---|
 | Security | Secure defaults, CSRF, masked secrets, validated inputs, safe uploads, no change to host security |
 | Usability | Working console in 5 minutes. Clear errors. Responsive and keyboard friendly |
-| Compatibility | Java 17+, Spring Boot 3.x (3.2+ recommended), Jakarta, Hibernate 6. Boot 4 verified later |
+| Compatibility | Java 17+, Spring Boot 4.1.x, Jakarta Persistence 3.2, Hibernate ORM 7. Spring Boot 3.x is not supported in v0.1 |
 | Databases | H2, PostgreSQL, MySQL tested |
 | Performance | Metadata read once. Lists always paged. Export streamed with a row cap. No N+1 on relation labels |
 | Footprint | No Node build for users. No external network calls from the UI |
@@ -181,7 +180,7 @@ Out of scope for v0.1: multiple admins and roles, audit log, inline child rows, 
 - Entities use single-column ids (`Long`, `Integer`, `UUID`, `String`).
 - A single admin account is acceptable for v0.1.
 - The console path is not the site root.
-- Local storage is the default upload store. S3 is optional.
+- Local storage is the only upload store in v0.1. S3 is planned for v0.2.
 - Development is done by a small team with Claude Code, following `docs/PLAN.md`.
 
 ## A10. Risks
@@ -242,7 +241,7 @@ Highlights: every entity found automatically, search, filters and saved views, c
 </dependency>
 ```
 
-Requirements: Java 17+, Spring Boot 3.x, Spring Data JPA, a servlet web application.
+Requirements: Java 17+, Spring Boot 4.1.x (Spring Boot 3.x is not supported), Spring Data JPA, a servlet web application.
 
 Add the two mandatory properties:
 
@@ -269,11 +268,11 @@ One section per annotation with a short example and a table of options with defa
 
 ## B7. File uploads (draft outline)
 
-How uploads work, `@AdminUpload` options, local storage configuration, serving and visibility, size and type limits, what is validated, known limits (one file per field, old files are kept on replace, no thumbnails), and the optional S3 provider.
+How uploads work, `@AdminUpload` options, local storage configuration, serving and visibility, size and type limits, what is validated, known limits (one file per field, old files are kept on replace, no server-side thumbnails), upload tickets, and the S3 provider as "not yet" (planned for v0.2).
 
 ## B8. Security (draft outline)
 
-Sign-in and sessions, what is protected, built-in safeguards, limits to know (single admin, no audit log, no login rate limiting yet), and a hardening checklist: password from a secret, HTTPS, restrict network access, hide or read-only sensitive entities, private upload storage, disable demo settings in production.
+Sign-in and sessions (the console uses Spring Boot's default session cookie settings; host apps should set `Secure` and `SameSite` themselves), what is protected, built-in safeguards, the `prod` profile password check (at least 12 characters, not a common password), limits to know (single admin, no audit log, no login rate limiting yet), and a hardening checklist: password from a secret, HTTPS, restrict network access, hide or read-only sensitive entities, private upload storage, disable demo settings in production.
 
 ## B9. Annotations reference (draft outline)
 
@@ -285,13 +284,13 @@ Routes from `docs/PLAN.md` section 9, with parameters, responses and error codes
 
 ## B11. Deployment and troubleshooting (draft outline)
 
-Running behind a reverse proxy, HTTPS, multiple instances (set the upload signing key), file storage volumes, common errors (startup failure on missing properties, unconfigured storage, 404 for unknown entity, lazy-loading message, blocked uploads) with fixes.
+Running behind a reverse proxy, HTTPS, multiple instances (set `jpa.admin.upload.signing-key` so upload tickets validate on every instance), file storage volumes, common errors (startup failure on missing properties, unconfigured storage, 404 for unknown entity, lazy-loading message, blocked uploads) with fixes.
 
 ## B12. Limitations and roadmap (draft)
 
 Current limits: single admin account, no audit log, no login rate limiting, no inline child rows, no embedded or composite keys, one file per upload field, no image resizing, English only, saved views stored per browser, CSV only, servlet applications only.
 
-Roadmap: v0.2 rate limiting and multi-value filters, v0.3 audit log, v0.4 multiple admins with roles, v0.5 inline child rows, v0.6 galleries and thumbnails, v1.0 stable API and Spring Boot 4.
+Roadmap: v0.2 rate limiting, S3 storage provider and multi-value filters, v0.3 audit log, v0.4 multiple admins with roles, v0.5 inline child rows, v0.6 galleries and thumbnails, v1.0 stable API, `@Embedded` and composite keys. A Spring Boot 3.5 compatibility build can be reconsidered if users ask.
 
 ## B13. Contributing pages (draft outline)
 
