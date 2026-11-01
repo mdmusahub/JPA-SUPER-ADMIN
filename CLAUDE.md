@@ -45,10 +45,33 @@ Maven groupId: `io.github.mdmusahub`, parent artifactId: `jpa-super-admin`. Pack
 
 ```
 mvn clean verify                          # build and run all tests (must pass before you finish)
-mvn -pl sample-app spring-boot:run        # run the demo at http://localhost:8080/admin
 mvn -pl jpa-admin-core test               # core tests only
 mkdocs serve                              # preview docs
 ```
+
+### Run the demo
+
+The sample app deliberately has no admin credentials in its `application.yml`, so set the two required properties yourself (a password of 12 or more characters). Build the jar, set the variables, run the jar, then open http://localhost:8080/admin. Stop it with Ctrl+C.
+
+PowerShell:
+
+```powershell
+mvn -pl sample-app -am package -DskipTests
+$env:JPA_ADMIN_USERNAME = 'admin'
+$env:JPA_ADMIN_PASSWORD = '<12 or more characters>'    # this PowerShell session only
+java -jar sample-app/target/sample-app-0.1.0-SNAPSHOT.jar
+```
+
+bash:
+
+```bash
+mvn -pl sample-app -am package -DskipTests
+export JPA_ADMIN_USERNAME=admin
+export JPA_ADMIN_PASSWORD='<12 or more characters>'
+java -jar sample-app/target/sample-app-0.1.0-SNAPSHOT.jar
+```
+
+Do not run the demo with `mvn -pl sample-app spring-boot:run`. Without `-am`, Maven takes the other modules from `~/.m2`, where an older `mvn install` can leave stale jars, so it can run old code (in Phase 1 it answered 404 at `/admin`). The jar is built from the current sources.
 
 ## How to work
 

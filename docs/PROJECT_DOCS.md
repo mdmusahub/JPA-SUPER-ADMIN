@@ -179,7 +179,7 @@ Out of scope for v0.1: S3 storage provider (planned for v0.2), multiple admins a
 - The host application is a servlet-based Spring Boot app using JPA with Hibernate.
 - Entities use single-column ids (`Long`, `Integer`, `UUID`, `String`).
 - A single admin account is acceptable for v0.1.
-- The console path is not the site root.
+- The console path is not the site root, has no trailing slash, and uses only letters, digits, `-` and `_` between single slashes (SEC-14).
 - Local storage is the only upload store in v0.1. S3 is planned for v0.2.
 - Development is done by a small team with Claude Code, following `docs/PLAN.md`.
 
@@ -256,7 +256,7 @@ Start the application and open `/admin`. If either property is missing, the app 
 
 ## B4. Configuration (draft)
 
-Reproduce the property table from `docs/PLAN.md` section 5, with a sentence per property and an example. State clearly which properties are required (only `username` and `password`).
+Reproduce the property table from `docs/PLAN.md` section 5, with a sentence per property and an example. State clearly which properties are required (only `username` and `password`), that an environment variable which is not set counts as missing (`password: ${ADMIN_PASSWORD}` with no such variable stops startup), the rules for `path` and `primary-color`, and that one startup report lists every wrong property.
 
 ## B5. Using the console (draft outline)
 
@@ -284,7 +284,7 @@ Routes from `docs/PLAN.md` section 9, with parameters, responses and error codes
 
 ## B11. Deployment and troubleshooting (draft outline)
 
-Running behind a reverse proxy, HTTPS, multiple instances (set `jpa.admin.upload.signing-key` so upload tickets validate on every instance), file storage volumes, common errors (startup failure on missing properties, unconfigured storage, 404 for unknown entity, lazy-loading message, blocked uploads) with fixes.
+Running behind a reverse proxy, HTTPS, multiple instances (set `jpa.admin.upload.signing-key` so upload tickets validate on every instance), file storage volumes, common errors (startup failure on missing properties, including a username or password variable that is not set; a weak password under the `prod` profile; unconfigured storage, 404 for unknown entity, lazy-loading message, blocked uploads) with fixes.
 
 ## B12. Limitations and roadmap (draft)
 
