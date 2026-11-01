@@ -1,5 +1,151 @@
 /*
- * JPA Admin: design tokens (placeholder).
- * Added by the backend track in Phase 1 only so the asset handler can be tested end to end. The UI track replaces
- * this file with the real tokens (docs/UI_PLAN.md section 5).
+ * JPA Admin: design tokens.
+ *
+ * Colours, spacing, type and radii for both themes (docs/UI_PLAN.md section 5). Every accent shade is derived from
+ * --ac, the one variable that {path}/theme.css overrides from the validated jpa.admin.primary-color (SEC-15), so this
+ * file never needs to know the configured colour.
+ *
+ * Theme: no attribute = follow the operating system. theme.js sets data-theme="light" or "dark" on <html> for an
+ * explicit choice. Without JavaScript the operating system's choice still applies.
  */
+
+:root {
+  color-scheme: light;
+
+  /* Accent. Default value; theme.css loads after this file and replaces it. */
+  --ac: #0d9f6e;
+  --accent: var(--ac);
+  --accent-strong: color-mix(in srgb, var(--ac) 78%, #000);   /* filled buttons: white text keeps AA contrast */
+  --accent-hover: color-mix(in srgb, var(--ac) 66%, #000);
+  --accent-text: color-mix(in srgb, var(--ac) 72%, #000);     /* links and accent text on light surfaces */
+  --accent-tint: color-mix(in srgb, var(--ac) 12%, #fff);
+  --on-accent: #fff;
+  --focus-ring: color-mix(in srgb, var(--ac) 70%, #000);
+
+  /* Surfaces and text */
+  --bg: #f5f6f8;
+  --panel: #fff;
+  --panel-alt: #f9fafb;
+  --ink: #15181d;
+  --muted: #5a6472;
+  --line: #e2e5ea;
+  --line-strong: #cdd2d9;
+  --hover: #eef0f3;
+
+  /* Status tones, each with a tint for badges and alerts */
+  --red: #b42318;
+  --red-tint: #fef3f2;
+  --red-line: #fecdca;
+  --amber: #93500a;
+  --amber-tint: #fffaeb;
+  --amber-line: #fedf89;
+  --blue: #175cd3;
+  --blue-tint: #eff8ff;
+  --blue-line: #b2ddff;
+  --grey: #475467;
+  --grey-tint: #f2f4f7;
+
+  /* One soft shadow, for floating bars and dialogs only */
+  --shadow: 0 8px 24px rgb(16 24 40 / 12%), 0 2px 6px rgb(16 24 40 / 8%);
+  --backdrop: rgb(16 24 40 / 45%);
+
+  /* Shape */
+  --radius: 8px;
+  --radius-lg: 12px;
+
+  /* Spacing, 4px scale */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 20px;
+  --s6: 24px;
+  --s8: 32px;
+  --s10: 40px;
+
+  /* Type */
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --text: 14px;
+  --text-sm: 12px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+
+  /* Layout */
+  --page-pad: 24px;
+  --sidebar-w: 248px;
+  --content-max: 1240px;
+  --topbar-h: 56px;
+  --drawer-breakpoint: 900px;
+}
+
+/* Dark: an explicit choice ... */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --accent-strong: color-mix(in srgb, var(--ac) 78%, #000);
+  --accent-text: color-mix(in srgb, var(--ac) 68%, #fff);
+  --accent-tint: color-mix(in srgb, var(--ac) 20%, #161a21);
+  --focus-ring: color-mix(in srgb, var(--ac) 55%, #fff);
+
+  --bg: #0e1116;
+  --panel: #161a21;
+  --panel-alt: #1b2028;
+  --ink: #e7eaee;
+  --muted: #9aa4b2;
+  --line: #272d37;
+  --line-strong: #38404c;
+  --hover: #212731;
+
+  --red: #fda29b;
+  --red-tint: #3a1614;
+  --red-line: #7a2a25;
+  --amber: #fec84b;
+  --amber-tint: #38280c;
+  --amber-line: #7a5a14;
+  --blue: #84caff;
+  --blue-tint: #0f2a44;
+  --blue-line: #1f4f80;
+  --grey: #cbd2dc;
+  --grey-tint: #262c36;
+
+  --shadow: 0 8px 24px rgb(0 0 0 / 50%), 0 2px 6px rgb(0 0 0 / 40%);
+  --backdrop: rgb(0 0 0 / 60%);
+}
+
+/* ... or the operating system's choice when there is no explicit one (and always, without JavaScript). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+
+    --accent-strong: color-mix(in srgb, var(--ac) 78%, #000);
+    --accent-text: color-mix(in srgb, var(--ac) 68%, #fff);
+    --accent-tint: color-mix(in srgb, var(--ac) 20%, #161a21);
+    --focus-ring: color-mix(in srgb, var(--ac) 55%, #fff);
+
+    --bg: #0e1116;
+    --panel: #161a21;
+    --panel-alt: #1b2028;
+    --ink: #e7eaee;
+    --muted: #9aa4b2;
+    --line: #272d37;
+    --line-strong: #38404c;
+    --hover: #212731;
+
+    --red: #fda29b;
+    --red-tint: #3a1614;
+    --red-line: #7a2a25;
+    --amber: #fec84b;
+    --amber-tint: #38280c;
+    --amber-line: #7a5a14;
+    --blue: #84caff;
+    --blue-tint: #0f2a44;
+    --blue-line: #1f4f80;
+    --grey: #cbd2dc;
+    --grey-tint: #262c36;
+
+    --shadow: 0 8px 24px rgb(0 0 0 / 50%), 0 2px 6px rgb(0 0 0 / 40%);
+    --backdrop: rgb(0 0 0 / 60%);
+  }
+}

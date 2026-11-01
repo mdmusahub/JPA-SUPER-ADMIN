@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<!--/*
+  Everything a console page needs in <head>, in the order that matters:
+    1. theme.js first and BLOCKING (no async, no defer), so the theme is on the page before the first paint.
+    2. tokens.css, base.css, components.css, pages.css.
+    3. theme.css last: it only sets --ac, so it has to come after tokens.css, which gives --ac its default.
+  Every URL is built from the base path. No inline script, no inline style, no external address (UI-2, UI-13).
+*/-->
+<th:block th:fragment="assets">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="data:,">
+  <script th:src="@{${chrome.basePath} + '/assets/js/theme.js'}"></script>
+  <link rel="stylesheet" th:href="@{${chrome.basePath} + '/assets/css/tokens.css'}">
+  <link rel="stylesheet" th:href="@{${chrome.basePath} + '/assets/css/base.css'}">
+  <link rel="stylesheet" th:href="@{${chrome.basePath} + '/assets/css/components.css'}">
+  <link rel="stylesheet" th:href="@{${chrome.basePath} + '/assets/css/pages.css'}">
+  <link rel="stylesheet" th:href="@{${chrome.basePath} + '/theme.css'}">
+</th:block>
+</head>
+<body></body>
+</html>

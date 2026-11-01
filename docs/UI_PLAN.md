@@ -39,7 +39,7 @@ JPA Super Admin/                      one git repo, one branch per phase
 | Fixtures and preview controller | UI | `jpa-admin-ui-preview/**` (never published, never part of the starter) |
 | Shared docs and parent pom | Whoever is working, one session at a time | `docs/**`, `pom.xml`, `CLAUDE.md` |
 
-The starter depends on `jpa-admin-ui`, so templates and assets reach the host application automatically. Thymeleaf finds templates on the classpath, and the backend registers a resource handler that maps `{path}/assets/**` to `classpath:/jpa-admin/assets/`. That location is deliberately not one of Spring Boot's default static locations (`/static`, `/public`, `/resources`, `/META-INF/resources`), so the assets are served only through the console's own handler and never at a second URL in the host application. That handler never serves hidden files or folders (any path segment that starts with a dot), so a stray `.gitkeep` or `.DS_Store` in the asset folder is never published (D-32); the `.gitkeep` that used to sit in that folder has been removed.
+The starter depends on `jpa-admin-ui`, so templates and assets reach the host application automatically. Thymeleaf finds templates on the classpath (the console uses its own private engine for them, D-40, so the host's Thymeleaf or other view technology is neither used nor changed), and the backend registers a resource handler that maps `{path}/assets/**` to `classpath:/jpa-admin/assets/`. That location is deliberately not one of Spring Boot's default static locations (`/static`, `/public`, `/resources`, `/META-INF/resources`), so the assets are served only through the console's own handler and never at a second URL in the host application. That handler never serves hidden files or folders (any path segment that starts with a dot), so a stray `.gitkeep` or `.DS_Store` in the asset folder is never published (D-32); the `.gitkeep` that used to sit in that folder has been removed.
 
 ## 3. The contract (view models)
 
@@ -194,6 +194,12 @@ UI tasks use the prefix **U**. A UI task is "done" when it works in the preview 
 | U7 | Dashboard chart with range switch | 10 Charts | Phase 10 |
 | U8 | Export button states, saved views menu | 11 Export, 12 Saved views | Phase 12 |
 | U9 | Accessibility, responsive and dark theme passes, keyboard shortcuts, docs screenshots | 13 Polish | Phase 13 |
+
+### U0 status (2026-11-01, Phase 2)
+
+Delivered and connected in the sample app: `tokens.css`, `base.css`, `components.css`, `pages.css`; `theme.js` (blocking, in `<head>`) and `nav.js`; `layout.html`, `login.html`, `dashboard.html` (welcome state only), `error.html`, and the fragments `head`, `sidebar`, `topbar`, `breadcrumbs`, `toast`, `icons`, `theme-toggle`; preview fixtures for login, the minimal dashboard, the error pages and nine chrome variants. The look follows section 5 because `docs/prototype/admin-console.html` was not in the repository when U0 was built. The maintainer is adding that file themselves (2026-11-02) and will ask for a UI alignment pass after their commit; that pass is not part of U0 and nothing was changed for it.
+Since 2026-11-02 (D-40) the real console renders these templates with its own private Thymeleaf engine, which finds them under `classpath:/templates/jpa-admin/` and reads nothing of the host's Thymeleaf setup or `spring.thymeleaf.*` settings. Template names must stay lower-case words joined by hyphens (`jpa-admin/entity-list`, not `jpa-admin/EntityList`), or the console refuses them. The preview app is unchanged: it keeps Boot's Thymeleaf with `spring.thymeleaf.cache=false`, so a template change shows after a rebuild.
+Not part of U0 and still to do: stat cards, entity cards and the chart (U1, U7), tables and everything after, the accent colour and theme polish pass and screenshots for the docs (U9), toasts that disappear by themselves (U9), a full focus trap in the drawer (U9), and the `long-sidebar` chrome variant (U1).
 
 ## 8. Sync points
 

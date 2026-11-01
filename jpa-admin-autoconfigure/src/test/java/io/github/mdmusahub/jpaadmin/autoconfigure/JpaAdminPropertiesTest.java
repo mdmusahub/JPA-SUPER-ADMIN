@@ -50,6 +50,46 @@ class JpaAdminPropertiesTest {
                 .isInstanceOf(JpaAdminConfigurationException.class);
     }
 
+    // ---- the BCrypt limit ----------------------------------------------------------------------------------------
+
+    @Test
+    void aPasswordOfExactly72BytesIsAccepted() {
+        JpaAdminProperties properties = valid();
+        properties.setPassword("a".repeat(72));
+
+        assertThatCode(properties::validate).doesNotThrowAnyException();
+    }
+
+    @Test
+    void aPasswordOf73BytesStopsStartupBecauseBcryptCannotHashItAndNamesTheProperty() {
+        JpaAdminProperties properties = valid();
+        properties.setPassword("a".repeat(73));
+
+        assertThatThrownBy(properties::validate).isInstanceOf(JpaAdminConfigurationException.class)
+                .satisfies(error -> assertThat(((JpaAdminConfigurationException) error).problems()).singleElement()
+                        .asString().contains("jpa.admin.password is longer than 72 bytes").contains("BCrypt")
+                        .doesNotContain("aaaaaaaa"));
+    }
+
+    @Test
+    void theLimitCountsBytesNotCharacters() {
+        JpaAdminProperties tooLong = valid();
+        tooLong.setPassword("é".repeat(37)); // 37 two-byte characters are 74 bytes
+        JpaAdminProperties justRight = valid();
+        justRight.setPassword("é".repeat(36)); // 72 bytes
+
+        assertThatThrownBy(tooLong::validate).isInstanceOf(JpaAdminConfigurationException.class);
+        assertThatCode(justRight::validate).doesNotThrowAnyException();
+    }
+
+    @Test
+    void theLengthRuleIsAboutThePasswordOnly() {
+        JpaAdminProperties properties = valid();
+        properties.setUsername("u".repeat(200));
+
+        assertThatCode(properties::validate).doesNotThrowAnyException();
+    }
+
     // ---- username and password ---------------------------------------------------------------------------------
 
     @ParameterizedTest

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<body>
+<!--/*
+  The sidebar: the brand, a link to the dashboard, then the entity groups from chrome.nav. Every entity link is built
+  from the base path and the entity's URL name. The current entity (chrome.activeEntity) is marked with aria-current.
+  The dashboard link is the current page when no entity is active and the trail has a single step (the dashboard
+  itself, not an error page under it). The groups are empty until the console lists entities (Phase 3).
+*/-->
+<aside th:fragment="sidebar" class="sidebar" id="sidebar" aria-label="Main navigation">
+  <div class="sidebar-head">
+    <a class="brand" th:href="@{${chrome.basePath}}">
+      <span class="brand-mark"><th:block th:replace="~{jpa-admin/fragments/icons :: logo}"></th:block></span>
+      <span class="brand-name" th:text="${chrome.title}">JPA Admin</span>
+    </a>
+    <button type="button" class="icon-button sidebar-close" data-nav-close aria-label="Close navigation">
+      <th:block th:replace="~{jpa-admin/fragments/icons :: close}"></th:block>
+    </button>
+  </div>
+
+  <nav aria-label="Entities">
+    <ul class="nav-list">
+      <li>
+        <a class="nav-link" th:href="@{${chrome.basePath}}"
+           th:attr="aria-current=${chrome.activeEntity == null and chrome.breadcrumbs.size() lt 2} ? 'page'">
+          <th:block th:replace="~{jpa-admin/fragments/icons :: home}"></th:block>
+          <span>Dashboard</span>
+        </a>
+      </li>
+    </ul>
+
+    <section th:each="group : ${chrome.nav}">
+      <h2 class="nav-group-title" th:text="${group.label}">Group</h2>
+      <ul class="nav-list">
+        <li th:each="item : ${group.items}">
+          <a class="nav-link" th:href="@{${chrome.basePath} + '/' + ${item.entity}}"
+             th:attr="aria-current=${item.entity == chrome.activeEntity} ? 'page'">
+            <span th:text="${item.label}">Entity</span>
+            <span class="nav-count" th:text="${item.count}">0</span>
+          </a>
+        </li>
+      </ul>
+    </section>
+
+    <p class="nav-note" th:if="${chrome.nav.isEmpty()}">Your entities will be listed here.</p>
+  </nav>
+</aside>
+</body>
+</html>

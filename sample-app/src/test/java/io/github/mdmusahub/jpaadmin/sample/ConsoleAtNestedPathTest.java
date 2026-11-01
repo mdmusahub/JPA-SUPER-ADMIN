@@ -1,7 +1,7 @@
 package io.github.mdmusahub.jpaadmin.sample;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.net.URI;
@@ -23,9 +23,12 @@ class ConsoleAtNestedPathTest {
 
     @Test
     void theConsoleAndItsAssetsAreServedAtTheNestedPath() throws Exception {
-        mvc.perform(get("/tools/admin")).andExpect(status().isOk())
-                .andExpect(content().string("JPA Admin console is running"));
+        mvc.perform(get("/tools/admin")).andExpect(status().isFound())
+                .andExpect(header().string("Location", "/tools/admin/login"));
         mvc.perform(get("/tools/admin/assets/css/tokens.css")).andExpect(status().isOk());
+        MockBrowser browser = MockBrowser.signedIn(mvc, "/tools/admin");
+        org.assertj.core.api.Assertions.assertThat(browser.get("/tools/admin").getContentAsString())
+                .contains("Welcome to <span>JPA Admin</span>", "action=\"/tools/admin/logout\"");
     }
 
     @ParameterizedTest

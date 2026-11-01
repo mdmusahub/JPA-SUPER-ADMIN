@@ -28,6 +28,12 @@
       <optional>true</optional>
     </dependency>
 
+    <!-- Test scope only (D-34): MockHttpServletRequest and friends for the controller and resolver unit tests. -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-test</artifactId>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
