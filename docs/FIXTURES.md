@@ -45,6 +45,7 @@ Used with any page through `&chrome=`.
 | `normal` | `DashboardView` with 3 groups, 8 entities, `chartAvailable` true | Stat cards, entity cards with counts and permissions, chart card placeholder | U1 |
 | `no-chart` | `chartAvailable` false | Chart card hidden | U1 |
 | `empty-database` | All counts 0, `largestTable` null | Stat cards with zeros, empty-state hint | U1 |
+| `minimal` | `DashboardView` with zero stats, no groups, `chartAvailable` false (what the Phase 2 dashboard really shows) | Shell plus a welcome state, no data | U0 |
 | `no-entities` | `groups` empty, `entityCount` 0 | Empty state that explains how entities are discovered | U1 |
 | `many-groups` | 8 groups and 60 entities | Card grid layout and wrapping | U1 |
 | `read-only-entities` | `Permissions` with some flags false | Actions hidden or disabled per permission | U1 |
@@ -134,6 +135,7 @@ The preview serves these from a stub upload endpoint, chosen with the `state` fi
 | `forbidden` | Status 403 | Message about the action not being allowed | U0 |
 | `server-error` | Status 500 with a friendly heading and hint | No SQL, table names or stack trace (SEC-12) | U0 |
 | `bad-request` | Status 400 | Invalid sort, filter or id parameter | U0 |
+| `method-not-allowed` | Status 405 | Message that the address does not accept that kind of request | U0 |
 | `long-hint` | A 400-character hint | Wrapping on a phone | U0 |
 
 ## 10. Cross-page checks (no new fixtures)

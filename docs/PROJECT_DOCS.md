@@ -59,8 +59,9 @@ Out of scope for v0.1: S3 storage provider (planned for v0.2), multiple admins a
 **US-2 Sign in.** As an admin, I sign in with the configured credentials.
 - Unauthenticated requests to console pages redirect to the login page.
 - Wrong credentials show an error and do not reveal which field was wrong.
-- After login I land on the dashboard. After logout my session is invalid.
-- The host application's own routes and users are unaffected.
+- After login I land on the dashboard. After logout I am signed out of the console.
+- The host application's own routes and users are unaffected: the console's sign-in and its session data are separate from the host's, whatever the host's own security looks like.
+- Signing out clears only what the console keeps in the browser session. A host login, cart or any other state in the same session is not touched, and the session itself ends only when nothing but console state was in it (D-39).
 
 ### Navigation
 
@@ -243,6 +244,8 @@ Highlights: every entity found automatically, search, filters and saved views, c
 
 Requirements: Java 17+, Spring Boot 4.1.x (Spring Boot 3.x is not supported), Spring Data JPA, a servlet web application.
 
+The starter brings the Thymeleaf library that the console renders its own pages with. It does not set Thymeleaf up for your application: your own views, template engine, view resolvers and `spring.thymeleaf.*` settings (or JSP, FreeMarker, Mustache) are neither used nor changed by the console, and if you have no Thymeleaf you do not get one (D-40).
+
 Add the two mandatory properties:
 
 ```yaml
@@ -272,7 +275,7 @@ How uploads work, `@AdminUpload` options, local storage configuration, serving a
 
 ## B8. Security (draft outline)
 
-Sign-in and sessions (the console uses Spring Boot's default session cookie settings; host apps should set `Secure` and `SameSite` themselves), what is protected, built-in safeguards, the `prod` profile password check (at least 12 characters, not a common password), limits to know (single admin, no audit log, no login rate limiting yet), and a hardening checklist: password from a secret, HTTPS, restrict network access, hide or read-only sensitive entities, private upload storage, disable demo settings in production.
+Sign-in and sessions (the console uses Spring Boot's default session cookie settings; host apps should set `Secure` and `SameSite` themselves; the console keeps its login, CSRF token and saved page under its own names in the shared session; signing out removes only the console's own session data and ends the session only when nothing else is in it, so a host login in the same browser stays; a startup warning under `prod` over plain HTTP, and the reverse-proxy settings that silence it), response headers (including a strict Content-Security-Policy, and why the console sends no HSTS), what is protected, built-in safeguards, the `prod` profile password check (at least 12 characters, not a common password), limits to know (single admin, no audit log, no login rate limiting yet), and a hardening checklist: password from a secret, HTTPS, restrict network access, hide or read-only sensitive entities, private upload storage, disable demo settings in production.
 
 ## B9. Annotations reference (draft outline)
 
@@ -284,11 +287,11 @@ Routes from `docs/PLAN.md` section 9, with parameters, responses and error codes
 
 ## B11. Deployment and troubleshooting (draft outline)
 
-Running behind a reverse proxy, HTTPS, multiple instances (set `jpa.admin.upload.signing-key` so upload tickets validate on every instance), file storage volumes, common errors (startup failure on missing properties, including a username or password variable that is not set; a weak password under the `prod` profile; unconfigured storage, 404 for unknown entity, lazy-loading message, blocked uploads) with fixes.
+Running behind a reverse proxy, HTTPS, multiple instances (set `jpa.admin.upload.signing-key` so upload tickets validate on every instance), file storage volumes, common errors (a 500 from the console with the log line "did not pass through the console's security chain", most often because of a servlet path prefix, `spring.mvc.servlet.path`, which v0.1 does not support; startup failure on missing properties, including a username or password variable that is not set; a weak password under the `prod` profile; unconfigured storage, 404 for unknown entity, lazy-loading message, blocked uploads) with fixes.
 
 ## B12. Limitations and roadmap (draft)
 
-Current limits: single admin account, no audit log, no login rate limiting, no inline child rows, no embedded or composite keys, one file per upload field, no image resizing, English only, saved views stored per browser, CSV only, servlet applications only.
+Current limits: single admin account, a servlet path prefix is not supported in v0.1 (`spring.mvc.servlet.path` must be unset; otherwise the console answers 500 and logs why, D-41), password at most 72 bytes, console templates are cached and not reloaded at run time (D-40), no audit log, no login rate limiting, no inline child rows, no embedded or composite keys, one file per upload field, no image resizing, English only, saved views stored per browser, CSV only, servlet applications only.
 
 Roadmap: v0.2 rate limiting, S3 storage provider and multi-value filters, v0.3 audit log, v0.4 multiple admins with roles, v0.5 inline child rows, v0.6 galleries and thumbnails, v1.0 stable API, `@Embedded` and composite keys. A Spring Boot 3.5 compatibility build can be reconsidered if users ask.
 
