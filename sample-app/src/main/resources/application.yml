@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: jpa-admin-sample
+  jpa:
+    # Off on purpose (D-29): nothing may rely on a session kept open for the whole web request. The console reads
+    # lazy associations inside its own read-only transactions, so it must work with this off as well as on.
+    open-in-view: false
+    hibernate:
+      # H2 is embedded, so Boot defaults to create-drop. Stated here so the demo does not depend on the default.
+      ddl-auto: create-drop

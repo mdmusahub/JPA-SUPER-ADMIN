@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>4.1.2</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>io.github.mdmusahub</groupId>
+  <artifactId>jpa-super-admin</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+
+  <name>JPA Super Admin</name>
+  <description>Spring Boot starter that adds a Django-Admin-style console to any Spring Boot + JPA application.</description>
+
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+    </license>
+  </licenses>
+
+  <modules>
+    <module>jpa-admin-core</module>
+    <module>jpa-admin-ui</module>
+    <module>jpa-admin-autoconfigure</module>
+    <module>jpa-admin-ui-preview</module>
+    <module>jpa-admin-starter</module>
+    <module>sample-app</module>
+  </modules>
+
+  <properties>
+    <!-- java.version is 17 in spring-boot-starter-parent; stated here so the minimum is explicit. -->
+    <java.version>17</java.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>io.github.mdmusahub</groupId>
+        <artifactId>jpa-admin-core</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.github.mdmusahub</groupId>
+        <artifactId>jpa-admin-ui</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.github.mdmusahub</groupId>
+        <artifactId>jpa-admin-autoconfigure</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.github.mdmusahub</groupId>
+        <artifactId>jpa-super-admin-spring-boot-starter</artifactId>
+        <version>${project.version}</version>
+        <type>pom</type>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <build>
+    <plugins>
+      <!-- ARCH-11: preview code must never be a dependency of any other module. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>forbid-preview-dependency</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <bannedDependencies>
+                  <excludes>
+                    <exclude>io.github.mdmusahub:jpa-admin-ui-preview</exclude>
+                  </excludes>
+                  <message>jpa-admin-ui-preview is a preview app and must not be a dependency of any module (ARCH-11).</message>
+                </bannedDependencies>
+              </rules>
+              <fail>true</fail>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
