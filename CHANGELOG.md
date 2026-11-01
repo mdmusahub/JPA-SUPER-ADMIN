@@ -6,6 +6,34 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
+- Sign-in (Phase 2). One security chain for the console path only, with the highest precedence: form login at `{path}/login`, sign-out only as a POST with the CSRF token (it clears the console's own session data and ends the session only if nothing else is in it, so a host login in the same browser stays; D-39), CSRF protection on every request, one admin from `jpa.admin.username` and `jpa.admin.password` (BCrypt hash made at startup, role `JPA_ADMIN`), session fixation protection, one generic message for a wrong username and a wrong password, and no redirect target ever taken from a request. Public: the sign-in page, `{path}/assets/**` and `{path}/theme.css`.
+- The host application is left alone (SEC-4): the console adds no `UserDetailsService`, `AuthenticationManager`, `AuthenticationProvider` or `PasswordEncoder` bean, so a host's own users and Boot's defaults are neither used nor changed; a host without Spring Security gets no newly protected route and no generated password in its log; a host with its own chain, or one that relies on Spring Boot's default chain, behaves exactly as before. The console keeps its login, CSRF token and saved page in the shared session under its own names. It refuses to answer (500, one log line) if a request reaches it without passing its chain, and backs off completely when Spring Security or Thymeleaf is missing.
+- The console renders its pages with its own private Thymeleaf engine and view resolver, limited to the console's templates (D-40). It does not read the host's `spring.thymeleaf.*` settings, template resolvers, dialects, engines or view resolvers, adds no bean of those types, and hands Spring MVC the finished view, so no view resolver of the host (another Thymeleaf setup, JSP, FreeMarker, Mustache, a catch-all resolver with a higher priority) is ever asked about a console page, and the host's own views render exactly as before. Console pages use the request's locale and are always `text/html;charset=UTF-8`.
+- Security headers on console responses only (SEC-13): `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, a strict Content-Security-Policy with no inline script or style, and `no-store` on pages. No HSTS: it would apply to the host's whole host name.
+- A startup warning under the `prod` profile when the console is served over plain HTTP, naming the TLS and reverse-proxy settings (SEC-8). No cookie or session setting is changed.
+- `{path}/theme.css`: the accent colour from `jpa.admin.primary-color` as one CSS variable (SEC-15).
+- Pages (UI task U0): sign-in page (works without JavaScript), dashboard (welcome state), error pages for 403, 404, 405 and 500 under the console path with fixed texts; light and dark theme with a toggle, responsive shell with a drawer sidebar, accent shades derived from one variable, accessible labels, focus rings and reduced-motion support. Theme choice is the only thing kept in the browser.
+- Preview app: login, minimal dashboard and error fixtures and nine chrome variants at `/admin-preview/{page}?state=&chrome=`, with an index page.
+- Tests: host isolation for four kinds of host, session isolation, open redirect, CSRF, secrets in responses and TRACE logs, headers, custom and nested paths, real-HTTP checks, the UI rules as code (with tests of the checker), every preview fixture in every chrome variant. Mutation checks are in `docs/logs/phase-2-report.md`.
+- Decisions D-33 to D-42.
+
+### Changed
+- The starter now brings `spring-security-web`, `spring-security-config` and `org.thymeleaf:thymeleaf-spring6`. It deliberately does not bring `spring-boot-starter-security` (D-34) or `spring-boot-starter-thymeleaf` (D-40): a host that has no Thymeleaf does not get Boot's Thymeleaf auto-configuration, a view resolver or an engine from the console.
+- `jpa.admin.password` must be at most 72 bytes (BCrypt's limit); a longer value stops startup and names the property.
+- The console path now needs sign-in. The Phase 1 placeholder page ("JPA Admin console is running") is gone; the Phase 1 tests that asserted it were rewritten to keep every check.
+- Assets and `theme.css` are sent with `Cache-Control: max-age=300, public`.
+
+### Fixed
+- Found by the Phase 2 tests before release: the admin could sign in only once per start (the stored user's hash was erased after the first success); a bare `?error` or `?logout` marker was not seen; an attempted username appeared in the DEBUG log.
+
+### Notes
+- Spring Boot's own security auto-configuration is active only if the host adds `spring-boot-starter-security` itself; the console then joins the host's filter chain and keeps its own login separate.
+- A host with a servlet path prefix (`spring.mvc.servlet.path`) is not supported in v0.1 (D-41); the console answers 500 and says why in the log.
+- Console templates are cached and not reloaded at run time (D-40).
+
+## [0.0.1] - 2026-11-01
+
+### Added
 - Auto-configuration (Phase 1). With the starter plus `jpa.admin.username` and `jpa.admin.password`, the console path (`/admin` by default) answers in a servlet web app that has Spring MVC and JPA. It backs off completely, and then asks for no credentials, in a non-web app, without JPA or Spring MVC, and with `jpa.admin.enabled=false`. Bean names start with `jpaAdmin` (ARCH-7, ARCH-8).
 - Properties `jpa.admin.enabled`, `path`, `username`, `password`, `title` and `primary-color`, with IDE completion metadata. A startup report lists every wrong property by name, with an example. `username` and `password` are required: missing, blank, or still a `${...}` placeholder (an environment variable that is not set) stops startup. `path` must be a strict path (`/admin`, `/tools/admin`; never `/`, no trailing slash, only letters, digits, `-` and `_`), and `primary-color` must be `#rrggbb` (SEC-7, SEC-14, SEC-15).
 - Password rule: under the `prod` profile a password shorter than 12 characters or on a built-in common list stops startup; under other profiles it logs a warning. The password is never printed or logged, including in failure reports (SEC-6, D-7).
