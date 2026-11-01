@@ -1,6 +1,7 @@
 package io.github.mdmusahub.jpaadmin.autoconfigure;
 
 import io.github.mdmusahub.jpaadmin.web.BasePath;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -22,6 +23,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class JpaAdminProperties implements InitializingBean {
 
     static final String PREFIX = "jpa.admin";
+
+    /** BCrypt hashes at most this many bytes of a password (counted in UTF-8). */
+    static final int BCRYPT_MAX_BYTES = 72;
 
     private static final Pattern COLOR = Pattern.compile("#[0-9a-fA-F]{6}");
     private static final Pattern UNRESOLVED_PLACEHOLDER = Pattern.compile("\\$\\{[^{}]*}");
@@ -134,6 +138,11 @@ public class JpaAdminProperties implements InitializingBean {
         } else if (UNRESOLVED_PLACEHOLDER.matcher(value.strip()).matches()) {
             problems.add(property + " refers to a variable that has no value (it is still a ${...} placeholder). "
                     + "Set that environment variable or property, or write the value directly.");
+        } else if (name.equals("password") && value.getBytes(StandardCharsets.UTF_8).length > BCRYPT_MAX_BYTES) {
+            // BCrypt cannot hash more than 72 bytes and would fail later with a stack trace. Say it here, by name.
+            problems.add(property + " is longer than " + BCRYPT_MAX_BYTES + " bytes, the most that the console's "
+                    + "password hashing (BCrypt) can use. Use a shorter password, for example 24 to 64 random "
+                    + "characters.");
         }
     }
 

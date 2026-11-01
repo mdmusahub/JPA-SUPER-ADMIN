@@ -1,0 +1,237 @@
+/*
+ * JPA Admin: components. Buttons, form fields, cards, badges, alerts, empty states and flash messages. Each one is
+ * built from tokens.css variables only. Loaded after base.css.
+ */
+
+/* ---- buttons ---------------------------------------------------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  min-height: 36px;
+  padding: 0 var(--s4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--ink);
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: var(--hover);
+  text-decoration: none;
+}
+
+.btn-primary {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+  color: var(--on-accent);
+}
+
+.btn-primary:hover {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+}
+
+.btn-block {
+  display: flex;
+  width: 100%;
+}
+
+.btn[disabled],
+.btn[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* A square button that holds only an icon. It always needs an aria-label (UI-4). */
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.icon-button:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+/* ---- form fields ------------------------------------------------------------------------------------------------ */
+
+.form-stack {
+  display: grid;
+  gap: var(--s4);
+}
+
+.field {
+  display: grid;
+  gap: var(--s1);
+}
+
+.field label {
+  font-weight: 500;
+}
+
+.input {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 var(--s3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.input::placeholder {
+  color: var(--muted);
+}
+
+.input:hover {
+  border-color: var(--muted);
+}
+
+.input[aria-invalid="true"] {
+  border-color: var(--red);
+}
+
+.field-help {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.field-error {
+  color: var(--red);
+  font-size: var(--text-sm);
+}
+
+/* ---- cards ------------------------------------------------------------------------------------------------------ */
+
+.card {
+  padding: var(--s6);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+}
+
+/* ---- badges ----------------------------------------------------------------------------------------------------- */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px var(--s2);
+  border-radius: 999px;
+  background: var(--grey-tint);
+  color: var(--grey);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.badge-green {
+  background: var(--accent-tint);
+  color: var(--accent-text);
+}
+
+.badge-red {
+  background: var(--red-tint);
+  color: var(--red);
+}
+
+.badge-amber {
+  background: var(--amber-tint);
+  color: var(--amber);
+}
+
+.badge-blue {
+  background: var(--blue-tint);
+  color: var(--blue);
+}
+
+/* ---- alerts and flash messages ---------------------------------------------------------------------------------- */
+
+.alert,
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--blue-line);
+  border-radius: var(--radius);
+  background: var(--blue-tint);
+  color: var(--blue);
+  overflow-wrap: anywhere;
+}
+
+.alert > svg,
+.toast > svg {
+  margin-top: 2px;
+}
+
+.alert-error,
+.toast-error {
+  border-color: var(--red-line);
+  background: var(--red-tint);
+  color: var(--red);
+}
+
+.alert-warning,
+.toast-warning {
+  border-color: var(--amber-line);
+  background: var(--amber-tint);
+  color: var(--amber);
+}
+
+.alert-success,
+.toast-success {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+  color: var(--accent-text);
+}
+
+.toasts {
+  display: grid;
+  gap: var(--s2);
+  padding: var(--s4) var(--page-pad) 0;
+}
+
+/* ---- empty and error states ------------------------------------------------------------------------------------- */
+
+.empty-state {
+  display: grid;
+  justify-items: center;
+  gap: var(--s3);
+  padding: var(--s10) var(--s6);
+  text-align: center;
+}
+
+.empty-state > p {
+  max-width: 52ch;
+  color: var(--muted);
+}
+
+.empty-state-mark {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--accent-tint);
+  color: var(--accent-text);
+}
+
+.muted {
+  color: var(--muted);
+}

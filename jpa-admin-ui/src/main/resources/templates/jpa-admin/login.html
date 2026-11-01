@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en"
+      th:attr="data-theme-default=${#strings.toLowerCase(chrome.theme)}">
+<!--/*
+  The sign-in page. It is not part of the shell: no sidebar, no top bar. It works without JavaScript (a plain POST
+  with the CSRF token from the chrome), and it never says which of the two fields was wrong: view.error is one fixed
+  message. view.error and view.logoutNotice come from the query markers ?error and ?logout, never from user text.
+  Reads only chrome and view (UI-12).
+*/-->
+<head>
+  <th:block th:replace="~{jpa-admin/fragments/head :: assets}"></th:block>
+  <title th:text="${'Sign in | ' + view.title}">Sign in | JPA Admin</title>
+</head>
+<body class="auth">
+  <div class="auth-tools">
+    <th:block th:replace="~{jpa-admin/fragments/theme-toggle :: toggle}"></th:block>
+  </div>
+
+  <main id="main" class="auth-card card">
+    <div class="brand">
+      <span class="brand-mark"><th:block th:replace="~{jpa-admin/fragments/icons :: logo}"></th:block></span>
+      <span class="brand-name" th:text="${view.title}">JPA Admin</span>
+    </div>
+
+    <h1>Sign in</h1>
+
+    <div th:if="${view.logoutNotice}" class="alert" role="status">
+      <th:block th:replace="~{jpa-admin/fragments/icons :: info}"></th:block>
+      <span>You have been signed out.</span>
+    </div>
+
+    <div th:if="${view.error != null}" id="sign-in-error" class="alert alert-error" role="alert">
+      <th:block th:replace="~{jpa-admin/fragments/icons :: alert}"></th:block>
+      <span th:text="${view.error}">The username or password is not correct.</span>
+    </div>
+
+    <form method="post" th:attr="action=@{${chrome.basePath} + '/login'}" class="form-stack">
+      <input type="hidden" th:name="${chrome.csrf.parameterName}" th:value="${chrome.csrf.token}">
+
+      <div class="field">
+        <label for="username">Username</label>
+        <input id="username" name="username" type="text" class="input" autocomplete="username" required autofocus
+               autocapitalize="none" spellcheck="false"
+               th:attr="aria-invalid=${view.error != null} ? 'true', aria-describedby=${view.error != null} ? 'sign-in-error'">
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" class="input" autocomplete="current-password" required
+               th:attr="aria-invalid=${view.error != null} ? 'true', aria-describedby=${view.error != null} ? 'sign-in-error'">
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block">Sign in</button>
+    </form>
+  </main>
+</body>
+</html>

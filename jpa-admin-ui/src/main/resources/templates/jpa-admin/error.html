@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en"
+      th:replace="~{jpa-admin/layout :: layout(${view.heading}, ~{::main}, false)}">
+<!--/*
+  An error page (400, 403, 404, 405, 500 and others). view is an ErrorView: a status, a short heading and a hint that
+  says what to do next. All three are fixed texts chosen by the status code, never an exception message (SEC-12). The
+  page has no sign-out button, because a visitor who is not signed in can land here (for example after a form that
+  has expired).
+*/-->
+<body>
+<main id="main" class="content" tabindex="-1">
+  <div class="card empty-state error-state">
+    <p class="error-status" th:text="${view.status}">404</p>
+    <h1 th:text="${view.heading}">Page not found</h1>
+    <p th:text="${view.hint}">What to do next.</p>
+    <a class="btn btn-primary" th:href="@{${chrome.basePath}}">Go to dashboard</a>
+  </div>
+</main>
+</body>
+</html>

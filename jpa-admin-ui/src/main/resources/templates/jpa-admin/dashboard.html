@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en"
+      th:replace="~{jpa-admin/layout :: layout('Dashboard', ~{::main}, true)}">
+<!--/*
+  The dashboard. Task U0 builds the shell and a welcome state only: there are no stat cards, entity cards or chart yet
+  (they arrive with entity discovery, task U1). view is a DashboardView whose numbers are zero until then.
+*/-->
+<body>
+<main id="main" class="content" tabindex="-1">
+  <h1 class="page-title">Dashboard</h1>
+
+  <section th:if="${view.groups.isEmpty()}" class="card welcome" aria-labelledby="welcome-title">
+    <h2 id="welcome-title">Welcome to <span th:text="${chrome.title}">JPA Admin</span></h2>
+    <p class="muted">You are signed in. Your entities will be listed in the sidebar, and here with their record counts, as soon as the console has found them.</p>
+  </section>
+</main>
+</body>
+</html>
