@@ -11,7 +11,7 @@ Visual reference: `docs/prototype/admin-console.html`. Design system and compone
 ## You own
 
 - `jpa-admin-ui/src/main/resources/templates/jpa-admin/**`
-- `jpa-admin-ui/src/main/resources/META-INF/resources/jpa-admin/assets/**`
+- `jpa-admin-ui/src/main/resources/jpa-admin/assets/**` (not under `META-INF/resources`, so the host app never serves it at a second URL)
 - `jpa-admin-ui-preview/**` (preview controller and fixtures)
 
 ## You must not edit

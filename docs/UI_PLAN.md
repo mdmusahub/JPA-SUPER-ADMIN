@@ -24,7 +24,7 @@ JPA Super Admin/                      one git repo, one branch per phase
   jpa-admin-ui/                       UI       templates + CSS + JS only (resource jar, no Java logic)
     CLAUDE.md                         UI-only instructions
     src/main/resources/templates/jpa-admin/**
-    src/main/resources/META-INF/resources/jpa-admin/assets/**
+    src/main/resources/jpa-admin/assets/**
   jpa-admin-ui-preview/               UI       small Spring Boot app that renders the real templates with fixtures
   jpa-admin-starter/                  BACKEND  empty pom: depends on autoconfigure, core, ui
   sample-app/                         BACKEND  demo app with entities and tests
@@ -33,13 +33,13 @@ JPA Super Admin/                      one git repo, one branch per phase
 
 | Area | Owner | Path |
 |---|---|---|
-| Java logic, controllers, services, security, auto-configuration | Backend | `jpa-admin-core/src/main/java/**` (except `web/view`), `jpa-admin-autoconfigure/**`, `sample-app/**` |
+| Java logic, controllers, services, security, auto-configuration | Backend | `jpa-admin-core/src/main/java/**` (except `web/view`), `jpa-admin-autoconfigure/**`, `jpa-admin-starter/**`, `sample-app/**` |
 | View-model records (the contract) | Both. Changes need approval and a `DECISIONS.md` entry | `jpa-admin-core/.../web/view/**` |
 | Templates, CSS, JavaScript | UI | `jpa-admin-ui/**` |
 | Fixtures and preview controller | UI | `jpa-admin-ui-preview/**` (never published, never part of the starter) |
 | Shared docs and parent pom | Whoever is working, one session at a time | `docs/**`, `pom.xml`, `CLAUDE.md` |
 
-The starter depends on `jpa-admin-ui`, so templates and assets reach the host application automatically. Thymeleaf finds templates on the classpath, and the backend registers a resource handler that maps `{path}/assets/**` to `classpath:/META-INF/resources/jpa-admin/assets/`.
+The starter depends on `jpa-admin-ui`, so templates and assets reach the host application automatically. Thymeleaf finds templates on the classpath, and the backend registers a resource handler that maps `{path}/assets/**` to `classpath:/jpa-admin/assets/`. That location is deliberately not one of Spring Boot's default static locations (`/static`, `/public`, `/resources`, `/META-INF/resources`), so the assets are served only through the console's own handler and never at a second URL in the host application.
 
 ## 3. The contract (view models)
 
@@ -75,7 +75,7 @@ src/main/resources/templates/jpa-admin/
     field-input.html          renders any form input by type
     uploader.html  confirm-dialog.html  stat-cards.html  chart.html  toast.html
 
-src/main/resources/META-INF/resources/jpa-admin/assets/
+src/main/resources/jpa-admin/assets/
   css/  tokens.css (colours, spacing, type, both themes)  base.css  components.css  pages.css
   js/   theme.js  nav.js  table.js  filters.js  views.js (saved views)  uploader.js
         chart.js  dialogs.js  shortcuts.js  csrf.js

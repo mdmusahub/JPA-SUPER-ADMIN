@@ -59,7 +59,7 @@ Engineering rules for JPA Super Admin. Every rule has an ID so reviews can cite 
 
 ## 4. UI (UI)
 
-- **UI-1 MUST** Templates live in the module `jpa-admin-ui` under `templates/jpa-admin/` and share one layout fragment. Assets live under `META-INF/resources/jpa-admin/assets/` in the same module.
+- **UI-1 MUST** Templates live in the module `jpa-admin-ui` under `templates/jpa-admin/` and share one layout fragment. Assets live under `jpa-admin/assets/` (classpath root, never under `META-INF/resources`, `static`, `public` or `resources`) in the same module and are served only by the console's own resource handler.
 - **UI-2 MUST** All pages work without external network access (no CDN, no remote fonts or scripts).
 - **UI-3 MUST** Pages are responsive down to phone width and work in light and dark themes through CSS variables.
 - **UI-4 MUST** Controls have visible keyboard focus and accessible labels. Icon-only buttons have `aria-label`.
