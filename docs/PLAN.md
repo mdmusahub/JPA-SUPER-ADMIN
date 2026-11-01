@@ -68,15 +68,17 @@ jpa:
 ```
 jpa-super-admin/             parent pom: groupId io.github.mdmusahub, artifactId jpa-super-admin
   pom.xml
-  jpa-admin-core/            metadata, services, controllers, templates, static files
-  jpa-admin-autoconfigure/   properties, security chain, auto-configuration
+  jpa-admin-core/            metadata, services, controllers, view-model records (no templates)
+  jpa-admin-autoconfigure/   properties, security chain, auto-configuration, asset resource handler
+  jpa-admin-ui/              Thymeleaf templates, CSS, JavaScript (resource jar, no Java logic)
+  jpa-admin-ui-preview/      unpublished preview app with fixtures (never a dependency of the starter)
   jpa-admin-starter/         empty pom, published as jpa-super-admin-spring-boot-starter
   sample-app/                demo shop, integration tests
   docs/                      PLAN.md, RULES.md, PROJECT_DOCS.md, MkDocs site
   CLAUDE.md
 ```
 
-Maven `groupId`: `io.github.mdmusahub`. Package root: `io.github.mdmusahub.jpaadmin`. The only artifact users add is `jpa-super-admin-spring-boot-starter`.
+Maven `groupId`: `io.github.mdmusahub`. Package root: `io.github.mdmusahub.jpaadmin`. The only artifact users add is `jpa-super-admin-spring-boot-starter`, which depends on `jpa-admin-autoconfigure`, `jpa-admin-core` and `jpa-admin-ui`. Those modules are published; `jpa-admin-ui-preview` and `sample-app` are not.
 
 ## 5. Configuration reference
 
@@ -193,7 +195,7 @@ Drag and drop or click. The client checks type and size, shows a preview and pro
 
 Use the HTML prototype at `docs/prototype/admin-console.html` as the visual reference (reference only, not shipped in the jar): grouped sidebar with counts, breadcrumbs, stat cards, bar chart, sortable table with badges, floating bulk bar, detail grid, form grid, light and dark themes.
 
-Templates live in `templates/jpa-admin/` with one shared layout fragment. Quality floor: responsive, visible focus, labelled controls, reduced motion respected, meaningful empty states.
+Templates live in the `jpa-admin-ui` module under `templates/jpa-admin/` with one shared layout fragment. Quality floor: responsive, visible focus, labelled controls, reduced motion respected, meaningful empty states.
 
 ## 11. Build phases
 
@@ -201,7 +203,7 @@ Every phase ends with a running app, passing `mvn clean verify`, updated docs an
 
 | Phase | Build | Done when |
 |---|---|---|
-| 0 Setup | Repo, `.gitattributes` (LF for text files), `.gitignore`, `CHANGELOG.md`, parent POM, modules, sample app with entities and seed data, CI skeleton | Build passes, sample app starts |
+| 0 Setup | Repo, `.gitattributes` (LF for text files), `.gitignore`, `CHANGELOG.md`, parent POM, modules (core, autoconfigure, ui, ui-preview, starter, sample-app), sample app with entities and seed data, CI skeleton, then the **contract freeze** (empty view-model records, the fixture list document, and a masking unit test; see `docs/UI_PLAN.md` section 8). No fixture code in Phase 0 | Build passes, sample app starts, contract committed |
 | 1 Auto-config | Properties validation, auto-configuration, imports file, placeholder `/admin` | Starter alone makes `/admin` respond. Missing username fails startup clearly |
 | 2 Login | Security chain, login page, logout, public assets | Redirect to login, bad login rejected, good login works, host routes untouched |
 | 3 Discovery | Scanner, registry, layout, sidebar, dashboard stat cards | Every entity listed with right count, hidden ones absent |
@@ -214,8 +216,16 @@ Every phase ends with a running app, passing `mvn clean verify`, updated docs an
 | 10 Charts | `StatsService`, stats endpoint, chart card with range switch | Chart matches data, hidden when no timestamp fields |
 | 11 CSV export | `ExportService`, export button, cap, escaping | Export respects search, filters, sort, columns. Sensitive fields absent. Formula cells escaped |
 | 12 Saved views | Save, apply, rename, delete views per entity | Views restore the exact state and survive reload |
-| 13 Polish | Styling from prototype, dark mode, toasts, empty states, shortcuts, annotations, README with screenshots | UI matches prototype, README quick start works in 5 minutes |
+| 13 Polish | Styling from prototype, dark mode, toasts, empty states, shortcuts, annotations, accent colour served as a validated generated stylesheet (SEC-15, UI-13), README with screenshots | UI matches prototype, README quick start works in 5 minutes |
 | 14 Quality and release | Testcontainers (PostgreSQL, MySQL), security tests, CI, docs site, JitPack then Maven Central | All tests green, docs live, `v0.1.0` tagged |
+
+### Parallel tracks
+
+From the end of Phase 0, UI work (tasks U0 to U9) and backend work (phases 1 to 14) can run as two parallel tracks in one directory, in separate module folders, meeting at the view-model records. `docs/UI_PLAN.md` defines the contract, path ownership, the `jpa-admin-ui-preview` app, the mapping of UI tasks to backend phases and the sync points. The phase table above stays the source of truth for backend scope and acceptance criteria.
+
+- There is one branch per phase shared by both tracks (no per-track branches). The phase is merged into `main` and tagged only when it is connected, meaning the real controller fills the records and the real page works in the sample app.
+- Phases 4 and 11 are verified at the backend level (MockMvc and view-model tests) in their own phase, and the browser check happens when the UI is connected (Phases 5 and 12).
+- View-model records are marked draft until the phase that fills them starts. Changes to a draft record need approval but no `DECISIONS.md` entry. After that phase starts, every change needs both.
 
 ## 12. Testing strategy
 
@@ -271,7 +281,7 @@ v0.2 login rate limiting, S3 storage provider, multi-value filters. v0.3 audit l
 All earlier open decisions are resolved. See `docs/DECISIONS.md` for date and reason.
 
 1. `groupId` is `io.github.mdmusahub`. Starter artifactId is `jpa-super-admin-spring-boot-starter`. Parent artifactId is `jpa-super-admin`.
-2. v0.1 targets Spring Boot 4.1.x (latest stable patch, currently 4.1.2) with Java 17 minimum. Spring Boot 3.x is not supported in v0.1 (D-16, supersedes D-3). The exact version is confirmed with the maintainer before it is pinned.
+2. v0.1 targets Spring Boot 4.1.x with Java 17 minimum, pinned to **4.1.2** (D-16, D-19). Spring Boot 3.x is not supported in v0.1.
 3. S3 provider is in v0.2.
 4. Uploads are private by default (authenticated only).
 5. Default console path stays `/admin`.

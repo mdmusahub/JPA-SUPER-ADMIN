@@ -4,7 +4,7 @@ Engineering rules for JPA Super Admin. Every rule has an ID so reviews can cite 
 
 ## 1. Security (SEC)
 
-- **SEC-1 MUST** Sensitive fields (names in `jpa.admin.sensitive-fields` plus `@AdminSensitive`) never appear in list, detail, form values, CSV export, JSON, logs or error messages.
+- **SEC-1 MUST** Sensitive fields (names in `jpa.admin.sensitive-fields` plus `@AdminSensitive`) never appear in list, detail, form values, CSV export, JSON, logs or error messages. A `FormView` field for a sensitive property has an input type of `masked` and carries no value; a blank submit on edit keeps the stored value. View-model records never hold a sensitive value.
 - **SEC-2 MUST** Sort, search, filter and column parameters are untrusted. Accept only names that exist in the entity metadata and are not hidden or sensitive.
   Sensitive matching is case-insensitive, ignores `_` and `-`, and uses substring match against `jpa.admin.sensitive-fields`, plus `@AdminSensitive`.
 - **SEC-3 MUST** Never concatenate user input into JPQL, SQL or Criteria strings. Use the Criteria API and bound parameters.
@@ -19,7 +19,7 @@ Engineering rules for JPA Super Admin. Every rule has an ID so reviews can cite 
 - **SEC-12 MUST** Database exceptions are translated to friendly messages. No SQL, table names or stack traces reach the browser.
 - **SEC-13 SHOULD** Add security response headers on console pages (`X-Content-Type-Options: nosniff`, frame protection, a restrictive referrer policy).
 - **SEC-14 MUST** Console path is validated against a strict pattern and cannot be `/`.
-- **SEC-15 MUST** Theme and colour values written into pages are validated (`#rrggbb` only).
+- **SEC-15 MUST** Theme and colour values are validated (`#rrggbb` only) and reach the browser only through a generated stylesheet, never through inline `style` attributes, inline `<style>` blocks or inline scripts.
 
 ## 2. Uploads (UPL)
 
@@ -45,8 +45,9 @@ Engineering rules for JPA Super Admin. Every rule has an ID so reviews can cite 
 - **ARCH-6 MUST** Avoid N+1 queries when showing relation labels (fetch or batch).
 - **ARCH-7 MUST** Auto-configuration is conditional (`@ConditionalOnClass`, servlet web app, property switch) and backs off cleanly. Use `@ConditionalOnMissingBean` for replaceable beans.
 - **ARCH-8 MUST** Do not leak bean names or packages that can clash with the host app. Prefix beans and keep templates under `jpa-admin/`.
-- **ARCH-9 SHOULD** Keep the public API (annotations, properties, SPI interfaces) small. Everything else is package-private.
+- **ARCH-9 SHOULD** Keep the public API (annotations, properties, SPI interfaces) small. Everything else is package-private. Exception: the view-model records in `io.github.mdmusahub.jpaadmin.web.view` are public because Thymeleaf and `jpa-admin-ui-preview` need them. They are internal, not stable API, and their Javadoc says so.
 - **ARCH-10 MUST** CSV export and list use the same validated query pipeline. Export streams rows in pages and respects the row cap. The cap has a fixed internal ceiling of 50,000 rows; `jpa.admin.export-max-rows` may lower it, never raise it.
+- **ARCH-11 MUST** Preview code (`PreviewController` and fixtures) lives only in the separate, unpublished module `jpa-admin-ui-preview`. It is never a dependency of the starter, `sample-app` or any published module, and the build checks this (Maven Enforcer banned-dependency rule). The preview app fails startup when the `prod` profile is active.
 - **CODE-1 MUST** Java 17 minimum, Spring Boot 4.1.x, Jakarta namespace, no deprecated Spring APIs.
 - **CODE-2 SHOULD** Prefer records and constructor injection. No field injection.
 - **CODE-3 MUST** No `System.out`. Use SLF4J. Never log request bodies.
@@ -58,7 +59,7 @@ Engineering rules for JPA Super Admin. Every rule has an ID so reviews can cite 
 
 ## 4. UI (UI)
 
-- **UI-1 MUST** Templates live under `templates/jpa-admin/` and share one layout fragment.
+- **UI-1 MUST** Templates live in the module `jpa-admin-ui` under `templates/jpa-admin/` and share one layout fragment. Assets live under `META-INF/resources/jpa-admin/assets/` in the same module.
 - **UI-2 MUST** All pages work without external network access (no CDN, no remote fonts or scripts).
 - **UI-3 MUST** Pages are responsive down to phone width and work in light and dark themes through CSS variables.
 - **UI-4 MUST** Controls have visible keyboard focus and accessible labels. Icon-only buttons have `aria-label`.
@@ -69,12 +70,14 @@ Engineering rules for JPA Super Admin. Every rule has an ID so reviews can cite 
 - **UI-9 SHOULD** Use sentence case, active verbs ("Save changes", not "Submit"), and the same name for an action through its whole flow.
 - **UI-10 MUST** Table state (search, filters, sort, page) lives in the URL so pages are bookmarkable and Back works.
 - **UI-11 SHOULD** Saved views, theme and column choices live in `localStorage`, wrapped in try/catch, and the page works when storage is unavailable.
+- **UI-12 MUST** Templates may only read view-model records (`web.view`). They never call services, repositories or `EntityManager`, and never receive entities, collections of entities or sensitive values.
+- **UI-13 MUST** No inline scripts, inline event handlers or inline styles in templates. The theme is applied before first paint by a small blocking `theme.js` in `<head>`; all other scripts are static files. This keeps a strict Content-Security-Policy possible (SEC-13).
 
 ## 5. Testing (TEST)
 
 - **TEST-1 MUST** Every feature ships with tests in the same change.
 - **TEST-2 MUST** Every security rule above has at least one negative test (for example: password never in response, bad sort field rejected, traversal path rejected, disguised file rejected, export escapes formulas).
-- **TEST-3 MUST** `mvn clean verify` passes before a task is declared done.
+- **TEST-3 MUST** `mvn clean verify` passes before a task is declared done. While two track sessions share the working tree, a module build (`-pl <module> -am`) is enough per task; the full `mvn clean verify` runs when the other session is idle and always before a phase is merged and tagged.
 - **TEST-4 SHOULD** Use H2 for fast tests and Testcontainers (PostgreSQL, MySQL) for integration tests.
 - **TEST-5 MUST** Fix every bug with a regression test first.
 - **TEST-6 SHOULD** Tests are deterministic. No sleeps, no dependence on clock or ordering.
@@ -82,8 +85,8 @@ Engineering rules for JPA Super Admin. Every rule has an ID so reviews can cite 
 
 ## 6. Git, docs and releases (GIT, DOC)
 
-- **GIT-1 MUST** One phase per branch, small commits, clear messages in imperative mood.
-- **GIT-2 MUST** Tag each finished phase (`v0.0.<phase>`) and the release (`v0.1.0`).
+- **GIT-1 MUST** One phase per branch, small commits, clear messages in imperative mood. Backend and UI sessions share that one branch; there are no per-track branches. When both are active, commit by path (`docs/UI_PLAN.md` section 9).
+- **GIT-2 MUST** Merge the phase branch into `main` and tag it (`v0.0.<phase>`) only when the phase is connected (backend phase done and its UI task connected). Tag the release as `v0.1.0`.
 - **GIT-3 MUST** Never commit secrets, passwords, upload folders or IDE files.
 - **GIT-5 MUST** `.gitattributes` enforces LF line endings for text files.
 - **GIT-4 SHOULD** Keep changes focused. Do not mix refactors with features.
@@ -95,7 +98,7 @@ Engineering rules for JPA Super Admin. Every rule has an ID so reviews can cite 
 
 ## 7. Rules for Claude Code itself (AI)
 
-- **AI-1 MUST** Read `CLAUDE.md`, `docs/PLAN.md`, `docs/RULES.md` and `docs/PROJECT_DOCS.md` before starting a session's work.
+- **AI-1 MUST** Read `CLAUDE.md`, `docs/PLAN.md`, `docs/RULES.md`, `docs/PROJECT_DOCS.md` and `docs/UI_PLAN.md` before starting a session's work.
 - **AI-2 MUST** Propose a plan and wait for approval before coding a phase, and before any change to security, the metadata model or the public API.
 - **AI-3 MUST** Work on one phase at a time. Do not add features from the out-of-scope list.
 - **AI-4 MUST** Do not invent requirements. If something is unclear, ask with two options and a recommendation.
@@ -105,6 +108,7 @@ Engineering rules for JPA Super Admin. Every rule has an ID so reviews can cite 
 - **AI-8 MUST** Do not add dependencies, change the Java or Spring Boot version, or rename public API without approval.
 - **AI-9 SHOULD** Keep explanations short. Show what changed, why, and how to verify it.
 - **AI-10 MUST** Never print or store real secrets. Use placeholders such as `${ADMIN_PASSWORD}`.
+- **AI-11 MUST** In a parallel track session, state which track you are on and work only inside that track's paths (`docs/UI_PLAN.md` section 2). Changes to the view-model records need approval and a `docs/DECISIONS.md` entry. Never change a record on one side only.
 
 ## 8. Pre-merge checklist
 

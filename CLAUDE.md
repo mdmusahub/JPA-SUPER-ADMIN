@@ -11,12 +11,13 @@ Instructions for Claude Code. Read this file first in every session.
 1. `docs/PLAN.md`: scope, architecture, routes, phases, acceptance criteria. This is the source of truth for what to build.
 2. `docs/RULES.md`: engineering, security, UI, testing and workflow rules. Rule IDs (for example `SEC-3`) are referenced in reviews.
 3. `docs/PROJECT_DOCS.md`: business requirements (BRD), user stories and the user-documentation outline.
+4. `docs/UI_PLAN.md`: how the UI is built in parallel with the backend (view-model contract, ownership of paths, `ui-preview` profile, sync points). Read it before touching templates, CSS, JavaScript or view-model records, and in any parallel session.
 
 If a request conflicts with these files, stop and ask. Do not silently change the plan.
 
 ## Stack
 
-Java 17 minimum, Spring Boot 4.1.x (latest stable patch, currently 4.1.2; Spring Boot 3.x is not supported in v0.1), Spring Security, Spring Data JPA (Criteria API), Thymeleaf, small vanilla JavaScript, Maven multi-module, JUnit 5, Testcontainers, MkDocs Material for docs.
+Java 17 minimum, Spring Boot 4.1.2 (4.1.x line; Spring Boot 3.x is not supported in v0.1), Spring Security, Spring Data JPA (Criteria API), Thymeleaf, small vanilla JavaScript, Maven multi-module, JUnit 5, Testcontainers, MkDocs Material for docs.
 
 No Node, npm, React or external chart libraries. The UI ships inside the jar.
 
@@ -27,14 +28,18 @@ Auto-configuration, mandatory username and password, separate login, entity disc
 ## Repository layout
 
 ```
-jpa-admin-core/            metadata, services, controllers, templates, static files
-jpa-admin-autoconfigure/   properties, security chain, auto-configuration
+jpa-admin-core/            metadata, services, controllers, view-model records (backend)
+jpa-admin-autoconfigure/   properties, security chain, auto-configuration (backend)
+jpa-admin-ui/              templates, CSS, JavaScript only (UI)
+jpa-admin-ui-preview/      unpublished preview app with fixtures (UI, never a starter dependency)
 jpa-admin-starter/         empty pom, published as jpa-super-admin-spring-boot-starter (the only dependency users add)
-sample-app/                demo app and integration tests
-docs/                      PLAN.md, RULES.md, PROJECT_DOCS.md, MkDocs site
+sample-app/                demo app and integration tests (backend)
+docs/                      PLAN.md, RULES.md, PROJECT_DOCS.md, UI_PLAN.md, MkDocs site
 ```
 
-Maven groupId: `io.github.mdmusahub`, parent artifactId: `jpa-super-admin`. Package root: `io.github.mdmusahub.jpaadmin`. Templates go in `templates/jpa-admin/`. Static files are served from `/admin/assets/**`.
+Nested `CLAUDE.md` files in `jpa-admin-core/` (backend track) and `jpa-admin-ui/` (UI track) add track-specific rules.
+
+Maven groupId: `io.github.mdmusahub`, parent artifactId: `jpa-super-admin`. Package root: `io.github.mdmusahub.jpaadmin`. Templates go in `jpa-admin-ui` under `templates/jpa-admin/`. Static files are served from `/admin/assets/**`.
 
 ## Commands
 
@@ -47,9 +52,9 @@ mkdocs serve                              # preview docs
 
 ## How to work
 
-1. Work on **one phase at a time**, in the order in `docs/PLAN.md`. Never start a later phase early.
+1. Work on **one phase at a time**, in the order in `docs/PLAN.md`. Never start a later phase early. When working in a parallel track session (`docs/UI_PLAN.md`), stay inside your track's paths (AI-11) and keep the task order of your own track.
 2. Before writing code, state a short implementation plan (files to add or change, tests to write) and wait for approval.
-3. Make small steps. After each step run `mvn clean verify`.
+3. Make small steps. After each step run `mvn clean verify` (while two track sessions share the working tree, build only your own modules and run the full build when the other session is idle, see TEST-3).
 4. Write tests with every feature, in the same step.
 5. At the end of a phase: run the sample app, list what to check manually in the browser, update docs and `CHANGELOG.md`, and suggest a commit message and tag.
 6. Record non-obvious design choices in `docs/DECISIONS.md` (date, decision, reason).
