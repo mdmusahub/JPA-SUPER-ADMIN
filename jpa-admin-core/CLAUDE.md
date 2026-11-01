@@ -32,10 +32,33 @@ You are the **backend track**. You build the scanner, services, controllers, sec
 ```
 mvn -pl jpa-admin-core -am clean verify
 mvn -pl sample-app -am clean verify
-mvn -pl sample-app spring-boot:run      # then open http://localhost:8080/admin
 ```
 
 Run the full `mvn clean verify` only when the UI session is idle.
+
+## Run the demo
+
+Same recipe as "Run the demo" in the root `CLAUDE.md`. The sample app has no admin credentials in its `application.yml`, so set `JPA_ADMIN_USERNAME` and `JPA_ADMIN_PASSWORD` (12 or more characters), run the jar, then open http://localhost:8080/admin. Stop it with Ctrl+C.
+
+PowerShell:
+
+```powershell
+mvn -pl sample-app -am package -DskipTests
+$env:JPA_ADMIN_USERNAME = 'admin'
+$env:JPA_ADMIN_PASSWORD = '<12 or more characters>'    # this PowerShell session only
+java -jar sample-app/target/sample-app-0.1.0-SNAPSHOT.jar
+```
+
+bash:
+
+```bash
+mvn -pl sample-app -am package -DskipTests
+export JPA_ADMIN_USERNAME=admin
+export JPA_ADMIN_PASSWORD='<12 or more characters>'
+java -jar sample-app/target/sample-app-0.1.0-SNAPSHOT.jar
+```
+
+Do not use `mvn -pl sample-app spring-boot:run`: without `-am` Maven takes the other modules from `~/.m2`, where an older `mvn install` can leave stale jars, so it can run old code.
 
 ## Commit
 

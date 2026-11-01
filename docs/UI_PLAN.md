@@ -39,7 +39,7 @@ JPA Super Admin/                      one git repo, one branch per phase
 | Fixtures and preview controller | UI | `jpa-admin-ui-preview/**` (never published, never part of the starter) |
 | Shared docs and parent pom | Whoever is working, one session at a time | `docs/**`, `pom.xml`, `CLAUDE.md` |
 
-The starter depends on `jpa-admin-ui`, so templates and assets reach the host application automatically. Thymeleaf finds templates on the classpath, and the backend registers a resource handler that maps `{path}/assets/**` to `classpath:/jpa-admin/assets/`. That location is deliberately not one of Spring Boot's default static locations (`/static`, `/public`, `/resources`, `/META-INF/resources`), so the assets are served only through the console's own handler and never at a second URL in the host application.
+The starter depends on `jpa-admin-ui`, so templates and assets reach the host application automatically. Thymeleaf finds templates on the classpath, and the backend registers a resource handler that maps `{path}/assets/**` to `classpath:/jpa-admin/assets/`. That location is deliberately not one of Spring Boot's default static locations (`/static`, `/public`, `/resources`, `/META-INF/resources`), so the assets are served only through the console's own handler and never at a second URL in the host application. That handler never serves hidden files or folders (any path segment that starts with a dot), so a stray `.gitkeep` or `.DS_Store` in the asset folder is never published (D-32); the `.gitkeep` that used to sit in that folder has been removed.
 
 ## 3. The contract (view models)
 
@@ -233,4 +233,4 @@ Per-task flow: read the task, propose a plan (files, fixtures, states), wait for
 
 Once, when the console's asset handler first exists (Phase 1 or task U0), and again if the path or handler changes:
 
-- [ ] Runtime test in `sample-app`: with the console at its default path, `/admin/assets/...` serves an asset, and `/jpa-admin/assets/...` returns 404 (also with a custom `jpa.admin.path`, the old path returns 404 and the new one serves the asset). Assets are never served outside `{path}/assets/**`.
+- [x] Runtime test in `sample-app`: with the console at its default path, `/admin/assets/...` serves an asset, and `/jpa-admin/assets/...` returns 404 (also with a custom `jpa.admin.path`, the old path returns 404 and the new one serves the asset). Assets are never served outside `{path}/assets/**`. Done in Phase 1 by `ConsoleAtDefaultPathTest`, `ConsoleAtCustomPathTest`, `ConsoleAtNestedPathTest` (MockMvc) and `ConsoleStartupTest` (real HTTP). The only asset so far is the placeholder `css/tokens.css` that the backend track added in Phase 1; U0 replaces it. Re-run these tests whenever the path or the handler changes. `DotfilesAreNeverServedTest` and `NoDotfilesResourceResolverTest` cover the hidden-file rule.

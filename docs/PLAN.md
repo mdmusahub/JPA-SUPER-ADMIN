@@ -85,11 +85,11 @@ Maven `groupId`: `io.github.mdmusahub`. Package root: `io.github.mdmusahub.jpaad
 | Property | Default | Notes |
 |---|---|---|
 | `jpa.admin.enabled` | `true` | Master switch |
-| `jpa.admin.path` | `/admin` | Cannot be `/` |
-| `jpa.admin.username` | none | Required |
-| `jpa.admin.password` | none | Required, BCrypt-hashed at startup |
+| `jpa.admin.path` | `/admin` | Starts with `/`, then letters, digits, `-` and `_` in each segment, segments separated by single slashes, at most 100 characters. Cannot be `/`, no trailing slash (SEC-14). A bad value stops startup |
+| `jpa.admin.username` | none | Required. Missing, blank, or an unset `${...}` variable stops startup with a message naming the property |
+| `jpa.admin.password` | none | Required, BCrypt-hashed at startup (Phase 2). Missing, blank, or an unset `${...}` variable stops startup. Under `prod`, under 12 characters or a common password also stops startup (section 8). Never logged or printed |
 | `jpa.admin.title` | `JPA Admin` | Header and login title |
-| `jpa.admin.primary-color` | `#0d9f6e` | Validated as `#rrggbb` only |
+| `jpa.admin.primary-color` | `#0d9f6e` | Validated as `#rrggbb` only. A bad value stops startup |
 | `jpa.admin.page-size` | `25` | Default rows per page |
 | `jpa.admin.export-enabled` | `true` | Global CSV export switch |
 | `jpa.admin.export-max-rows` | `50000` | May lower the cap, never raise it. 50,000 is a fixed internal ceiling |
@@ -205,7 +205,7 @@ Every phase ends with a running app, passing `mvn clean verify`, updated docs an
 |---|---|---|
 | 0 Setup | Repo, `.gitattributes` (LF for text files), `.gitignore`, `CHANGELOG.md`, parent POM, modules (core, autoconfigure, ui, ui-preview, starter, sample-app), sample app with entities and seed data, CI skeleton, then the **contract freeze** (empty view-model records, the fixture list document, and a masking unit test; see `docs/UI_PLAN.md` section 8). No fixture code in Phase 0 | Build passes, sample app starts, contract committed |
 | 1 Auto-config | Properties validation, auto-configuration, imports file, placeholder `/admin`, asset resource handler for `{path}/assets/**` (from `classpath:/jpa-admin/assets/`) | Starter alone makes `/admin` respond. Missing username fails startup clearly. A runtime test proves `/admin/assets/**` serves the assets and `/jpa-admin/assets/**` (and other paths outside the console path) returns 404. From this phase on, controller tests assert that every link a controller builds is under the base path (D-29) |
-| 2 Login | Security chain, login page, logout, public assets | Redirect to login, bad login rejected, good login works, host routes untouched |
+| 2 Login | Security chain, login page, logout, public assets. Security response headers on console pages (SEC-13): `X-Content-Type-Options: nosniff`, frame protection, a restrictive referrer policy. A startup warning when the console runs over plain HTTP under the `prod` profile (SEC-8), with global session cookie settings left unchanged (SEC-8) | Redirect to login, bad login rejected, good login works, host routes untouched. A test shows the SEC-13 headers on console responses, and a test shows the SEC-8 warning under `prod` over plain HTTP and none under other profiles |
 | 3 Discovery | Scanner, registry, layout, sidebar, dashboard stat cards, and an entity-name check with no new dependency: a CI step or test that greps the sources and resources of the library modules for the demo entity names (`Category`, `Product`, `Customer`, `Order`, `Tag`) and fails if any is found (ARCH-12). The check matches whole words, case-sensitive. Every allow-list entry has a file path and a written reason, and the check also fails when an allow-list entry no longer matches anything, so stale entries cannot hide | Every entity listed with right count, hidden ones absent. A second host project (folder `host-check/`, outside the reactor build) with different entities (`Book`, `Author`, `Publisher`) that adds only the starter dependency and the two required properties shows all three entities in the sidebar with correct counts. No library change is needed for it to work. Library tests run with `spring.jpa.open-in-view` both true and false (D-29) |
 | 4 List | Query service, formatter, list page, paging, masking, link builders for sort, page, page-size and filter links | Right columns and values, password always masked. Link builders percent-encode every query value; tests cover spaces, slashes, quotes, unicode and a literal `http://x` search (D-29). Library tests run with `spring.jpa.open-in-view` both true and false (D-29) |
 | 5 Search and sort | `q`, `sort`, `dir` validated against metadata | Correct results, shareable URLs, search never reads sensitive fields |
@@ -218,6 +218,16 @@ Every phase ends with a running app, passing `mvn clean verify`, updated docs an
 | 12 Saved views | Save, apply, rename, delete views per entity | Views restore the exact state and survive reload |
 | 13 Polish | Styling from prototype, dark mode, toasts, empty states, shortcuts, annotations, accent colour served as a validated generated stylesheet (SEC-15, UI-13), README with screenshots | UI matches prototype, README quick start works in 5 minutes |
 | 14 Quality and release | Testcontainers (PostgreSQL, MySQL), security tests, CI, docs site, JitPack then Maven Central | All tests green, docs live, `v0.1.0` tagged. The same `host-check/` project is run against the release candidate installed in the local Maven repository, and passes |
+
+### Phase 1 checklist (backend work finished 2026-11-01)
+
+- [x] Properties `enabled`, `path`, `username`, `password`, `title`, `primary-color`; `username` and `password` required, `path` and `primary-color` pattern-checked, `prod` password rule (D-7), all checked at startup with a message that names the property (D-30)
+- [x] Auto-configuration and imports file; backs off outside a servlet web app, without JPA or Spring MVC, and with `jpa.admin.enabled=false` (no beans, no routes, no credentials asked for)
+- [x] Starter alone makes `/admin` respond (plain-text placeholder, replaced in Phase 2)
+- [x] Missing username fails startup clearly (checked on a real start of the sample app)
+- [x] Asset handler for `{path}/assets/**` from `classpath:/jpa-admin/assets/` only. Runtime tests: `/admin/assets/**` serves the asset; `/jpa-admin/assets/**`, `/assets/**`, `/css/**` and a custom path's old path return 404
+- [x] Every link built from the base path passes the contract's link rule and lies under it (D-29)
+- [ ] Merge to `main` and tag `v0.0.1`: the maintainer's step. D-31 records that Phase 1 is tagged although UI task U0 (which runs alongside Phases 1 and 2) connects after Phase 2 (`docs/UI_PLAN.md` section 7), because the Phase 1 "done when" is backend-only and the placeholder page is its UI
 
 ### Parallel tracks
 
