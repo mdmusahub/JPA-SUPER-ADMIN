@@ -29,5 +29,14 @@
       <groupId>io.github.mdmusahub</groupId>
       <artifactId>jpa-admin-ui</artifactId>
     </dependency>
+
+    <!--
+      The web stack the console needs (D-30). core and autoconfigure declare it as optional, so it reaches a host
+      application through this starter. A host already has JPA; the starter does not add it.
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-webmvc</artifactId>
+    </dependency>
   </dependencies>
 </project>
