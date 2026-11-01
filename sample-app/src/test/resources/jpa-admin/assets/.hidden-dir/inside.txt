@@ -1,0 +1,1 @@
+file-inside-hidden-dir-must-never-be-served
