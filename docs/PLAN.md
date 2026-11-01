@@ -206,7 +206,7 @@ Every phase ends with a running app, passing `mvn clean verify`, updated docs an
 | 0 Setup | Repo, `.gitattributes` (LF for text files), `.gitignore`, `CHANGELOG.md`, parent POM, modules (core, autoconfigure, ui, ui-preview, starter, sample-app), sample app with entities and seed data, CI skeleton, then the **contract freeze** (empty view-model records, the fixture list document, and a masking unit test; see `docs/UI_PLAN.md` section 8). No fixture code in Phase 0 | Build passes, sample app starts, contract committed |
 | 1 Auto-config | Properties validation, auto-configuration, imports file, placeholder `/admin`, asset resource handler for `{path}/assets/**` (from `classpath:/jpa-admin/assets/`) | Starter alone makes `/admin` respond. Missing username fails startup clearly. A runtime test proves `/admin/assets/**` serves the assets and `/jpa-admin/assets/**` (and other paths outside the console path) returns 404 |
 | 2 Login | Security chain, login page, logout, public assets | Redirect to login, bad login rejected, good login works, host routes untouched |
-| 3 Discovery | Scanner, registry, layout, sidebar, dashboard stat cards | Every entity listed with right count, hidden ones absent |
+| 3 Discovery | Scanner, registry, layout, sidebar, dashboard stat cards, and an entity-name check with no new dependency: a CI step or test that greps the sources and resources of the library modules for the demo entity names (`Category`, `Product`, `Customer`, `Order`, `Tag`) and fails if any is found (ARCH-12) | Every entity listed with right count, hidden ones absent. A second host project (folder `host-check/`, outside the reactor build) with different entities (`Book`, `Author`, `Publisher`) that adds only the starter dependency and the two required properties shows all three entities in the sidebar with correct counts. No library change is needed for it to work |
 | 4 List | Query service, formatter, list page, paging, masking | Right columns and values, password always masked |
 | 5 Search and sort | `q`, `sort`, `dir` validated against metadata | Correct results, shareable URLs, search never reads sensitive fields |
 | 6 Filters | Field filters, chips, clear all | Each filter type works and combines with search and sort |
@@ -217,7 +217,7 @@ Every phase ends with a running app, passing `mvn clean verify`, updated docs an
 | 11 CSV export | `ExportService`, export button, cap, escaping | Export respects search, filters, sort, columns. Sensitive fields absent. Formula cells escaped |
 | 12 Saved views | Save, apply, rename, delete views per entity | Views restore the exact state and survive reload |
 | 13 Polish | Styling from prototype, dark mode, toasts, empty states, shortcuts, annotations, accent colour served as a validated generated stylesheet (SEC-15, UI-13), README with screenshots | UI matches prototype, README quick start works in 5 minutes |
-| 14 Quality and release | Testcontainers (PostgreSQL, MySQL), security tests, CI, docs site, JitPack then Maven Central | All tests green, docs live, `v0.1.0` tagged |
+| 14 Quality and release | Testcontainers (PostgreSQL, MySQL), security tests, CI, docs site, JitPack then Maven Central | All tests green, docs live, `v0.1.0` tagged. The same `host-check/` project is run against the release candidate installed in the local Maven repository, and passes |
 
 ### Parallel tracks
 
