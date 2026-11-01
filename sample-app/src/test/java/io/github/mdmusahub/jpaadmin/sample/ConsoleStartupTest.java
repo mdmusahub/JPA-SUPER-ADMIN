@@ -54,8 +54,12 @@ class ConsoleStartupTest {
         try (ConfigurableApplicationContext context = start(NO_CONFIG_FILES, "--jpa.admin.username=admin",
                 "--jpa.admin.password=" + STRONG)) {
             HttpResponse<String> home = get(context, "/admin");
-            assertThat(home.statusCode()).isEqualTo(200);
-            assertThat(home.body()).isEqualTo("JPA Admin console is running");
+            assertThat(home.statusCode()).isEqualTo(302);
+            assertThat(home.headers().firstValue("Location").orElseThrow()).endsWith("/admin/login");
+            HttpResponse<String> login = get(context, "/admin/login");
+            assertThat(login.statusCode()).isEqualTo(200);
+            assertThat(login.headers().firstValue("Content-Type").orElseThrow()).startsWith("text/html");
+            assertThat(login.body()).contains("<h1>Sign in</h1>");
             assertThat(get(context, "/admin/assets/css/tokens.css").statusCode()).isEqualTo(200);
             assertThat(get(context, "/jpa-admin/assets/css/tokens.css").statusCode()).isEqualTo(404);
             assertThat(get(context, "/assets/css/tokens.css").statusCode()).isEqualTo(404);
@@ -68,7 +72,8 @@ class ConsoleStartupTest {
     void aCustomPathWorksOverRealHttpAndTheDefaultPathIsGone() throws Exception {
         try (ConfigurableApplicationContext context = start(NO_CONFIG_FILES, "--jpa.admin.username=admin",
                 "--jpa.admin.password=" + STRONG, "--jpa.admin.path=/backoffice")) {
-            assertThat(get(context, "/backoffice").statusCode()).isEqualTo(200);
+            assertThat(get(context, "/backoffice").statusCode()).isEqualTo(302);
+            assertThat(get(context, "/backoffice/login").statusCode()).isEqualTo(200);
             assertThat(get(context, "/backoffice/assets/css/tokens.css").statusCode()).isEqualTo(200);
             assertThat(get(context, "/admin").statusCode()).isEqualTo(404);
             assertThat(get(context, "/admin/assets/css/tokens.css").statusCode()).isEqualTo(404);
@@ -151,7 +156,7 @@ class ConsoleStartupTest {
     void underTheProdProfileAStrongPasswordStarts(CapturedOutput output) throws Exception {
         try (ConfigurableApplicationContext context = start("--spring.profiles.active=prod",
                 "--jpa.admin.password=" + STRONG)) {
-            assertThat(get(context, "/admin").statusCode()).isEqualTo(200);
+            assertThat(get(context, "/admin/login").statusCode()).isEqualTo(200);
         }
         assertThat(output.getAll()).doesNotContain("is weak").doesNotContain(STRONG);
     }
@@ -159,11 +164,46 @@ class ConsoleStartupTest {
     @Test
     void underAnyOtherProfileAWeakPasswordOnlyWarnsWithoutPrintingIt(CapturedOutput output) throws Exception {
         try (ConfigurableApplicationContext context = start("--jpa.admin.password=" + WEAK)) {
-            assertThat(get(context, "/admin").statusCode()).isEqualTo(200);
+            assertThat(get(context, "/admin/login").statusCode()).isEqualTo(200);
         }
 
         assertThat(output.getAll())
                 .contains("jpa.admin.password is weak: it is shorter than 12 characters")
                 .doesNotContain(WEAK);
+    }
+
+    // ---- SEC-8: plain HTTP under prod ----------------------------------------------------------------------------------
+
+    private static final String PLAIN_HTTP_WARNING = "is served over plain HTTP while the 'prod' profile is active";
+
+    @Test
+    void underProdOverPlainHttpTheStartupLogsTheWarningAndTheConsoleStillWorks(CapturedOutput output) throws Exception {
+        try (ConfigurableApplicationContext context = start("--spring.profiles.active=prod",
+                "--jpa.admin.password=" + STRONG)) {
+            assertThat(get(context, "/admin/login").statusCode()).isEqualTo(200);
+        }
+
+        assertThat(output.getAll()).containsOnlyOnce(PLAIN_HTTP_WARNING).contains("reverse proxy").doesNotContain(STRONG);
+    }
+
+    @Test
+    void underProdBehindATrustedProxyOrOutsideProdThereIsNoSuchWarning(CapturedOutput output) throws Exception {
+        try (ConfigurableApplicationContext context = start("--spring.profiles.active=prod",
+                "--server.forward-headers-strategy=framework", "--jpa.admin.password=" + STRONG)) {
+            assertThat(get(context, "/admin/login").statusCode()).isEqualTo(200);
+        }
+        try (ConfigurableApplicationContext context = start("--jpa.admin.password=" + STRONG)) {
+            assertThat(get(context, "/admin/login").statusCode()).isEqualTo(200);
+        }
+
+        assertThat(output.getAll()).doesNotContain(PLAIN_HTTP_WARNING);
+    }
+
+    @Test
+    void aPasswordOverTheBcryptLimitStopsStartupAndNamesTheProperty(CapturedOutput output) {
+        String tooLong = "p".repeat(80);
+        assertThatThrownBy(() -> start("--jpa.admin.password=" + tooLong)).isInstanceOf(RuntimeException.class);
+
+        assertThat(output.getAll()).contains("jpa.admin.password is longer than 72 bytes").doesNotContain(tooLong);
     }
 }

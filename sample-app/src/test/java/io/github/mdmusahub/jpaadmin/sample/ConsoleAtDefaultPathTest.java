@@ -38,21 +38,32 @@ class ConsoleAtDefaultPathTest {
     private BasePath basePath;
 
     @Test
-    void theConsolePathRespondsWithThePlaceholder() throws Exception {
-        mvc.perform(get("/admin"))
-                .andExpect(status().isOk())
-                .andExpect(header().string("Content-Type", "text/plain;charset=UTF-8"))
-                .andExpect(content().string("JPA Admin console is running"));
+    void theConsolePathRequiresSignInAndThenShowsTheDashboard() throws Exception {
+        mvc.perform(get("/admin")).andExpect(status().isFound()).andExpect(header().string("Location", "/admin/login"));
+
+        var dashboard = mvc.perform(get("/admin").session(signedIn().session())).andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "text/html;charset=UTF-8")).andReturn().getResponse();
+        assertThat(dashboard.getContentAsString()).contains("<h1 class=\"page-title\">Dashboard</h1>");
     }
 
     @Test
     void theConsolePathAnswersHead() throws Exception {
-        mvc.perform(head("/admin")).andExpect(status().isOk());
+        mvc.perform(head("/admin")).andExpect(status().isFound());
+        mvc.perform(head("/admin").session(signedIn().session())).andExpect(status().isOk());
     }
 
     @Test
     void theConsolePathIsReadOnly() throws Exception {
-        mvc.perform(post("/admin")).andExpect(status().isMethodNotAllowed());
+        MockBrowser browser = signedIn();
+        String token = MockBrowser.csrf(browser.get("/admin").getContentAsString());
+
+        assertThat(browser.post("/admin", "_csrf", token).getStatus()).isEqualTo(405);
+        assertThat(browser.post("/admin").getStatus()).as("without the token it is refused first").isEqualTo(403);
+        mvc.perform(post("/admin")).andExpect(status().isForbidden());
+    }
+
+    private MockBrowser signedIn() throws Exception {
+        return MockBrowser.signedIn(mvc);
     }
 
     @Test
@@ -78,18 +89,31 @@ class ConsoleAtDefaultPathTest {
             "/assets/css/tokens.css",                  // the asset folder at the site root
             "/css/tokens.css",                         // the asset folder's content at the site root
             "/tokens.css",
-            "/admin/css/tokens.css",                   // under the console path but without /assets
-            "/admin/tokens.css",
-            "/admin/jpa-admin/assets/css/tokens.css",
-            "/admin/assets/css/missing.css",           // a file that does not exist
-            "/admin/assets/missing/tokens.css",
-            "/jpa-admin/css/tokens.css",
             "/administrator/assets/css/tokens.css",    // a sibling path that merely starts with the console path
             "/admin-old/assets/css/tokens.css",
             "/META-INF/resources/css/tokens.css",
-            "/static/css/tokens.css"})
+            "/static/css/tokens.css",
+            "/admin/assets/css/missing.css",           // a file that does not exist (public asset path)
+            "/admin/assets/missing/tokens.css"})
     void assetsAreNotExposedAnywhereElse(String path) throws Exception {
         mvc.perform(get(URI.create(path))).andExpect(status().isNotFound());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "/admin/css/tokens.css",                   // under the console path but without /assets
+            "/admin/tokens.css",
+            "/admin/jpa-admin/assets/css/tokens.css",
+            "/jpa-admin/css/tokens.css",
+            "/admin/host-marker.txt"})
+    void underTheConsolePathButOutsideTheAssetFolderNothingIsServedSignedOutOrSignedIn(String path) throws Exception {
+        assertThat(mvc.perform(get(URI.create(path))).andReturn().getResponse().getStatus())
+                .as("signed out: sent to sign-in or not found, never a file").isIn(302, 404);
+        var signedIn = mvc.perform(get(URI.create(path)).session(signedIn().session())).andReturn().getResponse();
+        if (path.startsWith("/admin/")) {
+            assertThat(signedIn.getStatus()).as("signed in").isEqualTo(404);
+        }
+        assertThat(signedIn.getContentAsString()).doesNotContain("design tokens").doesNotContain("host-static-content");
     }
 
     @ParameterizedTest
@@ -120,18 +144,40 @@ class ConsoleAtDefaultPathTest {
         mvc.perform(get("/host-marker.txt")).andExpect(status().isOk())
                 .andExpect(content().string("host-static-content\n"));
         mvc.perform(get("/admin/assets/host-marker.txt")).andExpect(status().isNotFound());
-        mvc.perform(get("/admin/host-marker.txt")).andExpect(status().isNotFound());
+        mvc.perform(get("/admin/host-marker.txt").session(signedIn().session())).andExpect(status().isNotFound());
     }
 
     // ---- links (D-29) ------------------------------------------------------------------------------------------
 
     @Test
     void everyLinkBuiltFromTheBasePathResolvesAndLiesUnderIt() throws Exception {
-        for (String link : new String[] {basePath.value(), basePath.link(TOKENS)}) {
+        MockBrowser browser = signedIn();
+        for (String link : new String[] {basePath.value(), basePath.link(TOKENS), basePath.link("/theme.css"),
+                basePath.link("/login")}) {
             assertThat(link).satisfiesAnyOf(
                     l -> assertThat(l).isEqualTo(basePath.value()),
                     l -> assertThat(l).startsWith(basePath.value() + "/"));
-            mvc.perform(get(URI.create(link))).andExpect(status().isOk());
+            assertThat(browser.get(link).getStatus()).as(link).isEqualTo(200);
+        }
+    }
+
+    /** D-29 from Phase 1 on: every link a controller builds lies under the base path (here: in the rendered pages). */
+    @Test
+    void everyLinkInTheRenderedPagesLiesUnderTheBasePath() throws Exception {
+        MockBrowser browser = signedIn();
+        for (String html : new String[] {new MockBrowser(mvc).get("/admin/login").getContentAsString(),
+                browser.get("/admin").getContentAsString(), browser.get("/admin/nope").getContentAsString(),
+                browser.get("/admin/login?error").getContentAsString()}) {
+            java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("\\b(?:href|src|action)=\"([^\"]*)\"").matcher(html);
+            int found = 0;
+            while (matcher.find()) {
+                found++;
+                String address = matcher.group(1);
+                if (!address.equals("#main") && !address.equals("data:,")) {
+                    assertThat(address).satisfiesAnyOf(a -> assertThat(a).isEqualTo("/admin"), a -> assertThat(a).startsWith("/admin/"));
+                }
+            }
+            assertThat(found).isPositive();
         }
     }
 }

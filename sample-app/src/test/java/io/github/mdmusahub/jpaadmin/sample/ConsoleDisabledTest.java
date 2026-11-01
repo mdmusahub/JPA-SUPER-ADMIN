@@ -35,9 +35,19 @@ class ConsoleDisabledTest {
     }
 
     @Test
+    void noSpringSecurityMachineryIsLeftBehindEither() {
+        assertThat(context.containsBean("springSecurityFilterChain")).isFalse();
+        assertThat(context.getBeanNamesForType(org.springframework.security.web.SecurityFilterChain.class)).isEmpty();
+        assertThat(context.getBeansOfType(jakarta.servlet.Filter.class).keySet())
+                .noneMatch(name -> name.toLowerCase().contains("security"));
+    }
+
+    @Test
     void theConsolePathAndItsAssetsAreNotFound() throws Exception {
         mvc.perform(get("/admin")).andExpect(status().isNotFound());
         mvc.perform(get("/admin/assets/css/tokens.css")).andExpect(status().isNotFound());
+        mvc.perform(get("/admin/login")).andExpect(status().isNotFound());
+        mvc.perform(get("/admin/theme.css")).andExpect(status().isNotFound());
     }
 
     @Test
