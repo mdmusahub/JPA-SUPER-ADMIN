@@ -64,7 +64,7 @@ Draft status: until the phase that fills a record starts, the record is a draft.
 
 ### Frozen shape (contract freeze, Phase 0)
 
-The records live in `jpa-admin-core/src/main/java/io/github/mdmusahub/jpaadmin/web/view/`. Every record and enum is public, and its Javadoc says it is draft, internal, not stable API and holds no sensitive values (ARCH-9 exception). A test enforces this.
+The records live in `jpa-admin-core/src/main/java/io/github/mdmusahub/jpaadmin/web/view/`. Every record and enum is public, and its Javadoc says it is draft, internal, not stable API and holds no sensitive values (ARCH-9 exception). A test enforces this. The one exception to "records only" is `Hrefs.java`: a package-private, non-record helper that holds the link rule shared by the records (D-28, D-29). It is not API, and the same test fails if any other non-record file appears in the package.
 
 | Record | Nested types |
 |---|---|
@@ -86,7 +86,7 @@ Conventions the records enforce or assume:
 - A row has exactly one cell per column, hidden columns included. `ListView.Empty.Reason` is `NONE` exactly when there are rows. `sort` and `dir` are both set or both `null`; `dir` is `asc` or `desc`.
 - A `MASKED` cell holds only `Cell.MASK`, with no tone, href or title. A `MASKED` form field has no value. An `UPLOAD` field has a ticket and no other field type has one.
 - `Cell` conventions: an `IMAGE` cell has the image URL in `href` and the file name in `display`; a `FILE` cell has the download URL in `href`; a `RELATION` cell links to the related record in `href`.
-- The backend builds the links and the template only prints them (D-28, see "Links" below). The template still builds the few fixed entity routes from `chrome.basePath`, `chrome.activeEntity` and the row or record id: the dashboard link, "New record", the links from a row or record to its detail, edit, duplicate and delete routes, bulk delete and logout. Every form posts the CSRF token from `chrome.csrf`.
+- The backend builds the links and the template only prints them (D-28, see "Links" below). The template still builds the few fixed entity routes from `chrome.basePath`, `chrome.activeEntity` and the row or record id: the dashboard link, "New record", the links from a row or record to its detail, edit, duplicate and delete routes, bulk delete and logout. Every form posts the CSRF token from `chrome.csrf`. These routes stay template-built for now and are revisited in Phase 7 (D-29).
 - A column's `sortState` matches `ListView.sort` and `dir`: the column whose key is `sort` is `ASCENDING` or `DESCENDING`, every other column is `NONE`. `sortHref` is present exactly when the column is sortable. Template: `aria-sort` and the arrow come from `sortState`, the header links to `sortHref`.
 - Paging links: `firstHref` and `prevHref` are present exactly when `page > 0`; `nextHref` and `lastHref` exactly when there is a later page (`page + 1 < totalPages()`). Exactly the `SizeOption` whose size equals `size` has `current` true.
 - `Actions.exportHref` is present exactly when `canExport` is true. It carries the current search, filters, sort and visible columns.
@@ -115,8 +115,8 @@ The backend builds every link the page prints; templates only print them. Every 
 - It is a relative path that starts with a single `/`.
 - It has no scheme, so `javascript:`, `data:`, `https:` and similar are rejected. It has no `//` in its path, so protocol-relative URLs are rejected. The query and fragment may contain `//` and `:`, because they are data there.
 - It has no backslash, no whitespace and no control character. Browsers strip tabs and line breaks from URLs, so `/<tab>/host` would become `//host`.
-- Links under `PageChrome` (breadcrumbs) must lie under `basePath`. `basePath` itself follows the same rule, because templates build the fixed entity routes from it. The other records do not carry `basePath`, so Phase 1 and later controller tests must assert that their links start with it.
-- The code that builds a link must percent-encode every parameter value (search text, filter values, sort keys). A value that is not encoded and contains a backslash, a space or a control character makes the record constructor throw; the error names the field and never repeats the link.
+- Links under `PageChrome` (breadcrumbs) must lie under `basePath`. `basePath` itself follows the same rule, because templates build the fixed entity routes from it. The other records do not carry `basePath`, so controller tests from Phase 1 on must assert that every link a controller builds is under the base path (D-29).
+- The code that builds a link must percent-encode every parameter value (search text, filter values, sort keys); Phase 4 tests cover spaces, slashes, quotes, unicode and a literal `http://x` search (D-29). A value that is not encoded and contains a backslash, a space or a control character makes the record constructor throw; the error names the field and never repeats the link.
 
 | Record | Links |
 |---|---|
