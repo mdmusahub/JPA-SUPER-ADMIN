@@ -62,6 +62,57 @@ Rule: a cell of type `masked` carries no value at all, only the display dots. A 
 
 Draft status: until the phase that fills a record starts, the record is a draft. A draft change needs approval but no `DECISIONS.md` entry. After that phase starts, every change needs both (section 8). Records are public but internal, not stable API (ARCH-9). Model attribute names (for example `chrome` for `PageChrome` and `view` for the page record) are fixed at the contract freeze, so templates and controllers agree.
 
+### Frozen shape (contract freeze, Phase 0)
+
+The records live in `jpa-admin-core/src/main/java/io/github/mdmusahub/jpaadmin/web/view/`. Every record and enum is public, and its Javadoc says it is draft, internal, not stable API and holds no sensitive values (ARCH-9 exception). A test enforces this.
+
+| Record | Nested types |
+|---|---|
+| `PageChrome` | `Theme`, `NavGroup`, `NavItem`, `Breadcrumb`, `FlashMessage` (`Level`), `Csrf` (parameter name, header name, token) |
+| `LoginView` | none |
+| `DashboardView` | `Stats`, `LargestTable`, `Group`, `EntityCard`, `Permissions` (create, update, delete, export) |
+| `ChartSeries` | `Day` (ISO date, counts in entity order). `range` is 7, 30 or 90 |
+| `ListView` | `EntityInfo`, `Column` (`Align`), `Row`, `Filters` (`Definition` with `Kind`, `Chip`), `Paging`, `Actions`, `Empty` (`Reason`) |
+| `Cell` | `Type`, `Tone`, constant `MASK` |
+| `DetailView` | `Field`, `Image`, `Actions` |
+| `FormView` | `Mode`, `Field` (`InputType`), `Option` (also used by filter definitions) |
+| `UploadResult` | none. `success(...)` or `failure(...)` |
+| `ErrorView` | none |
+
+Conventions the records enforce or assume:
+
+- Required values are never `null`; the constructor throws. Optional values are `null` when absent (for example `Cell.href`, `Breadcrumb.href`, `FormView.Field.help`), so templates test `x != null`. Text that is a form input value (`ListView.search`) is empty, not `null`.
+- Lists are never `null`, are copied with `List.copyOf` and cannot be modified.
+- A row has exactly one cell per column, hidden columns included. `ListView.Empty.Reason` is `NONE` exactly when there are rows. `sort` and `dir` are both set or both `null`; `dir` is `asc` or `desc`.
+- A `MASKED` cell holds only `Cell.MASK`, with no tone, href or title. A `MASKED` form field has no value. An `UPLOAD` field has a ticket and no other field type has one.
+- `Cell` conventions: an `IMAGE` cell has the image URL in `href` and the file name in `display`; a `FILE` cell has the download URL in `href`; a `RELATION` cell links to the related record in `href`.
+- URLs the records do not carry are built in the template from `chrome.basePath`, `chrome.activeEntity` and the row or record id, and every form posts the CSRF token from `chrome.csrf`.
+- The login page also receives a `PageChrome`, with an empty sidebar, for the base path, theme and CSRF token.
+
+### Template names and model attributes
+
+| Page | Template (view name) | Model attributes |
+|---|---|---|
+| Login | `jpa-admin/login` | `chrome` (`PageChrome`), `view` (`LoginView`) |
+| Dashboard | `jpa-admin/dashboard` | `chrome`, `view` (`DashboardView`) |
+| List | `jpa-admin/list` | `chrome`, `view` (`ListView`) |
+| Detail | `jpa-admin/detail` | `chrome`, `view` (`DetailView`) |
+| Create and edit | `jpa-admin/form` | `chrome`, `view` (`FormView`) |
+| Error | `jpa-admin/error` | `chrome`, `view` (`ErrorView`) |
+| Chart data | none (JSON body) | `ChartSeries` |
+| Upload result | none (JSON body) | `UploadResult` |
+
+The names are constants in the records (`PageChrome.ATTRIBUTE`, `PageChrome.VIEW_ATTRIBUTE`, and `TEMPLATE` on each page record), so controllers and the preview app use the same strings as the tests.
+
+### Open contract questions (draft, decide before the phase that needs them)
+
+These are gaps found while freezing the contract. They are not in the records yet, because the freeze follows the table above exactly.
+
+1. **Sort links.** `Column` has no link, so a template cannot build the toggled sort URL that keeps search, filters and page size. Proposal: `Column.sortHref` (`null` when not sortable). Needed in Phase 5 (U2).
+2. **Page links and page size.** `Paging` has no links. Proposal: previous and next links, and a link per page size. Needed in Phase 4 (U2).
+3. **Export link.** `Actions.canExport` is a flag, but the CSV link must carry the current query. Proposal: `Actions.exportHref`. Needed in Phase 11 (U8).
+4. **Form page identity.** `FormView` has no `title`, `entityLabel` or record `id`, so an edit form cannot build its action URL. Proposal: add the three (`id` is `null` in create mode). Needed in Phase 8 (U5).
+
 ## 4. Template and asset structure (inside `jpa-admin-ui`)
 
 ```
@@ -81,6 +132,8 @@ src/main/resources/jpa-admin/assets/
         chart.js  dialogs.js  shortcuts.js  csrf.js
   img/  logo and an inline SVG icon sprite
 ```
+
+View names and model attributes are fixed in section 3 (`jpa-admin/login`, `jpa-admin/dashboard`, `jpa-admin/list`, `jpa-admin/detail`, `jpa-admin/form`, `jpa-admin/error`; attributes `chrome` and `view`).
 
 Rules: no CDN or remote fonts (UI-2), no build step (CODE-6), plain JavaScript modules per feature, links and forms work first and JavaScript only enhances them.
 
