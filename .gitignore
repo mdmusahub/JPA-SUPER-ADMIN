@@ -1,0 +1,35 @@
+# Build output
+target/
+*.class
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+.factorypath
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Secrets and local config (GIT-3)
+.env
+.env.*
+*.local
+application-local.*
+
+# Upload folders (GIT-3)
+uploads/
+**/uploads/
+
+# Logs
+*.log
+
+# MkDocs build output
+site/
+
+# Claude Code local settings
+.claude/settings.local.json
