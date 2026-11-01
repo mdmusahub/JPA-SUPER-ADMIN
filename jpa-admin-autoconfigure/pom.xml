@@ -21,5 +21,36 @@
       <groupId>io.github.mdmusahub</groupId>
       <artifactId>jpa-admin-core</artifactId>
     </dependency>
+
+    <!--
+      Optional: compile-time only. The starter brings the web stack (D-30), and the auto-configuration backs off
+      when it is missing (ARCH-7), so this module imposes nothing on a host application.
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-webmvc</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <!-- Optional: generates META-INF/spring-configuration-metadata.json for IDE completion of jpa.admin.* -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-configuration-processor</artifactId>
+      <optional>true</optional>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!--
+      Test scope only (approved in D-19): puts jakarta.persistence.EntityManager on the test classpath so the
+      "JPA present" condition can be tested. Main code checks that class by name and has no JPA dependency.
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 </project>

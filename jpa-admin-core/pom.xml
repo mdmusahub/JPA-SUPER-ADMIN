@@ -17,6 +17,17 @@
   <description>Metadata, services, controllers and view-model records.</description>
 
   <dependencies>
+    <!--
+      Optional: compile-time only, for the controllers. The starter brings the web stack (D-30), and the
+      auto-configuration backs off when it is missing (ARCH-7), so the view-model records and the preview app,
+      which use this module without a web stack of their own, are not affected.
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-webmvc</artifactId>
+      <optional>true</optional>
+    </dependency>
+
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
