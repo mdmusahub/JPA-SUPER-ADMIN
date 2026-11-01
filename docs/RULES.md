@@ -87,7 +87,7 @@ Engineering rules for JPA Super Admin. Every rule has an ID so reviews can cite 
 ## 6. Git, docs and releases (GIT, DOC)
 
 - **GIT-1 MUST** One phase per branch, small commits, clear messages in imperative mood. Backend and UI sessions share that one branch; there are no per-track branches. When both are active, commit by path (`docs/UI_PLAN.md` section 9).
-- **GIT-2 MUST** Merge the phase branch into `main` and tag it (`v0.0.<phase>`) only when the phase is connected (backend phase done and its UI task connected). Tag the release as `v0.1.0`.
+- **GIT-2 MUST** Merge the phase branch into `main` and tag it (`v0.0.<phase>`) only when the phase is connected (backend phase done and its UI task connected). Tag the release as `v0.1.0`. Phase 1 is a recorded exception (D-31).
 - **GIT-3 MUST** Never commit secrets, passwords, upload folders or IDE files.
 - **GIT-5 MUST** `.gitattributes` enforces LF line endings for text files.
 - **GIT-4 SHOULD** Keep changes focused. Do not mix refactors with features.

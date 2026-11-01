@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<body>
+<!--/*
+  One-time messages (chrome.flash), shown above the content. They are plain text, escaped, and readable without
+  JavaScript. Errors and warnings are announced at once (role alert), the rest politely (role status).
+*/-->
+<div th:fragment="toasts" th:if="${!chrome.flash.isEmpty()}" class="toasts" role="region" aria-label="Messages">
+  <div th:each="message : ${chrome.flash}" class="toast"
+       th:classappend="'toast-' + ${#strings.toLowerCase(message.level)}"
+       th:attr="role=${message.level.name() == 'ERROR' or message.level.name() == 'WARNING'} ? 'alert' : 'status'">
+    <th:block th:if="${message.level.name() == 'SUCCESS'}"><th:block th:replace="~{jpa-admin/fragments/icons :: check}"></th:block></th:block>
+    <th:block th:if="${message.level.name() == 'INFO'}"><th:block th:replace="~{jpa-admin/fragments/icons :: info}"></th:block></th:block>
+    <th:block th:if="${message.level.name() == 'WARNING'}"><th:block th:replace="~{jpa-admin/fragments/icons :: warning}"></th:block></th:block>
+    <th:block th:if="${message.level.name() == 'ERROR'}"><th:block th:replace="~{jpa-admin/fragments/icons :: alert}"></th:block></th:block>
+    <span th:text="${message.text}">Message</span>
+  </div>
+</div>
+</body>
+</html>

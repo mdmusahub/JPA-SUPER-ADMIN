@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<body>
+<!--/*
+  The theme button: one icon-only button that cycles system, light, dark. It has an aria-label (theme.js keeps it
+  current), and it is hidden by the stylesheet when JavaScript is off, because it would do nothing then.
+*/-->
+<th:block th:fragment="toggle">
+  <button type="button" class="icon-button" data-theme-toggle aria-label="Change theme" title="Change theme">
+    <th:block th:replace="~{jpa-admin/fragments/icons :: sun}"></th:block>
+    <th:block th:replace="~{jpa-admin/fragments/icons :: moon}"></th:block>
+    <th:block th:replace="~{jpa-admin/fragments/icons :: monitor}"></th:block>
+  </button>
+</th:block>
+</body>
+</html>

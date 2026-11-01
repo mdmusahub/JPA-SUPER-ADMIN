@@ -1,6 +1,8 @@
 package io.github.mdmusahub.jpaadmin.autoconfigure;
 
 import io.github.mdmusahub.jpaadmin.web.BasePath;
+import java.time.Duration;
+import org.springframework.http.CacheControl;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -23,6 +25,13 @@ public class JpaAdminAssetsConfigurer implements WebMvcConfigurer {
     /** The only place assets are read from. Must stay out of Spring Boot's default static locations. */
     static final String LOCATION = "classpath:/jpa-admin/assets/";
 
+    /**
+     * How long a browser may reuse an asset. Stated explicitly because the console's security chain adds
+     * {@code Cache-Control: no-store} to every response that has no cache header of its own, and a stylesheet is
+     * public, not an authenticated page, so it should be cached (SEC-13).
+     */
+    static final Duration MAX_AGE = Duration.ofMinutes(5);
+
     private final BasePath basePath;
 
     public JpaAdminAssetsConfigurer(BasePath basePath) {
@@ -33,6 +42,7 @@ public class JpaAdminAssetsConfigurer implements WebMvcConfigurer {
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         registry.addResourceHandler(basePath.assetsPattern())
                 .addResourceLocations(LOCATION)
+                .setCacheControl(CacheControl.maxAge(MAX_AGE).cachePublic())
                 .resourceChain(false)
                 .addResolver(new NoDotfilesResourceResolver());
     }

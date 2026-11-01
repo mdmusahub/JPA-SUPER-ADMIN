@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Host home</title></head>
+<body>
+<h1 th:text="${greeting}">placeholder</h1>
+<form th:action="@{/host/submit}" method="post"><button type="submit">Send</button></form>
+</body>
+</html>

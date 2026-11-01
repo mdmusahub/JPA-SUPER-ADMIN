@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Console preview</title>
+</head>
+<body>
+<main>
+  <h1>Console preview</h1>
+  <p>Fake data only. No login, no database. Pick a page and a state; add <code>&amp;chrome=</code> and a variant name to change the shell.</p>
+
+  <section th:each="entry : ${catalog}">
+    <h2 th:text="${entry.key}">page</h2>
+    <ul>
+      <li th:each="state : ${entry.value}">
+        <a th:href="@{${base} + '/' + ${entry.key}(state=${state})}" th:text="${state}">state</a>
+      </li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Chrome variants (shown with the dashboard)</h2>
+    <ul>
+      <li th:each="variant : ${chromes}">
+        <a th:href="@{${base} + '/dashboard'(state='minimal', chrome=${variant})}" th:text="${variant}">variant</a>
+      </li>
+    </ul>
+  </section>
+</main>
+</body>
+</html>

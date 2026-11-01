@@ -3,7 +3,13 @@ package io.github.mdmusahub.jpaadmin.autoconfigure;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mdmusahub.jpaadmin.web.BasePath;
-import io.github.mdmusahub.jpaadmin.web.PlaceholderController;
+import io.github.mdmusahub.jpaadmin.web.ConsoleChromeFactory;
+import io.github.mdmusahub.jpaadmin.web.ConsoleController;
+import io.github.mdmusahub.jpaadmin.web.ConsoleExceptionResolver;
+import io.github.mdmusahub.jpaadmin.web.ConsoleSettings;
+import io.github.mdmusahub.jpaadmin.web.ConsoleViews;
+import io.github.mdmusahub.jpaadmin.web.ThemeController;
+import io.github.mdmusahub.jpaadmin.web.view.PageChrome;
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.LazyInitializationBeanFactoryPostProcessor;
@@ -17,8 +23,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
- * ARCH-7 and ARCH-8: the console is active only in a servlet web application with Spring MVC and JPA, only while
- * {@code jpa.admin.enabled} is true, and otherwise leaves no bean and no trace. Replaceable beans back off.
+ * ARCH-7 and ARCH-8: the console is active only in a servlet web application with Spring MVC, JPA, Spring Security and
+ * Thymeleaf, only while {@code jpa.admin.enabled} is true, and otherwise leaves no bean and no trace. Replaceable beans
+ * back off; the beans that enforce rules do not.
  */
 class JpaAdminAutoConfigurationTest {
 
@@ -53,9 +60,15 @@ class JpaAdminAutoConfigurationTest {
             assertThat(context).hasSingleBean(JpaAdminProperties.class);
             assertThat(context).hasSingleBean(BasePath.class);
             assertThat(context).hasSingleBean(JpaAdminPasswordGuard.class);
+            assertThat(context).hasSingleBean(JpaAdminTransportCheck.class);
             assertThat(context).hasSingleBean(JpaAdminPathPrefixConfigurer.class);
             assertThat(context).hasSingleBean(JpaAdminAssetsConfigurer.class);
-            assertThat(context).hasSingleBean(PlaceholderController.class);
+            assertThat(context).hasSingleBean(ConsoleSettings.class);
+            assertThat(context).hasSingleBean(ConsoleChromeFactory.class);
+            assertThat(context).hasSingleBean(ConsoleController.class);
+            assertThat(context).hasSingleBean(ThemeController.class);
+            assertThat(context).hasSingleBean(ConsoleExceptionResolver.class);
+            assertThat(context).hasSingleBean(ConsoleChainGuard.class);
             assertThat(context.getBean(BasePath.class).value()).isEqualTo("/admin");
         });
     }
@@ -67,25 +80,37 @@ class JpaAdminAutoConfigurationTest {
     }
 
     @Test
+    void passesTheTitleAndColourOnToThePages() {
+        web.withPropertyValues("jpa.admin.title=Back office", "jpa.admin.primary-color=#336699").run(context ->
+                assertThat(context.getBean(ConsoleSettings.class))
+                        .isEqualTo(new ConsoleSettings("Back office", "#336699")));
+    }
+
+    @Test
     void everyBeanItRegistersIsNamedWithAPrefixSoItCannotClashWithTheHost() {
         web.run(context -> {
-            // The auto-configuration class itself is registered under its own class name, which already carries
-            // the package; every bean it creates must carry the prefix.
+            // The auto-configuration and its imported configuration classes are registered under their class names,
+            // which already carry the package; every bean they create must carry the prefix.
             assertThat(consoleBeans(context)).isNotEmpty()
-                    .filteredOn(name -> !name.equals(JpaAdminAutoConfiguration.class.getName()))
+                    .filteredOn(name -> !name.startsWith("io.github.mdmusahub.jpaadmin.autoconfigure.JpaAdmin"))
                     .isNotEmpty()
                     .allSatisfy(name -> assertThat(name).matches("jpaAdmin\\w+|jpa\\.admin-.+"));
             assertThat(context).hasBean("jpaAdminBasePath").hasBean("jpaAdminPasswordGuard")
-                    .hasBean("jpaAdminPathPrefixConfigurer").hasBean("jpaAdminAssetsConfigurer")
-                    .hasBean("jpaAdminPlaceholderController");
+                    .hasBean("jpaAdminTransportCheck").hasBean("jpaAdminPathPrefixConfigurer")
+                    .hasBean("jpaAdminAssetsConfigurer").hasBean("jpaAdminSettings").hasBean("jpaAdminChromeFactory")
+                    .hasBean("jpaAdminConsoleController").hasBean("jpaAdminThemeController")
+                    .hasBean("jpaAdminExceptionResolver").hasBean("jpaAdminSecurityFilterChain")
+                    .hasBean("jpaAdminCsrfTokens").hasBean("jpaAdminChainGuard")
+                    .hasBean("jpaAdminSecurityFilterRegistration");
         });
     }
 
     @Test
-    void theAssetsHandlerAndThePathPrefixAreWebMvcConfigurers() {
+    void theAssetsHandlerThePathPrefixAndTheChainGuardAreWebMvcConfigurers() {
         web.run(context -> {
             assertThat(context.getBean(JpaAdminAssetsConfigurer.class)).isInstanceOf(WebMvcConfigurer.class);
             assertThat(context.getBean(JpaAdminPathPrefixConfigurer.class)).isInstanceOf(WebMvcConfigurer.class);
+            assertThat(context.getBean(ConsoleChainGuard.class)).isInstanceOf(WebMvcConfigurer.class);
         });
     }
 
@@ -103,7 +128,7 @@ class JpaAdminAutoConfigurationTest {
             assertThat(context).hasNotFailed();
             assertThat(context).doesNotHaveBean(JpaAdminProperties.class);
             assertThat(context).doesNotHaveBean(BasePath.class);
-            assertThat(context).doesNotHaveBean(PlaceholderController.class);
+            assertThat(context).doesNotHaveBean(ConsoleController.class);
             assertThat(consoleBeans(context)).isEmpty();
         });
     }
@@ -119,7 +144,8 @@ class JpaAdminAutoConfigurationTest {
                     assertThat(context).doesNotHaveBean(JpaAdminProperties.class);
                     assertThat(context).doesNotHaveBean(BasePath.class);
                     assertThat(context).doesNotHaveBean(JpaAdminAssetsConfigurer.class);
-                    assertThat(context).doesNotHaveBean(PlaceholderController.class);
+                    assertThat(context).doesNotHaveBean(ConsoleController.class);
+                    assertThat(context).doesNotHaveBean("springSecurityFilterChain");
                 });
     }
 
@@ -134,7 +160,7 @@ class JpaAdminAutoConfigurationTest {
     @Test
     void isActiveWhenEnabledIsExplicitlyTrue() {
         web.withPropertyValues("jpa.admin.enabled=true").run(context ->
-                assertThat(context).hasSingleBean(PlaceholderController.class));
+                assertThat(context).hasSingleBean(ConsoleController.class));
     }
 
     @Test
@@ -153,14 +179,42 @@ class JpaAdminAutoConfigurationTest {
         });
     }
 
+    /** SEC-4: without Spring Security there is no sign-in, and a console that answers without sign-in is never acceptable. */
+    @Test
+    void isAbsentWhenSpringSecurityIsNotOnTheClasspathSoNoControllerCanAnswerUnprotected() {
+        web.withClassLoader(new FilteredClassLoader("org.springframework.security")).run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(consoleBeans(context)).isEmpty();
+            assertThat(context).doesNotHaveBean(ConsoleController.class);
+            assertThat(context).doesNotHaveBean(ThemeController.class);
+        });
+    }
+
+    @Test
+    void isAbsentWhenThymeleafIsNotOnTheClasspathBecauseThePagesCouldNotBeRendered() {
+        web.withClassLoader(new FilteredClassLoader("org.thymeleaf")).run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(consoleBeans(context)).isEmpty();
+        });
+    }
+
     // ---- replaceable beans back off ----------------------------------------------------------------------------
 
     @Configuration(proxyBeanMethods = false)
     static class HostReplacements {
 
         @Bean
-        PlaceholderController hostHome() {
-            return new PlaceholderController();
+        ConsoleController hostHome() {
+            return new ConsoleController(
+                    new ConsoleChromeFactory(BasePath.of("/admin"), new ConsoleSettings("Host", "#0d9f6e"),
+                            request -> new PageChrome.Csrf("_csrf", "X-CSRF-TOKEN", "t")),
+                    new ConsoleViews((name, locale) -> null),
+                    new ConsoleSettings("Host", "#0d9f6e"), BasePath.of("/admin"));
+        }
+
+        @Bean
+        ThemeController hostTheme() {
+            return new ThemeController(new ConsoleSettings("Host", "#0d9f6e"));
         }
 
         @Bean
@@ -170,12 +224,14 @@ class JpaAdminAutoConfigurationTest {
     }
 
     @Test
-    void theControllerAndTheAssetsHandlerBackOffWhenTheHostProvidesItsOwn() {
+    void theControllersAndTheAssetsHandlerBackOffWhenTheHostProvidesItsOwn() {
         web.withUserConfiguration(HostReplacements.class).run(context -> {
             assertThat(context).hasNotFailed();
-            assertThat(context.getBeansOfType(PlaceholderController.class)).containsOnlyKeys("hostHome");
+            assertThat(context.getBeansOfType(ConsoleController.class)).containsOnlyKeys("hostHome");
+            assertThat(context.getBeansOfType(ThemeController.class)).containsOnlyKeys("hostTheme");
             assertThat(context.getBeansOfType(JpaAdminAssetsConfigurer.class)).containsOnlyKeys("hostAssets");
-            assertThat(context).doesNotHaveBean("jpaAdminPlaceholderController");
+            assertThat(context).doesNotHaveBean("jpaAdminConsoleController");
+            assertThat(context).doesNotHaveBean("jpaAdminThemeController");
             assertThat(context).doesNotHaveBean("jpaAdminAssetsConfigurer");
         });
     }
@@ -184,7 +240,9 @@ class JpaAdminAutoConfigurationTest {
     void theRulesThatProtectTheHostCannotBeReplacedAwayByAHostBean() {
         web.withUserConfiguration(HostReplacements.class).run(context -> {
             assertThat(context).hasBean("jpaAdminBasePath").hasBean("jpaAdminPathPrefixConfigurer")
-                    .hasBean("jpaAdminPasswordGuard");
+                    .hasBean("jpaAdminPasswordGuard").hasBean("jpaAdminTransportCheck")
+                    .hasBean("jpaAdminSecurityFilterChain").hasBean("jpaAdminChainGuard")
+                    .hasBean("jpaAdminExceptionResolver");
         });
     }
 
