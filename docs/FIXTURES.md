@@ -9,6 +9,7 @@ A **fixture** is a named, fake instance of a view-model record. The preview app 
 - **Theme:** light and dark are chosen in the browser by the theme toggle, so they are not fixtures. The `theme` field of `PageChrome` has its own chrome variants.
 - **Fake data only:** no real names, no real secrets. Masked values are never given a value, even in a fixture (SEC-1).
 - **Generic names:** fixtures use invented entities such as Article, Member and Invoice, never entity names from `sample-app` (ARCH-12).
+- **Links:** every link in a fixture is a local path under the chrome's base path (`docs/UI_PLAN.md` section 3, "Links"). Fixtures are built through the real record constructors, so a link that breaks the rule cannot be written. A fixture never contains an external link. Templates print the links the fixture gives them and never build sort, page, page-size, export or form links themselves.
 - **Status:** each fixture below belongs to the UI task that first needs it (U0 to U9, `docs/UI_PLAN.md` section 7). A fixture is part of "done" for that task.
 
 Fixture names are lower-case with hyphens. A fixture listed under "Covers" proves that the template handles that state.
@@ -26,7 +27,7 @@ Used with any page through `&chrome=`.
 | `deep-breadcrumbs` | 5 breadcrumbs with long labels | Breadcrumb wrapping and truncation on a phone | U0 |
 | `flash-all-levels` | One `FlashMessage` of each level (success, info, warning, error) plus one very long message | Flash area, toasts, long text | U0 |
 | `theme-dark`, `theme-light`, `theme-system` | `PageChrome.theme` set to each value | Initial theme before first paint, no flash on load | U0 |
-| `custom-base-path` | `basePath` set to a different console path | Every link and asset URL built from `basePath` | U0 |
+| `custom-base-path` | `basePath` set to a different console path, with breadcrumbs under it | Every link and asset URL starts with that base path, whether the fixture or the template made it | U0 |
 
 ## 2. Login (record: `LoginView`)
 
@@ -64,23 +65,26 @@ The preview serves these from a stub endpoint, so the chart can be built without
 
 | Fixture | Fills | Covers | Task |
 |---|---|---|---|
-| `normal` | `ListView` with 6 columns, 25 rows, page 0 of 4, sizes 10, 25, 50, 100 | Table, header, pager range text, row checkboxes, bulk bar when rows are selected | U2 |
+| `normal` | `ListView` with 6 columns (5 sortable with `sortHref` and `SortState.NONE`, 1 not sortable with no link), 25 rows, page 0 of 4, sizes 10, 25, 50, 100 each with a link and 25 `current`, export on | Table, header links, pager range text, row checkboxes, bulk bar when rows are selected. First page: next and last links, no first or previous link | U2 |
 | `empty-no-records` | No rows, `Empty.Reason.NO_RECORDS` | Empty state that explains how to create the first record | U2 |
 | `empty-no-matches` | No rows, `NO_MATCHES`, search and filters active | Empty state with a way to clear search and filters | U2, U3 |
 | `long-text` | Cells with 300-character values, long words without spaces, long column labels | Truncation, wrapping, `title` hover text | U2 |
 | `many-columns` | 20 columns, 5 hidden | Horizontal scroll on a phone, sticky first column, column visibility | U2 |
 | `all-cell-types` | One column per `Cell.Type`: text, number, boolean, enum with each `Tone`, relation with `href`, date, image, file, masked, empty | Cell renderer for every type | U2 |
-| `masked-column` | A column of `MASKED` cells | Dots only, no value, no tooltip, no sorting or filter control | U2 |
+| `masked-column` | A column of `MASKED` cells, `sortable` false and `sortHref` `null` | Dots only, no value, no tooltip, no sorting or filter control | U2 |
 | `search-active` | `search` set | Search box shows the term, empty-state wording | U2 |
-| `sorted-asc`, `sorted-desc` | `sort` and `dir` set | Sort indicator, `aria-sort` | U2 |
-| `last-page` | `page` is the last page, fewer rows than the size | Pager range text, next disabled | U2 |
-| `single-page` | `total` less than `size` | Pager hidden or minimal | U2 |
+| `sorted-asc`, `sorted-desc` | `sort` and `dir` set, that column's `SortState` is `ASCENDING` or `DESCENDING`, its `sortHref` is the toggled direction | Sort indicator, `aria-sort`, header link | U2 |
+| `middle-page` | `page` 1 of 4, so `firstHref`, `prevHref`, `nextHref` and `lastHref` all present | All four pager controls enabled, range text | U2 |
+| `last-page` | `page` is the last page, fewer rows than the size, `firstHref` and `prevHref` present, `nextHref` and `lastHref` `null` | Pager range text, first and previous enabled, next and last disabled | U2 |
+| `single-page` | `total` less than `size`, all four page links `null` | Pager hidden or minimal | U2 |
+| `page-size-50` | `size` 50, the 50 option `current`, every option with a link | Page-size control shows the current size and links the others | U2 |
 | `filters-open` | `Filters.definitions` of every `Kind` (text, enum, boolean, relation, number range, date range), none active | Filter panel inputs for each kind | U3 |
 | `filters-active` | Several active `Chip` entries and `clearAllHref` | Removable chips, clear all, filter button count | U3 |
 | `relation-many-options` | A relation filter with 200 options | Long select, keyboard use | U3 |
-| `read-only` | `Actions` with create, export and bulk delete all false | No "New record", no export, no checkboxes | U2 |
-| `export-enabled` | `Actions.canExport` true | Export button and its disabled and busy states | U8 |
-| `saved-views` | `ListView` with search, sort and filters set, plus page size 50 and hidden columns | Saved views menu applies and restores this exact state from the URL | U8 |
+| `read-only` | `Actions` with create, export and bulk delete all false, `exportHref` `null` | No "New record", no export, no checkboxes | U2 |
+| `export-enabled` | `Actions.canExport` true and `exportHref` carrying the current search, filters, sort and visible columns | Export button links to `exportHref`, plus its disabled and busy states | U8 |
+| `export-disabled` | `canExport` false and `exportHref` `null`, create and bulk delete on | No export button while the other actions stay | U8 |
+| `saved-views` | `ListView` with search, sort and filters set, plus page size 50 and hidden columns; every link keeps that state | Saved views menu applies and restores this exact state from the URL | U8 |
 
 ## 6. Detail (records: `DetailView`, `Cell`)
 
@@ -98,14 +102,15 @@ The preview serves these from a stub endpoint, so the chart can be built without
 
 | Fixture | Fills | Covers | Task |
 |---|---|---|---|
-| `create-empty` | `Mode.CREATE`, one field per `InputType` except upload, no values | Every input kind, required markers, help text | U5 |
-| `edit-prefilled` | `Mode.EDIT`, values set | Prefilled inputs, unsaved-changes guard when a value changes | U5 |
+| `create-empty` | `Mode.CREATE`, `title` such as "New article", `recordId` `null`, `actionHref` the collection path, `cancelHref` the list, one field per `InputType` except upload, no values | Every input kind, required markers, help text, heading from `title` and `entityLabel`, form posts to `actionHref` | U5 |
+| `edit-prefilled` | `Mode.EDIT`, `recordId` set, `actionHref` the record path, `cancelHref` the detail page, values set | Prefilled inputs, unsaved-changes guard when a value changes, Cancel goes to `cancelHref` | U5 |
+| `long-identity` | `title` of 120 characters, `entityLabel` of 40 characters, a UUID as `recordId` | Heading wrapping, long action path | U5 |
 | `validation-errors` | `Field.error` on several fields | Error text next to each field, linked to the input, focus on the first error | U5 |
 | `form-errors` | `formErrors` set, no field errors | Error summary at the top of the form | U5 |
 | `select-options` | `SELECT` fields for an enum (4 options) and a relation (50 options) | Selects, selected state, empty choice | U5 |
 | `masked-input` | A `MASKED` field with no value, in create and in edit mode | Masked input, "leave blank to keep the current value" help | U5 |
 | `long-form` | 30 fields, with long labels and long help text | Form grid, layout on a phone | U5 |
-| `duplicate` | `Mode.CREATE` prefilled, with no id and no masked value | Duplicate flow starts from a filled create form | U5 |
+| `duplicate` | `Mode.CREATE` prefilled, `recordId` `null`, `actionHref` the collection path, no masked value | Duplicate flow starts from a filled create form and posts as a new record | U5 |
 | `upload-states` | `UPLOAD` fields with a ticket: one empty, one with an existing image, one with an existing file, one with a field error | Server-provided upload states and the preview, replace and remove controls | U6 |
 
 ## 8. Uploader behaviour (record: `UploadResult`, JSON)
@@ -142,4 +147,5 @@ These reuse the fixtures above and are part of the acceptance checklist in `docs
 | `localStorage` unavailable | `list/saved-views`, `chrome/theme-system` |
 | No sensitive value in HTML | `list/masked-column`, `detail/masked-field`, `form/masked-input` |
 | No external requests | every page |
+| Links come from the record | `list/middle-page`, `list/sorted-asc`, `list/export-enabled`, `form/edit-prefilled` with `chrome/custom-base-path`: every sort, page, page-size, export and form link starts with the custom base path. Also a search of the templates finds no `sort=`, `page=` or `size=` text |
 | Docs screenshots | `dashboard/normal`, `list/normal`, `list/filters-active`, `detail/normal`, `form/validation-errors`, `form/upload-states`, `error/not-found` |

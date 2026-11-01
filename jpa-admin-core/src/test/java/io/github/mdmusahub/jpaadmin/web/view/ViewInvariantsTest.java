@@ -37,7 +37,10 @@ class ViewInvariantsTest {
 
     @Test
     void sortAndDirectionAreSetTogether() {
-        assertThatCode(() -> Samples.list(COLUMNS, List.of(Samples.row()), "name", "desc", Samples.notEmpty()))
+        List<ListView.Column> sortedByName = List.of(Samples.nameColumn(ListView.Column.SortState.DESCENDING),
+                Samples.secretColumn());
+
+        assertThatCode(() -> Samples.list(sortedByName, List.of(Samples.row()), "name", "desc", Samples.notEmpty()))
                 .doesNotThrowAnyException();
         assertThatThrownBy(() -> Samples.list(COLUMNS, List.of(Samples.row()), "name", null, Samples.notEmpty()))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -47,19 +50,25 @@ class ViewInvariantsTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    private static ListView.Paging paging(int page, long total, String first, String prev, String next, String last) {
+        return new ListView.Paging(page, 25, total, first, prev, next, last, Samples.sizes(25));
+    }
+
     @Test
     void pagingComputesPagesAndRowRange() {
-        ListView.Paging paging = new ListView.Paging(1, 25, 60, List.of(25));
+        ListView.Paging middle = Samples.middlePage();
+        ListView.Paging lastOfThree = paging(2, 60, "/a?page=0", "/a?page=1", null, null);
 
-        assertThat(paging.totalPages()).isEqualTo(3);
-        assertThat(paging.firstRow()).isEqualTo(26);
-        assertThat(paging.lastRow()).isEqualTo(50);
-        assertThat(new ListView.Paging(2, 25, 60, List.of(25)).lastRow()).isEqualTo(60);
+        assertThat(middle.totalPages()).isEqualTo(3);
+        assertThat(middle.firstRow()).isEqualTo(26);
+        assertThat(middle.lastRow()).isEqualTo(50);
+        assertThat(lastOfThree.totalPages()).isEqualTo(3);
+        assertThat(lastOfThree.lastRow()).isEqualTo(60);
     }
 
     @Test
     void pagingWithoutRecordsHasNoRange() {
-        ListView.Paging paging = new ListView.Paging(0, 25, 0, List.of(25));
+        ListView.Paging paging = paging(0, 0, null, null, null, null);
 
         assertThat(paging.totalPages()).isZero();
         assertThat(paging.firstRow()).isZero();
@@ -68,9 +77,137 @@ class ViewInvariantsTest {
 
     @Test
     void pagingRejectsNegativeOrZeroValues() {
-        assertThatThrownBy(() -> new ListView.Paging(-1, 25, 0, List.of())).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new ListView.Paging(0, 0, 0, List.of())).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new ListView.Paging(0, 25, -1, List.of())).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> paging(-1, 0, null, null, null, null)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new ListView.Paging(0, 0, 0, null, null, null, null, List.of()))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> paging(0, -1, null, null, null, null)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void firstPageHasOnlyForwardLinks() {
+        assertThatCode(() -> paging(0, 75, null, null, "/a?page=1", "/a?page=2")).doesNotThrowAnyException();
+        assertThatThrownBy(() -> paging(0, 75, "/a?page=0", null, "/a?page=1", "/a?page=2"))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("previous page");
+        assertThatThrownBy(() -> paging(0, 75, null, "/a?page=0", "/a?page=1", "/a?page=2"))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("previous page");
+        assertThatThrownBy(() -> paging(0, 75, null, null, null, null))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("next page");
+    }
+
+    @Test
+    void middlePageHasAllFourLinks() {
+        assertThatCode(Samples::middlePage).doesNotThrowAnyException();
+        assertThatThrownBy(() -> paging(1, 75, "/a?page=0", null, "/a?page=2", "/a?page=2"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> paging(1, 75, "/a?page=0", "/a?page=0", "/a?page=2", null))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> paging(1, 75, null, "/a?page=0", "/a?page=2", "/a?page=2"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void lastPageHasOnlyBackwardLinks() {
+        assertThatCode(() -> paging(2, 75, "/a?page=0", "/a?page=1", null, null)).doesNotThrowAnyException();
+        assertThatThrownBy(() -> paging(2, 75, "/a?page=0", "/a?page=1", "/a?page=3", null))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("next page");
+        assertThatThrownBy(() -> paging(2, 75, "/a?page=0", "/a?page=1", null, "/a?page=2"))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("next page");
+    }
+
+    @Test
+    void singlePageHasNoLinksAtAll() {
+        assertThatCode(() -> paging(0, 25, null, null, null, null)).doesNotThrowAnyException();
+        assertThatThrownBy(() -> paging(0, 25, null, null, "/a?page=1", "/a?page=1"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void aPagePastTheEndStillOffersWayBack() {
+        assertThatCode(() -> paging(9, 75, "/a?page=0", "/a?page=2", null, null)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void exactlyThePageSizeInUseIsCurrent() {
+        List<ListView.Paging.SizeOption> noneCurrent = Samples.sizes(0);
+        List<ListView.Paging.SizeOption> wrongOne = Samples.sizes(50);
+
+        assertThat(Samples.paging().sizes()).filteredOn(ListView.Paging.SizeOption::current)
+                .extracting(ListView.Paging.SizeOption::size).containsExactly(25);
+        for (List<ListView.Paging.SizeOption> sizes : List.of(noneCurrent, wrongOne)) {
+            assertThatThrownBy(() -> new ListView.Paging(0, 25, 1, null, null, null, null, sizes))
+                    .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("current");
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, -5})
+    void aPageSizeMustBePositive(int size) {
+        assertThatThrownBy(() -> new ListView.Paging.SizeOption(size, false, "/a"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void sortLinkIsPresentExactlyForSortableColumns() {
+        assertThatCode(Samples::nameColumn).doesNotThrowAnyException();
+        assertThatCode(Samples::secretColumn).doesNotThrowAnyException();
+        assertThatThrownBy(() -> new ListView.Column("k", "l", Cell.Type.TEXT, true, null, ListView.Column.SortState.NONE,
+                ListView.Column.Align.START, true, true))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("sortHref");
+        assertThatThrownBy(() -> new ListView.Column("k", "l", Cell.Type.TEXT, false, "/a?sort=k",
+                ListView.Column.SortState.NONE, ListView.Column.Align.START, true, true))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("sortHref");
+    }
+
+    @Test
+    void aColumnThatIsNotSortableHasNoSortDirection() {
+        assertThatThrownBy(() -> new ListView.Column("k", "l", Cell.Type.TEXT, false, null,
+                ListView.Column.SortState.ASCENDING, ListView.Column.Align.START, true, true))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void columnSortStatesMatchTheListSortAndDirection() {
+        ListView.Column asc = Samples.nameColumn(ListView.Column.SortState.ASCENDING);
+        ListView.Column desc = Samples.nameColumn(ListView.Column.SortState.DESCENDING);
+        ListView.Column none = Samples.nameColumn();
+        List<ListView.Row> rows = List.of(Samples.row());
+
+        assertThatCode(() -> Samples.list(List.of(asc, Samples.secretColumn()), rows, "name", "asc", Samples.notEmpty()))
+                .doesNotThrowAnyException();
+        assertThatCode(() -> Samples.list(List.of(none, Samples.secretColumn()), rows, null, null, Samples.notEmpty()))
+                .doesNotThrowAnyException();
+        assertThatThrownBy(() -> Samples.list(List.of(desc, Samples.secretColumn()), rows, "name", "asc",
+                Samples.notEmpty())).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("sortState");
+        assertThatThrownBy(() -> Samples.list(List.of(none, Samples.secretColumn()), rows, "name", "asc",
+                Samples.notEmpty())).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("sortState");
+        assertThatThrownBy(() -> Samples.list(List.of(asc, Samples.secretColumn()), rows, null, null,
+                Samples.notEmpty())).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("sortState");
+    }
+
+    @Test
+    void sortingByAColumnThatIsNotSortableIsRejected() {
+        assertThatThrownBy(() -> Samples.list(COLUMNS, List.of(Samples.row()), "secret", "asc", Samples.notEmpty()))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void exportLinkIsPresentExactlyWhenExportIsOffered() {
+        assertThatCode(() -> new ListView.Actions(true, true, true, "/admin/item/export")).doesNotThrowAnyException();
+        assertThatCode(() -> new ListView.Actions(true, false, true, null)).doesNotThrowAnyException();
+        assertThatThrownBy(() -> new ListView.Actions(true, true, true, null))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("exportHref");
+        assertThatThrownBy(() -> new ListView.Actions(true, false, true, "/admin/item/export"))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("exportHref");
+    }
+
+    @Test
+    void editFormNeedsARecordIdAndCreateFormHasNone() {
+        assertThat(Samples.form().recordId()).isEqualTo("1");
+        assertThat(Samples.createForm().recordId()).isNull();
+        assertThatThrownBy(() -> new FormView(FormView.Mode.EDIT, "t", "e", null, "/a", "/a", List.of(), List.of()))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("recordId");
+        assertThatThrownBy(() -> new FormView(FormView.Mode.CREATE, "t", "e", "7", "/a", "/a", List.of(), List.of()))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("recordId");
     }
 
     @ParameterizedTest

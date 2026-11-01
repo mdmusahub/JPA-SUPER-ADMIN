@@ -12,11 +12,13 @@ import java.util.Objects;
  * <p>Draft, internal, not stable API (ARCH-9 exception). Holds no sensitive values (SEC-1).
  *
  * @param title        page title shown in the header and the browser tab
- * @param basePath     console path such as {@code /admin}, starts with a slash and is never the site root (SEC-14)
+ * @param basePath     console path such as {@code /admin}, starts with a slash and is never the site root (SEC-14);
+ *                     it follows the same link rule as every href, because templates build links from it
+ *                     (a base path like {@code //host} would make every link leave the site)
  * @param theme        initial theme; the browser may override it from {@code localStorage}
  * @param nav          sidebar groups
  * @param activeEntity URL name of the entity being shown, or {@code null} outside an entity
- * @param breadcrumbs  trail shown above the content
+ * @param breadcrumbs  trail shown above the content; every link lies under {@code basePath}
  * @param flash        one-time messages for this response
  * @param csrf         name and value of the CSRF token for forms and scripts (SEC-5)
  */
@@ -37,8 +39,14 @@ public record PageChrome(String title, String basePath, Theme theme, List<NavGro
         if (!basePath.startsWith("/") || basePath.equals("/")) {
             throw new IllegalArgumentException("basePath must start with '/' and must not be the site root");
         }
+        Hrefs.require("basePath", basePath);
         nav = List.copyOf(Objects.requireNonNull(nav, "nav"));
         breadcrumbs = List.copyOf(Objects.requireNonNull(breadcrumbs, "breadcrumbs"));
+        for (Breadcrumb breadcrumb : breadcrumbs) {
+            if (breadcrumb.href() != null && !Hrefs.isUnder(basePath, breadcrumb.href())) {
+                throw new IllegalArgumentException("a breadcrumb link must lie under the base path");
+            }
+        }
         flash = List.copyOf(Objects.requireNonNull(flash, "flash"));
     }
 
@@ -91,11 +99,12 @@ public record PageChrome(String title, String basePath, Theme theme, List<NavGro
      * <p>Draft, internal, not stable API (ARCH-9 exception). Holds no sensitive values (SEC-1).
      *
      * @param label text to show
-     * @param href  link target, or {@code null} for the current page
+     * @param href  link target (a local path), or {@code null} for the current page
      */
     public record Breadcrumb(String label, String href) {
         public Breadcrumb {
             Objects.requireNonNull(label, "label");
+            Hrefs.optional("href", href);
         }
     }
 

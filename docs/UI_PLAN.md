@@ -51,10 +51,10 @@ Defined once, at the contract freeze (section 8). All fields are display-ready s
 | `LoginView` | Login | `title`, `error`, `logoutNotice` |
 | `DashboardView` | Dashboard | `stats` (total records, entities, groups, largest table), `groups` (entities with count and permissions), `chartAvailable` |
 | `ChartSeries` (JSON) | Chart endpoint | `range`, `days` (date, count per entity), `entities` |
-| `ListView` | List | `entity` (label, plural, icon), `columns` (key, label, type, sortable, align, visible, filterable), `rows` (id, cells), `search`, `sort`, `dir`, `filters` (definitions plus active chips), `paging` (page, size, total, sizes), `actions` (can create, export, bulk delete), `empty` (reason, hint) |
+| `ListView` | List | `entity` (label, plural, icon), `columns` (key, label, type, sortable, sort link, sort state, align, visible, filterable), `rows` (id, cells), `search`, `sort`, `dir`, `filters` (definitions plus active chips, each with its link), `paging` (page, size, total, first, previous, next and last links, sizes each with a link), `actions` (can create, export, bulk delete, export link), `empty` (reason, hint) |
 | `Cell` | List, detail | `type` (text, number, boolean, enum, relation, date, image, file, masked, empty), `display`, `tone`, `href`, `title` (hover text) |
 | `DetailView` | Detail | `title`, `entityLabel`, `id`, `fields` (label, cell), `images`, `actions` (edit, duplicate, delete) |
-| `FormView` | Create, edit | `mode`, `fields` (key, label, input type, value, required, help text, options, error), `formErrors`, `uploadTicket` per upload field |
+| `FormView` | Create, edit | `mode`, `title`, `entityLabel`, `recordId` (`null` on create), `actionHref`, `cancelHref`, `fields` (key, label, input type, value, required, help text, options, error), `formErrors`, `uploadTicket` per upload field |
 | `UploadResult` (JSON) | Upload endpoint | `url`, `name`, `size`, `error` |
 | `ErrorView` | Error pages | `status`, `heading`, `hint` |
 
@@ -72,7 +72,7 @@ The records live in `jpa-admin-core/src/main/java/io/github/mdmusahub/jpaadmin/w
 | `LoginView` | none |
 | `DashboardView` | `Stats`, `LargestTable`, `Group`, `EntityCard`, `Permissions` (create, update, delete, export) |
 | `ChartSeries` | `Day` (ISO date, counts in entity order). `range` is 7, 30 or 90 |
-| `ListView` | `EntityInfo`, `Column` (`Align`), `Row`, `Filters` (`Definition` with `Kind`, `Chip`), `Paging`, `Actions`, `Empty` (`Reason`) |
+| `ListView` | `EntityInfo`, `Column` (`Align`, `SortState`), `Row`, `Filters` (`Definition` with `Kind`, `Chip`), `Paging` (`SizeOption`), `Actions`, `Empty` (`Reason`) |
 | `Cell` | `Type`, `Tone`, constant `MASK` |
 | `DetailView` | `Field`, `Image`, `Actions` |
 | `FormView` | `Mode`, `Field` (`InputType`), `Option` (also used by filter definitions) |
@@ -86,7 +86,11 @@ Conventions the records enforce or assume:
 - A row has exactly one cell per column, hidden columns included. `ListView.Empty.Reason` is `NONE` exactly when there are rows. `sort` and `dir` are both set or both `null`; `dir` is `asc` or `desc`.
 - A `MASKED` cell holds only `Cell.MASK`, with no tone, href or title. A `MASKED` form field has no value. An `UPLOAD` field has a ticket and no other field type has one.
 - `Cell` conventions: an `IMAGE` cell has the image URL in `href` and the file name in `display`; a `FILE` cell has the download URL in `href`; a `RELATION` cell links to the related record in `href`.
-- URLs the records do not carry are built in the template from `chrome.basePath`, `chrome.activeEntity` and the row or record id, and every form posts the CSRF token from `chrome.csrf`.
+- The backend builds the links and the template only prints them (D-28, see "Links" below). The template still builds the few fixed entity routes from `chrome.basePath`, `chrome.activeEntity` and the row or record id: the dashboard link, "New record", the links from a row or record to its detail, edit, duplicate and delete routes, bulk delete and logout. Every form posts the CSRF token from `chrome.csrf`.
+- A column's `sortState` matches `ListView.sort` and `dir`: the column whose key is `sort` is `ASCENDING` or `DESCENDING`, every other column is `NONE`. `sortHref` is present exactly when the column is sortable. Template: `aria-sort` and the arrow come from `sortState`, the header links to `sortHref`.
+- Paging links: `firstHref` and `prevHref` are present exactly when `page > 0`; `nextHref` and `lastHref` exactly when there is a later page (`page + 1 < totalPages()`). Exactly the `SizeOption` whose size equals `size` has `current` true.
+- `Actions.exportHref` is present exactly when `canExport` is true. It carries the current search, filters, sort and visible columns.
+- `FormView.recordId` is present exactly in `EDIT` mode. The duplicate flow is a `CREATE` form that is pre-filled, so it has no `recordId`.
 - The login page also receives a `PageChrome`, with an empty sidebar, for the base path, theme and CSRF token.
 
 ### Template names and model attributes
@@ -104,14 +108,29 @@ Conventions the records enforce or assume:
 
 The names are constants in the records (`PageChrome.ATTRIBUTE`, `PageChrome.VIEW_ATTRIBUTE`, and `TEMPLATE` on each page record), so controllers and the preview app use the same strings as the tests.
 
-### Open contract questions (draft, decide before the phase that needs them)
+### Links (D-28)
 
-These are gaps found while freezing the contract. They are not in the records yet, because the freeze follows the table above exactly.
+The backend builds every link the page prints; templates only print them. Every link in every record follows one rule, enforced by the record constructors (the package-private `Hrefs` helper) and tested for each place a link appears:
 
-1. **Sort links.** `Column` has no link, so a template cannot build the toggled sort URL that keeps search, filters and page size. Proposal: `Column.sortHref` (`null` when not sortable). Needed in Phase 5 (U2).
-2. **Page links and page size.** `Paging` has no links. Proposal: previous and next links, and a link per page size. Needed in Phase 4 (U2).
-3. **Export link.** `Actions.canExport` is a flag, but the CSV link must carry the current query. Proposal: `Actions.exportHref`. Needed in Phase 11 (U8).
-4. **Form page identity.** `FormView` has no `title`, `entityLabel` or record `id`, so an edit form cannot build its action URL. Proposal: add the three (`id` is `null` in create mode). Needed in Phase 8 (U5).
+- It is a relative path that starts with a single `/`.
+- It has no scheme, so `javascript:`, `data:`, `https:` and similar are rejected. It has no `//` in its path, so protocol-relative URLs are rejected. The query and fragment may contain `//` and `:`, because they are data there.
+- It has no backslash, no whitespace and no control character. Browsers strip tabs and line breaks from URLs, so `/<tab>/host` would become `//host`.
+- Links under `PageChrome` (breadcrumbs) must lie under `basePath`. `basePath` itself follows the same rule, because templates build the fixed entity routes from it. The other records do not carry `basePath`, so Phase 1 and later controller tests must assert that their links start with it.
+- The code that builds a link must percent-encode every parameter value (search text, filter values, sort keys). A value that is not encoded and contains a backslash, a space or a control character makes the record constructor throw; the error names the field and never repeats the link.
+
+| Record | Links |
+|---|---|
+| `PageChrome` | `basePath`, `Breadcrumb.href` (optional) |
+| `Cell` | `href` (optional) |
+| `ListView.Column` | `sortHref` (present exactly when sortable) |
+| `ListView.Filters` | `clearAllHref` (optional), `Chip.removeHref` |
+| `ListView.Paging` | `firstHref`, `prevHref`, `nextHref`, `lastHref` (optional, see conventions), `SizeOption.href` |
+| `ListView.Actions` | `exportHref` (present exactly when export is offered) |
+| `FormView` | `actionHref`, `cancelHref` |
+| `DetailView.Image` | `url` |
+| `UploadResult` | `url` (success only) |
+
+The four gaps found at the freeze (sort links, page links and page sizes, export link, form identity) were closed by D-28 on 2026-11-01. There are no open contract questions.
 
 ## 4. Template and asset structure (inside `jpa-admin-ui`)
 

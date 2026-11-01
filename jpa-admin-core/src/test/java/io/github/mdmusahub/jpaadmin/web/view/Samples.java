@@ -43,12 +43,17 @@ final class Samples {
     }
 
     static ListView.Column nameColumn() {
-        return new ListView.Column("name", "Name", Cell.Type.TEXT, true, ListView.Column.Align.START, true, true);
+        return nameColumn(ListView.Column.SortState.NONE);
+    }
+
+    static ListView.Column nameColumn(ListView.Column.SortState sortState) {
+        return new ListView.Column("name", "Name", Cell.Type.TEXT, true, "/admin/item?sort=name&dir=asc&page=0&size=25",
+                sortState, ListView.Column.Align.START, true, true);
     }
 
     static ListView.Column secretColumn() {
-        return new ListView.Column("secret", "Secret", Cell.Type.MASKED, false, ListView.Column.Align.START, true,
-                false);
+        return new ListView.Column("secret", "Secret", Cell.Type.MASKED, false, null, ListView.Column.SortState.NONE,
+                ListView.Column.Align.START, true, false);
     }
 
     static ListView.Row row() {
@@ -63,8 +68,22 @@ final class Samples {
                 "/admin/item");
     }
 
+    /** Page sizes with the given one marked current. */
+    static List<ListView.Paging.SizeOption> sizes(int current) {
+        return List.of(10, 25, 50, 100).stream()
+                .map(size -> new ListView.Paging.SizeOption(size, size == current, "/admin/item?size=" + size))
+                .toList();
+    }
+
+    /** One page, one record: no page links. */
     static ListView.Paging paging() {
-        return new ListView.Paging(0, 25, 1, List.of(10, 25, 50, 100));
+        return new ListView.Paging(0, 25, 1, null, null, null, null, sizes(25));
+    }
+
+    /** Page 1 of 3 (75 records of 25 per page): all four links. */
+    static ListView.Paging middlePage() {
+        return new ListView.Paging(1, 25, 75, "/admin/item?page=0&size=25", "/admin/item?page=0&size=25",
+                "/admin/item?page=2&size=25", "/admin/item?page=2&size=25", sizes(25));
     }
 
     static ListView.Empty notEmpty() {
@@ -78,7 +97,11 @@ final class Samples {
     static ListView list(List<ListView.Column> columns, List<ListView.Row> rows, String sort, String dir,
                          ListView.Empty empty) {
         return new ListView(new ListView.EntityInfo("Item", "Items", "box"), columns, rows, "", sort, dir, filters(),
-                paging(), new ListView.Actions(true, true, true), empty);
+                paging(), actions(), empty);
+    }
+
+    static ListView.Actions actions() {
+        return new ListView.Actions(true, true, true, "/admin/item/export?search=&sort=name&dir=asc");
     }
 
     static DetailView detail() {
@@ -104,8 +127,19 @@ final class Samples {
     }
 
     static FormView form() {
-        return new FormView(FormView.Mode.EDIT, List.of(textField(), maskedField(), uploadField()),
+        return form(FormView.Mode.EDIT, List.of(textField(), maskedField(), uploadField()),
                 List.of("Fix the errors below."));
+    }
+
+    static FormView createForm() {
+        return form(FormView.Mode.CREATE, List.of(textField()), List.of());
+    }
+
+    /** A form whose identity matches its mode: an edit form for record 1, or a create form without a record. */
+    static FormView form(FormView.Mode mode, List<FormView.Field> fields, List<String> formErrors) {
+        boolean edit = mode == FormView.Mode.EDIT;
+        return new FormView(mode, edit ? "Edit Alpha" : "New item", "Item", edit ? "1" : null,
+                edit ? "/admin/item/1" : "/admin/item", edit ? "/admin/item/1" : "/admin/item", fields, formErrors);
     }
 
     static UploadResult upload() {

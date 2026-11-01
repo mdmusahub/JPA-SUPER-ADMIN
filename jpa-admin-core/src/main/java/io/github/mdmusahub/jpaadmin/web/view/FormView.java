@@ -9,21 +9,37 @@ import java.util.Objects;
  * <p>A field for a sensitive property has input type {@link Field.InputType#MASKED} and no value; a blank submit on
  * edit keeps the stored value (SEC-1). The constructor rejects a masked field that has a value.
  *
+ * <p>The backend builds both links; the template only prints them. Each is a local path under the base path.
+ *
  * <p>Draft, internal, not stable API (ARCH-9 exception). Holds no sensitive values (SEC-1).
  *
- * @param mode       whether the form creates or edits a record
- * @param fields     form fields in display order
- * @param formErrors errors that belong to the whole form, not to one field
+ * @param mode        whether the form creates or edits a record
+ * @param title       page title, for example "New article" or the record's label
+ * @param entityLabel singular display name of the entity
+ * @param recordId    id of the record being edited as text; {@code null} exactly when {@code mode} is
+ *                    {@link Mode#CREATE}
+ * @param actionHref  where the form posts to
+ * @param cancelHref  where "Cancel" goes
+ * @param fields      form fields in display order
+ * @param formErrors  errors that belong to the whole form, not to one field
  */
-public record FormView(Mode mode, List<Field> fields, List<String> formErrors) {
+public record FormView(Mode mode, String title, String entityLabel, String recordId, String actionHref,
+                       String cancelHref, List<Field> fields, List<String> formErrors) {
 
     /** Template (view) name. */
     public static final String TEMPLATE = "jpa-admin/form";
 
     public FormView {
         Objects.requireNonNull(mode, "mode");
+        Objects.requireNonNull(title, "title");
+        Objects.requireNonNull(entityLabel, "entityLabel");
+        Hrefs.require("actionHref", actionHref);
+        Hrefs.require("cancelHref", cancelHref);
         fields = List.copyOf(Objects.requireNonNull(fields, "fields"));
         formErrors = List.copyOf(Objects.requireNonNull(formErrors, "formErrors"));
+        if ((mode == Mode.EDIT) != (recordId != null)) {
+            throw new IllegalArgumentException("recordId is required exactly when the form edits a record");
+        }
     }
 
     /**

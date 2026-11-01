@@ -30,12 +30,22 @@ class ViewContractDocumentationTest {
     }
 
     @Test
-    void contractHasTheTenTopLevelRecords() throws IOException {
+    void contractHasTheTenTopLevelRecordsAndOnePackagePrivateHelper() throws IOException {
         List<String> names = sources().stream()
                 .map(p -> p.getFileName().toString().replace(".java", "")).toList();
 
         assertThat(names).containsExactlyInAnyOrder("PageChrome", "LoginView", "DashboardView", "ChartSeries",
-                "ListView", "Cell", "DetailView", "FormView", "UploadResult", "ErrorView");
+                "ListView", "Cell", "DetailView", "FormView", "UploadResult", "ErrorView", "Hrefs");
+    }
+
+    @Test
+    void theLinkRuleHelperIsPackagePrivateAndNotARecord() throws IOException {
+        String helper = Files.readString(VIEW_SOURCES.resolve("Hrefs.java"));
+
+        assertThat(helper).contains("\nfinal class Hrefs {");
+        assertThat(ANY_RECORD.matcher(helper).find()).as("declares a record").isFalse();
+        assertThat(ANY_ENUM.matcher(helper).find()).as("declares an enum").isFalse();
+        assertThat(helper).doesNotContainPattern("(?m)^\\s*public ");
     }
 
     @Test

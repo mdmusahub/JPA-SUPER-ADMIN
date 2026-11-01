@@ -73,7 +73,7 @@ class ViewImmutabilityTest {
     @Test
     void formFieldsAreCopied() {
         List<FormView.Field> fields = new ArrayList<>(List.of(Samples.textField()));
-        FormView form = new FormView(FormView.Mode.CREATE, fields, List.of());
+        FormView form = Samples.form(FormView.Mode.CREATE, fields, List.of());
 
         fields.add(Samples.maskedField());
 

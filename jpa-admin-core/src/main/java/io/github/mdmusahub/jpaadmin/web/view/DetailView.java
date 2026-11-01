@@ -50,12 +50,12 @@ public record DetailView(String title, String entityLabel, String id, List<Field
      *
      * <p>Draft, internal, not stable API (ARCH-9 exception). Holds no sensitive values (SEC-1).
      *
-     * @param url   image link
+     * @param url   image link, a local path under the base path
      * @param label alternative text
      */
     public record Image(String url, String label) {
         public Image {
-            Objects.requireNonNull(url, "url");
+            Hrefs.require("url", url);
             Objects.requireNonNull(label, "label");
         }
     }

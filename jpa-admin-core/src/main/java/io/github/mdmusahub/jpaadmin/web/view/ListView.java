@@ -9,6 +9,9 @@ import java.util.Objects;
  * <p>Each row has exactly one cell per column, in column order. Hidden columns still have cells; the template skips
  * columns that are not {@link Column#visible()}.
  *
+ * <p>The backend builds every link (sort, page, page size, filter removal, export). Templates only print them. Each
+ * link is a local path under the base path (see {@code Hrefs}) and keeps the current search, filters and sort.
+ *
  * <p>Draft, internal, not stable API (ARCH-9 exception). Holds no sensitive values (SEC-1).
  *
  * @param entity  names of the entity
@@ -42,6 +45,13 @@ public record ListView(EntityInfo entity, List<Column> columns, List<Row> rows, 
         }
         if (dir != null && !dir.equals("asc") && !dir.equals("desc")) {
             throw new IllegalArgumentException("dir must be 'asc' or 'desc'");
+        }
+        for (Column column : columns) {
+            Column.SortState expected = !column.key().equals(sort) ? Column.SortState.NONE
+                    : dir.equals("asc") ? Column.SortState.ASCENDING : Column.SortState.DESCENDING;
+            if (column.sortState() != expected) {
+                throw new IllegalArgumentException("each column's sortState must match sort and dir");
+            }
         }
         for (Row row : rows) {
             if (row.cells().size() != columns.size()) {
@@ -79,18 +89,37 @@ public record ListView(EntityInfo entity, List<Column> columns, List<Row> rows, 
      * @param label      header text
      * @param type       kind of value in the column
      * @param sortable   whether the header sorts the list
+     * @param sortHref   link that sorts by this column (the next direction), keeping search, filters and page size;
+     *                   present exactly when {@code sortable} is true
+     * @param sortState  how the list is sorted by this column now; {@link SortState#NONE} unless {@code sortable}.
+     *                   It matches {@link ListView#sort()} and {@link ListView#dir()}
      * @param align      text alignment
      * @param visible    whether the column is shown
      * @param filterable whether the column has a filter
      */
-    public record Column(String key, String label, Cell.Type type, boolean sortable, Align align, boolean visible,
-                         boolean filterable) {
+    public record Column(String key, String label, Cell.Type type, boolean sortable, String sortHref,
+                         SortState sortState, Align align, boolean visible, boolean filterable) {
         public Column {
             Objects.requireNonNull(key, "key");
             Objects.requireNonNull(label, "label");
             Objects.requireNonNull(type, "type");
+            Objects.requireNonNull(sortState, "sortState");
             Objects.requireNonNull(align, "align");
+            Hrefs.optional("sortHref", sortHref);
+            if (sortable != (sortHref != null)) {
+                throw new IllegalArgumentException("sortHref is required exactly for sortable columns");
+            }
+            if (!sortable && sortState != SortState.NONE) {
+                throw new IllegalArgumentException("a column that is not sortable cannot be sorted");
+            }
         }
+
+        /**
+         * Direction indicator of a column header, named after the ARIA {@code aria-sort} values.
+         *
+         * <p>Draft, internal, not stable API (ARCH-9 exception). Holds no sensitive values (SEC-1).
+         */
+        public enum SortState { NONE, ASCENDING, DESCENDING }
 
         /**
          * Text alignment.
@@ -128,6 +157,7 @@ public record ListView(EntityInfo entity, List<Column> columns, List<Row> rows, 
         public Filters {
             definitions = List.copyOf(Objects.requireNonNull(definitions, "definitions"));
             chips = List.copyOf(Objects.requireNonNull(chips, "chips"));
+            Hrefs.optional("clearAllHref", clearAllHref);
         }
 
         /**
@@ -175,7 +205,7 @@ public record ListView(EntityInfo entity, List<Column> columns, List<Row> rows, 
                 Objects.requireNonNull(key, "key");
                 Objects.requireNonNull(label, "label");
                 Objects.requireNonNull(display, "display");
-                Objects.requireNonNull(removeHref, "removeHref");
+                Hrefs.require("removeHref", removeHref);
             }
         }
     }
@@ -185,22 +215,50 @@ public record ListView(EntityInfo entity, List<Column> columns, List<Row> rows, 
      *
      * <p>Draft, internal, not stable API (ARCH-9 exception). Holds no sensitive values (SEC-1).
      *
-     * @param page  current page, starting at 0
-     * @param size  rows per page
-     * @param total total number of matching records
-     * @param sizes page sizes the user can choose
+     * @param page      current page, starting at 0
+     * @param size      rows per page
+     * @param total     total number of matching records
+     * @param firstHref link to the first page; {@code null} on the first page
+     * @param prevHref  link to the previous page; {@code null} on the first page
+     * @param nextHref  link to the next page; {@code null} on the last page and when there are no records
+     * @param lastHref  link to the last page; {@code null} on the last page and when there are no records
+     * @param sizes     page sizes the user can choose, each with its link
      */
-    public record Paging(int page, int size, long total, List<Integer> sizes) {
+    public record Paging(int page, int size, long total, String firstHref, String prevHref, String nextHref,
+                         String lastHref, List<SizeOption> sizes) {
         public Paging {
             if (page < 0 || size <= 0 || total < 0) {
                 throw new IllegalArgumentException("page and total must not be negative and size must be positive");
             }
+            Hrefs.optional("firstHref", firstHref);
+            Hrefs.optional("prevHref", prevHref);
+            Hrefs.optional("nextHref", nextHref);
+            Hrefs.optional("lastHref", lastHref);
             sizes = List.copyOf(Objects.requireNonNull(sizes, "sizes"));
+            boolean hasPrevious = page > 0;
+            boolean hasNext = page + 1L < pagesFor(total, size);
+            if (hasPrevious != (firstHref != null) || hasPrevious != (prevHref != null)) {
+                throw new IllegalArgumentException(
+                        "firstHref and prevHref are present exactly when there is a previous page");
+            }
+            if (hasNext != (nextHref != null) || hasNext != (lastHref != null)) {
+                throw new IllegalArgumentException(
+                        "nextHref and lastHref are present exactly when there is a next page");
+            }
+            for (SizeOption option : sizes) {
+                if (option.current() != (option.size() == size)) {
+                    throw new IllegalArgumentException("exactly the page size in use is marked current");
+                }
+            }
+        }
+
+        private static long pagesFor(long total, int size) {
+            return (total + size - 1) / size;
         }
 
         /** Number of pages, 0 when there are no matching records. */
         public long totalPages() {
-            return (total + size - 1) / size;
+            return pagesFor(total, size);
         }
 
         /** Number of the first row on this page, starting at 1, or 0 when there are no rows. */
@@ -212,6 +270,24 @@ public record ListView(EntityInfo entity, List<Column> columns, List<Row> rows, 
         public long lastRow() {
             return total == 0 ? 0 : Math.min(total, (long) (page + 1) * size);
         }
+
+        /**
+         * A page size the user can choose.
+         *
+         * <p>Draft, internal, not stable API (ARCH-9 exception). Holds no sensitive values (SEC-1).
+         *
+         * @param size    rows per page
+         * @param current whether this is the page size in use now
+         * @param href    link that switches to this page size, keeping search, filters and sort
+         */
+        public record SizeOption(int size, boolean current, String href) {
+            public SizeOption {
+                if (size <= 0) {
+                    throw new IllegalArgumentException("size must be positive");
+                }
+                Hrefs.require("href", href);
+            }
+        }
     }
 
     /**
@@ -222,8 +298,16 @@ public record ListView(EntityInfo entity, List<Column> columns, List<Row> rows, 
      * @param canCreate     whether "New record" is offered
      * @param canExport     whether CSV export is offered
      * @param canBulkDelete whether row selection and bulk delete are offered
+     * @param exportHref    CSV export link carrying the current search, filters, sort and visible columns; present
+     *                      exactly when {@code canExport} is true
      */
-    public record Actions(boolean canCreate, boolean canExport, boolean canBulkDelete) {
+    public record Actions(boolean canCreate, boolean canExport, boolean canBulkDelete, String exportHref) {
+        public Actions {
+            Hrefs.optional("exportHref", exportHref);
+            if (canExport != (exportHref != null)) {
+                throw new IllegalArgumentException("exportHref is required exactly when export is offered");
+            }
+        }
     }
 
     /**

@@ -13,7 +13,7 @@ import java.util.Objects;
  * @param type    kind of value, which decides how the template renders it
  * @param display text to show, already formatted
  * @param tone    badge colour, {@link Tone#NONE} for plain values
- * @param href    link target, or {@code null} when the value is not a link
+ * @param href    link target, or {@code null} when the value is not a link; a local path under the base path
  * @param title   hover text, or {@code null} when there is none
  */
 public record Cell(Type type, String display, Tone tone, String href, String title) {
@@ -39,6 +39,7 @@ public record Cell(Type type, String display, Tone tone, String href, String tit
         Objects.requireNonNull(type, "type");
         Objects.requireNonNull(display, "display");
         Objects.requireNonNull(tone, "tone");
+        Hrefs.optional("href", href);
         if (type == Type.MASKED && (!MASK.equals(display) || tone != Tone.NONE || href != null || title != null)) {
             throw new IllegalArgumentException("A masked cell carries only the fixed mask, no value, tone, href or title");
         }
