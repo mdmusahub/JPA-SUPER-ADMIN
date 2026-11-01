@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<body>
+<!--/*
+  The trail above the content. A step with a link is a link (the record has already checked that it lies under the
+  base path); the step without one is the current page.
+*/-->
+<nav th:fragment="crumbs" th:if="${!chrome.breadcrumbs.isEmpty()}" aria-label="Breadcrumb">
+  <ol class="crumbs">
+    <li th:each="crumb : ${chrome.breadcrumbs}">
+      <a th:if="${crumb.href != null}" th:href="@{${crumb.href}}" th:text="${crumb.label}">Dashboard</a>
+      <span th:if="${crumb.href == null}" aria-current="page" th:text="${crumb.label}">Current page</span>
+    </li>
+  </ol>
+</nav>
+</body>
+</html>

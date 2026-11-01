@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en"
+      th:fragment="layout(pageTitle, content, signOut)"
+      th:attr="data-theme-default=${#strings.toLowerCase(chrome.theme)}">
+<!--/*
+  The shell of every page except the sign-in page: sidebar, top bar, message area and a slot for the page's own
+  <main>. A page uses it by replacing its own <html> element:
+
+    <html th:replace="~{jpa-admin/layout :: layout('Dashboard', ~{::main}, true)}">
+
+  pageTitle  the text before the console title in the browser tab (escaped on output)
+  content    the page's <main id="main"> element
+  signOut    whether the top bar shows the sign-out button
+
+  The template reads only chrome (PageChrome) and view (the page's record) (UI-12). No inline script, style or handler.
+*/-->
+<head>
+  <th:block th:replace="~{jpa-admin/fragments/head :: assets}"></th:block>
+  <title th:text="${pageTitle + ' | ' + chrome.title}">Page | JPA Admin</title>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <div class="shell" data-shell data-nav-open="false">
+    <th:block th:replace="~{jpa-admin/fragments/sidebar :: sidebar}"></th:block>
+    <div class="shell-backdrop" data-nav-close></div>
+
+    <div class="main-column">
+      <th:block th:replace="~{jpa-admin/fragments/topbar :: topbar(${signOut})}"></th:block>
+      <th:block th:replace="~{jpa-admin/fragments/toast :: toasts}"></th:block>
+      <th:block th:replace="${content}"></th:block>
+    </div>
+  </div>
+
+  <script th:src="@{${chrome.basePath} + '/assets/js/nav.js'}" defer></script>
+</body>
+</html>

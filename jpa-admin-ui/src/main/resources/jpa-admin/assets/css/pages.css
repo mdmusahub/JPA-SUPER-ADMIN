@@ -1,0 +1,355 @@
+/*
+ * JPA Admin: page layouts. The sign-in page, the shell (sidebar, top bar, content) and the error page. Loaded last.
+ *
+ * The sidebar is a drawer on narrow screens, but only when JavaScript is running (theme.js adds the "js" class to
+ * <html>). Without JavaScript it simply stays above the content, so navigation always works.
+ */
+
+/* ---- sign-in page ----------------------------------------------------------------------------------------------- */
+
+.auth {
+  display: grid;
+  min-height: 100vh;
+  padding: var(--s6) var(--s4);
+  place-items: center;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 400px;
+  display: grid;
+  gap: var(--s5);
+}
+
+.auth-tools {
+  position: absolute;
+  top: var(--s3);
+  right: var(--s3);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-width: 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+a.brand:hover {
+  text-decoration: none;
+}
+
+.brand-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius);
+  background: var(--accent-strong);
+  color: var(--on-accent);
+}
+
+.brand-name {
+  min-width: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.auth-card h1 {
+  font-size: var(--text-xl);
+}
+
+/* ---- shell ------------------------------------------------------------------------------------------------------ */
+
+.shell {
+  display: grid;
+  min-height: 100vh;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  height: 100vh;
+  padding: var(--s4);
+  overflow-y: auto;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+}
+
+.sidebar nav {
+  display: grid;
+  gap: var(--s4);
+}
+
+.nav-group-title {
+  padding: 0 var(--s3);
+  margin-bottom: var(--s1);
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.nav-list {
+  display: grid;
+  gap: 2px;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-height: 36px;
+  padding: 0 var(--s3);
+  border-radius: var(--radius);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.nav-link:hover {
+  background: var(--hover);
+  text-decoration: none;
+}
+
+.nav-link[aria-current="page"] {
+  background: var(--accent-tint);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.nav-link > span:first-of-type {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.nav-count {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.nav-note {
+  padding: 0 var(--s3);
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.main-column {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-height: var(--topbar-h);
+  padding: 0 var(--page-pad);
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.topbar-spacer {
+  flex: 1;
+}
+
+.topbar form {
+  flex: none;
+  margin: 0;
+}
+
+.topbar .icon-button {
+  flex: none;
+}
+
+.crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s1) var(--s2);
+  min-width: 0;
+}
+
+.crumbs li {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.crumbs li + li::before {
+  content: "/";
+  color: var(--muted);
+}
+
+.crumbs [aria-current="page"] {
+  color: var(--muted);
+}
+
+.content {
+  width: 100%;
+  max-width: var(--content-max);
+  padding: var(--page-pad);
+}
+
+.page-title {
+  margin-bottom: var(--s5);
+  overflow-wrap: anywhere;
+}
+
+.welcome {
+  display: grid;
+  gap: var(--s2);
+}
+
+/* ---- error page ------------------------------------------------------------------------------------------------- */
+
+.error-state {
+  max-width: 560px;
+  margin: var(--s8) auto;
+}
+
+.error-status {
+  color: var(--muted);
+  font-size: 48px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.error-state h1 {
+  font-size: var(--text-xl);
+  overflow-wrap: anywhere;
+}
+
+.error-state > p {
+  overflow-wrap: anywhere;
+}
+
+/* ---- theme toggle ----------------------------------------------------------------------------------------------- */
+
+/* The toggle does nothing without JavaScript, so it is not shown then. */
+html:not(.js) [data-theme-toggle] {
+  display: none;
+}
+
+[data-theme-toggle] .icon {
+  display: none;
+}
+
+html:not([data-theme-choice]) [data-theme-toggle] .icon-monitor,
+html[data-theme-choice="system"] [data-theme-toggle] .icon-monitor,
+html[data-theme-choice="light"] [data-theme-toggle] .icon-sun,
+html[data-theme-choice="dark"] [data-theme-toggle] .icon-moon {
+  display: block;
+}
+
+/* ---- narrow screens: drawer ------------------------------------------------------------------------------------- */
+
+.nav-toggle,
+.sidebar-close,
+.shell-backdrop {
+  display: none;
+}
+
+@media (max-width: 899px) {
+  :root {
+    --page-pad: 14px;
+  }
+
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Without JavaScript: the sidebar is an ordinary block above the content. */
+  .sidebar {
+    position: static;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* With JavaScript: a drawer that opens over the page. */
+  .js .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 30;
+    width: min(var(--sidebar-w), 86vw);
+    height: 100%;
+    border-right: 1px solid var(--line);
+    border-bottom: 0;
+    box-shadow: var(--shadow);
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform 0.2s ease, visibility 0s linear 0.2s;
+  }
+
+  .js .shell[data-nav-open="true"] .sidebar {
+    transform: none;
+    visibility: visible;
+    transition: transform 0.2s ease, visibility 0s;
+  }
+
+  .js .nav-toggle,
+  .js .sidebar-close {
+    display: inline-flex;
+  }
+
+  /*
+   * A compact two-row top bar: the buttons on the first row, the breadcrumbs on the second as one line that scrolls
+   * sideways (nav.js scrolls it to the current page). A deep trail therefore never makes the sticky bar tall.
+   */
+  .topbar {
+    flex-wrap: wrap;
+    min-height: 0;
+    padding-top: var(--s2);
+    padding-bottom: var(--s1);
+    row-gap: var(--s1);
+  }
+
+  .topbar > nav[aria-label="Breadcrumb"] {
+    order: 3;
+    flex: 0 0 100%;
+    min-width: 0;
+    overflow-x: auto;
+    padding-bottom: var(--s1);
+  }
+
+  .crumbs {
+    flex-wrap: nowrap;
+  }
+
+  .crumbs li {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  .js .shell[data-nav-open="true"] .shell-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: block;
+    background: var(--backdrop);
+  }
+}
