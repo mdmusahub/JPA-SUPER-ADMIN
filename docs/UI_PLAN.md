@@ -158,3 +158,7 @@ Per-task flow: read the task, propose a plan (files, fixtures, states), wait for
 - [ ] State (search, filters, sort, page) is in the URL
 - [ ] Works when `localStorage` is unavailable
 - [ ] Screenshot taken for the docs site
+
+Once, when the console's asset handler first exists (Phase 1 or task U0), and again if the path or handler changes:
+
+- [ ] Runtime test in `sample-app`: with the console at its default path, `/admin/assets/...` serves an asset, and `/jpa-admin/assets/...` returns 404 (also with a custom `jpa.admin.path`, the old path returns 404 and the new one serves the asset). Assets are never served outside `{path}/assets/**`.

@@ -204,7 +204,7 @@ Every phase ends with a running app, passing `mvn clean verify`, updated docs an
 | Phase | Build | Done when |
 |---|---|---|
 | 0 Setup | Repo, `.gitattributes` (LF for text files), `.gitignore`, `CHANGELOG.md`, parent POM, modules (core, autoconfigure, ui, ui-preview, starter, sample-app), sample app with entities and seed data, CI skeleton, then the **contract freeze** (empty view-model records, the fixture list document, and a masking unit test; see `docs/UI_PLAN.md` section 8). No fixture code in Phase 0 | Build passes, sample app starts, contract committed |
-| 1 Auto-config | Properties validation, auto-configuration, imports file, placeholder `/admin` | Starter alone makes `/admin` respond. Missing username fails startup clearly |
+| 1 Auto-config | Properties validation, auto-configuration, imports file, placeholder `/admin`, asset resource handler for `{path}/assets/**` (from `classpath:/jpa-admin/assets/`) | Starter alone makes `/admin` respond. Missing username fails startup clearly. A runtime test proves `/admin/assets/**` serves the assets and `/jpa-admin/assets/**` (and other paths outside the console path) returns 404 |
 | 2 Login | Security chain, login page, logout, public assets | Redirect to login, bad login rejected, good login works, host routes untouched |
 | 3 Discovery | Scanner, registry, layout, sidebar, dashboard stat cards | Every entity listed with right count, hidden ones absent |
 | 4 List | Query service, formatter, list page, paging, masking | Right columns and values, password always masked |
