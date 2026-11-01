@@ -52,12 +52,13 @@ class HostRoutesUntouchedTest {
 
     @Test
     void aHostRouteDoesNotAppearUnderTheConsolePath() throws Exception {
-        mvc.perform(get("/admin/host/ping")).andExpect(status().isNotFound());
+        mvc.perform(get("/admin/host/ping")).andExpect(status().isFound());
+        mvc.perform(get("/admin/host/ping").session(MockBrowser.signedIn(mvc).session())).andExpect(status().isNotFound());
     }
 
     @Test
     void theConsoleStillAnswersAtItsOwnPath() throws Exception {
-        mvc.perform(get("/admin")).andExpect(status().isOk())
-                .andExpect(content().string("JPA Admin console is running"));
+        mvc.perform(get("/admin")).andExpect(status().isFound());
+        mvc.perform(get("/admin").session(MockBrowser.signedIn(mvc).session())).andExpect(status().isOk());
     }
 }

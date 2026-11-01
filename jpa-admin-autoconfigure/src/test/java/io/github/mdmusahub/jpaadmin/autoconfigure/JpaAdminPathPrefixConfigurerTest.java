@@ -3,7 +3,7 @@ package io.github.mdmusahub.jpaadmin.autoconfigure;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mdmusahub.jpaadmin.web.BasePath;
-import io.github.mdmusahub.jpaadmin.web.PlaceholderController;
+import io.github.mdmusahub.jpaadmin.web.ConsoleController;
 import java.util.Map;
 import java.util.function.Predicate;
 import org.junit.jupiter.api.Test;
@@ -16,7 +16,7 @@ class JpaAdminPathPrefixConfigurerTest {
 
     @Test
     void theConsoleControllerIsPrefixed() {
-        assertThat(JpaAdminPathPrefixConfigurer.isConsoleController(PlaceholderController.class)).isTrue();
+        assertThat(JpaAdminPathPrefixConfigurer.isConsoleController(ConsoleController.class)).isTrue();
     }
 
     @Test
@@ -56,7 +56,7 @@ class JpaAdminPathPrefixConfigurerTest {
 
         assertThat(configurer.prefixes()).hasSize(1).containsKey("/backoffice");
         Predicate<Class<?>> predicate = configurer.prefixes().get("/backoffice");
-        assertThat(predicate.test(PlaceholderController.class)).isTrue();
+        assertThat(predicate.test(ConsoleController.class)).isTrue();
         assertThat(predicate.test(JpaAdminPathPrefixConfigurerTest.class)).isFalse();
     }
 }

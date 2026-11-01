@@ -2,7 +2,7 @@ package io.github.mdmusahub.jpaadmin.sample;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.github.mdmusahub.jpaadmin.web.BasePath;
@@ -30,9 +30,31 @@ class ConsoleAtCustomPathTest {
     private BasePath basePath;
 
     @Test
-    void theConsoleRespondsAtTheCustomPath() throws Exception {
-        mvc.perform(get("/backoffice")).andExpect(status().isOk())
-                .andExpect(content().string("JPA Admin console is running"));
+    void theConsoleSignsInAndRespondsAtTheCustomPath() throws Exception {
+        mvc.perform(get("/backoffice")).andExpect(status().isFound())
+                .andExpect(header().string("Location", "/backoffice/login"));
+        MockBrowser browser = new MockBrowser(mvc);
+
+        var signedIn = browser.signInToConsole("/backoffice", MockBrowser.USER, MockBrowser.PASSWORD);
+        var dashboard = browser.get("/backoffice");
+
+        assertThat(signedIn.getHeader("Location")).isEqualTo("/backoffice");
+        assertThat(dashboard.getStatus()).isEqualTo(200);
+        assertThat(dashboard.getContentAsString()).contains("action=\"/backoffice/logout\"", "/backoffice/assets/css/tokens.css",
+                "/backoffice/theme.css").doesNotContain("/admin");
+        String token = MockBrowser.csrf(dashboard.getContentAsString());
+        assertThat(browser.post("/backoffice/logout", "_csrf", token).getHeader("Location")).isEqualTo("/backoffice/login?logout");
+        assertThat(browser.get("/backoffice").getStatus()).isEqualTo(302);
+    }
+
+    @Test
+    void theThemeAndAssetsArePublicAtTheCustomPathAndTheOldPathHasNoConsole() throws Exception {
+        mvc.perform(get("/backoffice/theme.css")).andExpect(status().isOk());
+        mvc.perform(get("/backoffice/login")).andExpect(status().isOk());
+        mvc.perform(get("/admin/login")).andExpect(status().isNotFound());
+        mvc.perform(get("/admin/theme.css")).andExpect(status().isNotFound());
+        // The old path is not ours any more, so no console security headers or chain apply there.
+        assertThat(mvc.perform(get("/admin")).andReturn().getResponse().getHeader("Content-Security-Policy")).isNull();
     }
 
     @Test
@@ -47,21 +69,27 @@ class ConsoleAtCustomPathTest {
             "/jpa-admin/assets/css/tokens.css",
             "/assets/css/tokens.css",
             "/css/tokens.css",
-            "/backoffice/css/tokens.css",
-            "/backoffice/jpa-admin/assets/css/tokens.css",
             "/backoffice/assets/css/missing.css",
-            "/backoffice-old",
-            "/backoffice/x"})
+            "/backoffice-old"})
     void everythingElseIsNotFound(String path) throws Exception {
         mvc.perform(get(URI.create(path))).andExpect(status().isNotFound());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"/backoffice/css/tokens.css", "/backoffice/jpa-admin/assets/css/tokens.css", "/backoffice/x"})
+    void underTheConsolePathOutsideTheAssetFolderItIsSignInOrNotFound(String path) throws Exception {
+        mvc.perform(get(URI.create(path))).andExpect(status().isFound());
+        mvc.perform(get(URI.create(path)).session(MockBrowser.signedIn(mvc, "/backoffice").session()))
+                .andExpect(status().isNotFound());
     }
 
     @Test
     void everyLinkBuiltFromTheBasePathResolvesAndLiesUnderIt() throws Exception {
         assertThat(basePath.value()).isEqualTo("/backoffice");
+        MockBrowser browser = MockBrowser.signedIn(mvc, "/backoffice");
         for (String link : new String[] {basePath.value(), basePath.link("/assets/css/tokens.css")}) {
             assertThat(link).startsWith("/backoffice");
-            mvc.perform(get(URI.create(link))).andExpect(status().isOk());
+            assertThat(browser.get(link).getStatus()).isEqualTo(200);
         }
     }
 }
