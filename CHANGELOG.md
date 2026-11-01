@@ -6,6 +6,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
+- Auto-configuration (Phase 1). With the starter plus `jpa.admin.username` and `jpa.admin.password`, the console path (`/admin` by default) answers in a servlet web app that has Spring MVC and JPA. It backs off completely, and then asks for no credentials, in a non-web app, without JPA or Spring MVC, and with `jpa.admin.enabled=false`. Bean names start with `jpaAdmin` (ARCH-7, ARCH-8).
+- Properties `jpa.admin.enabled`, `path`, `username`, `password`, `title` and `primary-color`, with IDE completion metadata. A startup report lists every wrong property by name, with an example. `username` and `password` are required: missing, blank, or still a `${...}` placeholder (an environment variable that is not set) stops startup. `path` must be a strict path (`/admin`, `/tools/admin`; never `/`, no trailing slash, only letters, digits, `-` and `_`), and `primary-color` must be `#rrggbb` (SEC-7, SEC-14, SEC-15).
+- Password rule: under the `prod` profile a password shorter than 12 characters or on a built-in common list stops startup; under other profiles it logs a warning. The password is never printed or logged, including in failure reports (SEC-6, D-7).
+- Asset handler: `{path}/assets/**` is served from `classpath:/jpa-admin/assets/` and from nowhere else, so the files never appear at a second URL in the host app (D-24). A placeholder `css/tokens.css` stands in until the UI track's real assets arrive.
+- The asset handler never serves hidden files or folders: a path segment that starts with a dot (`.gitkeep`, `.DS_Store`, `.env`), as written or percent-encoded, answers 404 whether or not the file exists (D-32). The stray `.gitkeep` is removed from the asset folder, where it was being served as an empty file.
+- A plain-text placeholder page at the console path ("JPA Admin console is running"). Phase 2 replaces it.
+- `BasePath`: the one validated console path that all links and routes are built from. Tests prove its results pass the contract's link rule and lie under the base path (D-29).
+- Tests: properties, startup failures, auto-configuration conditions, the asset-exposure checks from `docs/UI_PLAN.md` section 10 (MockMvc and a real HTTP start), host routes and host static files left alone, and the password never appearing in output. Mutation checks on the main rules are logged in `docs/logs/`.
+- Decisions in `docs/DECISIONS.md`: D-30 (dependencies for this phase and the design choices behind it), D-31 (Phase 1 is tagged `v0.0.1` although UI task U0 connects at Phase 2) and D-32 (the asset handler never serves hidden files).
+- Phase 2 in `docs/PLAN.md` now names the security response headers on console pages (SEC-13) and the plain-HTTP startup warning under `prod` (SEC-8).
+
+### Changed
+- The sample app no longer starts without credentials. It has none in `application.yml` on purpose. Build the jar with `mvn -pl sample-app -am package -DskipTests`, set `JPA_ADMIN_USERNAME` and `JPA_ADMIN_PASSWORD` (12 or more characters), and run `java -jar sample-app/target/sample-app-0.1.0-SNAPSHOT.jar`; the PowerShell and bash versions are under "Run the demo" in `CLAUDE.md`. `mvn -pl sample-app spring-boot:run` can run stale code from an older install in `~/.m2`, so the docs no longer use it. Its tests use fake test-only values.
+
+### Notes
+- Until Phase 2 adds the security chain, the placeholder page at the console path needs no login. It shows no data.
+
+## [0.0.0] - 2026-11-01
+
+### Added
 - Project plan, rules, requirements and UI plan (`docs/`).
 - Repository setup: `.gitattributes`, `.gitignore`, Apache 2.0 `LICENSE`.
 - Maven multi-module build on Spring Boot 4.1.2 and Java 17+: parent, `jpa-admin-core`, `jpa-admin-ui`, `jpa-admin-autoconfigure`, `jpa-admin-ui-preview`, `jpa-admin-starter` (published as `jpa-super-admin-spring-boot-starter`) and `sample-app`. A Maven Enforcer rule keeps the preview app out of every other module (D-19, D-22).
