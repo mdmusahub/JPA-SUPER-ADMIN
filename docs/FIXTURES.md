@@ -28,6 +28,8 @@ Used with any page through `&chrome=`.
 | `flash-all-levels` | One `FlashMessage` of each level (success, info, warning, error) plus one very long message | Flash area, toasts, long text | U0 |
 | `theme-dark`, `theme-light`, `theme-system` | `PageChrome.theme` set to each value | Initial theme before first paint, no flash on load | U0 |
 | `custom-base-path` | `basePath` set to a different console path, with breadcrumbs under it | Every link and asset URL starts with that base path, whether the fixture or the template made it | U0 |
+| `no-user` | `PageChrome.user` is `null` | A page with no signed-in user: no user chip, no sign-out (the error pages) | U1 |
+| `entity-active` | one entity active, one info flash ("not available yet") | The real chrome of an entity's page in Phase 3 | U1 |
 
 ## 2. Login (record: `LoginView`)
 
@@ -48,7 +50,16 @@ Used with any page through `&chrome=`.
 | `minimal` | `DashboardView` with zero stats, no groups, `chartAvailable` false (what the Phase 2 dashboard really shows) | Shell plus a welcome state, no data | U0 |
 | `no-entities` | `groups` empty, `entityCount` 0 | Empty state that explains how entities are discovered | U1 |
 | `many-groups` | 8 groups and 60 entities | Card grid layout and wrapping | U1 |
-| `read-only-entities` | `Permissions` with some flags false | Actions hidden or disabled per permission | U1 |
+| `count-unavailable` | one entity's `count` is `null` | The dashboard card and the sidebar item show "unavailable", and that entity is left out of the totals | U1 |
+| `read-only-entities` | `Permissions` with some flags false | Actions hidden or disabled per permission (no action is offered yet in Phase 3) | U1 |
+
+## 3b. Entity page (Phase 3 temporary, no record of its own)
+
+The entity page has no view-model record yet: it is the shell plus a flash notice (task U2 replaces it with the list page and `ListView`). The preview renders it through `EntityController.TEMPLATE`.
+
+| Fixture | Fills | Covers | Task |
+|---|---|---|---|
+| `not-available` | nothing; use with `&chrome=entity-active` | A known entity's page in Phase 3: the entity active in the sidebar and the "table view is not available yet" notice | U1 |
 
 ## 4. Chart data (record: `ChartSeries`, JSON)
 

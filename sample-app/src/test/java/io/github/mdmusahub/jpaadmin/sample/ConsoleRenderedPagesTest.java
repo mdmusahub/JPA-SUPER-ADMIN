@@ -72,7 +72,10 @@ class ConsoleRenderedPagesTest {
         Matcher inputs = Pattern.compile("(?is)<input\\b([^>]*)>").matcher(html);
         while (inputs.find()) {
             Matcher id = Pattern.compile("\\bid=\"([^\"]+)\"").matcher(inputs.group(1));
-            if (!inputs.group(1).contains("type=\"hidden\"") && !(id.find() && html.contains("<label for=\"" + id.group(1) + "\">"))) {
+            boolean labelled = id.find()
+                    && Pattern.compile("(?is)<label\\b[^>]*\\sfor=\"" + Pattern.quote(id.group(1)) + "\"")
+                            .matcher(html).find();
+            if (!inputs.group(1).contains("type=\"hidden\"") && !labelled) {
                 problems.add("input without label");
             }
         }

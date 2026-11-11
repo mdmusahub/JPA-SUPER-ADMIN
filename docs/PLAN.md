@@ -242,7 +242,24 @@ Every phase ends with a running app, passing `mvn clean verify`, updated docs an
 - [x] Follow-up: signing out clears only the console's own session data and ends the session only if nothing else is in it, so a host login in the same browser stays (D-39)
 - [x] Follow-up: the console renders with its own private Thymeleaf engine and view resolver, limited to its templates; a host's `spring.thymeleaf.*`, own Thymeleaf, other view resolvers or other view technology are neither used nor changed, proven with four kinds of host (D-40)
 - [x] Follow-up: mutation checks (k) to (x), see the report
-- [ ] Merge to `main` and tag `v0.0.2`: the maintainer's step (GIT-2: the phase is connected, because U0 connects here)
+- [x] Merge to `main` and tag `v0.0.2`: done (the tag exists; CHANGELOG `[0.0.2]` dated 2026-11-10)
+
+### Phase 3 checklist (both tracks, one session: D-33 extended; finished 2026-11-10)
+
+- [x] Public annotations `@AdminHidden` (entity or field) and `@AdminSensitive` (field), in `io.github.mdmusahub.jpaadmin.annotation`, with Javadoc; the package documented as public API (ARCH-9). No other annotation added (D-43)
+- [x] Properties `jpa.admin.excluded-entities` and `jpa.admin.sensitive-fields` (default `password, secret, token, apikey`), validated by the same plain code, naming the property and never printing a value (SEC-6); documented (DOC-2)
+- [x] `EntityScanner` reads the JPA metamodel once at startup into immutable `AdminEntity`/`AdminField` records (ARCH-1); URL name is the lower-cased simple name, a collision moves both to the hyphenated fully qualified name (D-45); hidden and excluded entities are absent from the registry's lookups, so they are unreachable by URL and identical to a name that never existed; composite-id entities are unsupported, logged once at WARN, never an exception; one `EntityManagerFactory` (the primary one), else a WARN and no entities, never a failed host startup (D-48); no entity name hard-coded (ARCH-12)
+- [x] Sensitive detection: `@AdminSensitive`, or a name match against `sensitive-fields` that ignores case, `_` and `-` as a substring (`userPassword`, `api_key`, `API-KEY` match; `passport` does not); the possible false positives documented
+- [x] `CountService`: one Criteria count per entity, `@Transactional(readOnly = true)` (ARCH-5), a 5-second TTL with an injectable `Clock` (D-46); the sidebar causes at most one count per entity per window and none on a repeat; a failing count is unavailable, logged without a stack trace, and never breaks the page
+- [x] Auto-configuration registers the scanner, registry and count service only with an `EntityManagerFactory` (ARCH-7), beans prefixed and replaceable where they do not enforce a rule; ordered after Boot 4's `HibernateJpaAutoConfiguration`
+- [x] Dashboard with real stats, groups and counts; `{path}/{entity}` 200 with a "not available yet" notice for a known entity and the console 404 for an unknown or hidden one, identical in both cases; the path looked up only through the registry and never echoed (SEC-2, D-47)
+- [x] UI task U1: sidebar with the "Administration" subtitle, a client-side search, collapsible groups, icons and counts (thousands separators, "unavailable"), active item, a user chip with the POST sign-out; dashboard stat cards and group cards; empty states for no entities and an unavailable count; works without JavaScript and in both themes; preview fixtures added
+- [x] Contract change (approved, D-44): `PageChrome.user` (nullable) and the counts `Long` (`null` = unavailable); every call site and fixture updated on both sides
+- [x] ARCH-12 name check with no new dependency (D-42): whole-word, case-sensitive, an allow-list with path, line and reason per entry, stale entries fail; 42 tests including made-up input
+- [x] A second host project `host-check/` (outside the reactor) with `Book`, `Author`, `Publisher` adds only the starter and the two properties and shows all three in the sidebar with the right counts; a CI step installs the reactor and runs it. Phase 3 "done when" and the Phase 14 "same host-check project" wording are met by this project
+- [x] Library tests run with `spring.jpa.open-in-view` both true and false (D-29): the sample app keeps the pre-existing `OpenInViewDisabledTest`/`OpenInViewEnabledTest`, and the console reads only inside its own read-only transactions
+- [x] Mutation checks (a) to (k): all caught, each file restored byte-identically (MD5), see `docs/logs/phase-3-report.md`
+- [ ] Merge to `main` and tag `v0.0.3`: the maintainer's step (GIT-2: the phase is connected, the real pages work in the sample app)
 
 ### Parallel tracks
 

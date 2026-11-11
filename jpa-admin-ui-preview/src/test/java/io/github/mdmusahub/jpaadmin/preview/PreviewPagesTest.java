@@ -69,12 +69,15 @@ class PreviewPagesTest {
     }
 
     @Test
-    void theCatalogHoldsTheU0FixturesOfFixturesMd() {
+    void theCatalogHoldsTheU0AndU1FixturesOfFixturesMd() {
         assertThat(PageFixtures.catalog().get("login")).containsExactly("normal", "bad-credentials", "logged-out", "long-title");
-        assertThat(PageFixtures.catalog().get("dashboard")).containsExactly("minimal");
+        assertThat(PageFixtures.catalog().get("dashboard")).containsExactly("minimal", "normal", "no-chart",
+                "empty-database", "count-unavailable", "no-entities", "many-groups", "read-only-entities");
+        assertThat(PageFixtures.catalog().get("entity")).containsExactly("not-available");
         assertThat(PageFixtures.catalog().get("error")).contains("not-found", "forbidden", "server-error", "bad-request", "long-hint");
         assertThat(ChromeFixtures.names()).containsExactly("default", "empty-sidebar", "no-active-entity", "deep-breadcrumbs",
-                "flash-all-levels", "theme-dark", "theme-light", "theme-system", "custom-base-path");
+                "flash-all-levels", "theme-dark", "theme-light", "theme-system", "custom-base-path", "long-sidebar",
+                "no-user", "entity-active");
     }
 
     // ---- sign-in page -----------------------------------------------------------------------------------------------
@@ -136,7 +139,7 @@ class PreviewPagesTest {
         assertThat(html).contains("<title>Dashboard | JPA Admin</title>")
                 .contains("<a class=\"skip-link\" href=\"#main\">Skip to content</a>")
                 .contains("<h1 class=\"page-title\">Dashboard</h1>", "Welcome to <span>JPA Admin</span>",
-                        "Your entities will be listed in the sidebar")
+                        "The console lists every JPA entity it finds in this application")
                 .contains("<main id=\"main\" class=\"content\" tabindex=\"-1\">")
                 .contains("aria-label=\"Open navigation\"", "data-nav-toggle", "aria-controls=\"sidebar\"", "aria-expanded=\"false\"")
                 .contains("aria-label=\"Close navigation\"", "aria-label=\"Change theme\"", "data-theme-toggle")
@@ -197,9 +200,9 @@ class PreviewPagesTest {
     void theDefaultChromeListsGroupsAndEntitiesWithCountsAndMarksTheActiveOne() throws Exception {
         String html = render("dashboard", "minimal", "default");
 
-        assertThat(html).contains(">Content<", ">People<", ">Billing<")
+        assertThat(html).contains("<span>Content</span>", "<span>People</span>", "<span>Billing</span>")
                 .contains("href=\"/admin-preview/article\" aria-current=\"page\"")
-                .contains("<span>Articles</span>", "<span class=\"nav-count\">1204</span>")
+                .contains("<span>Articles</span>", "<span class=\"nav-count\">1,204</span>")
                 .contains("href=\"/admin-preview/invoice\"", "href=\"/admin-preview/member\"")
                 .doesNotContain("Your entities will be listed here.");
         assertThat(count(html, "class=\"nav-link\"")).as("eight entities and the dashboard").isEqualTo(9);
@@ -230,7 +233,7 @@ class PreviewPagesTest {
                 "Articles waiting for a second review before publication",
                 "An article with a very long title that goes on and on");
         assertThat(html).contains("<span aria-current=\"page\">Edit the article and its translations</span>");
-        assertThat(count(html, "<li>") - 9 /* sidebar items */).isGreaterThanOrEqualTo(5);
+        assertThat(count(crumbs(html), "<li>")).as("five steps in the trail").isEqualTo(5);
     }
 
     @Test
@@ -302,6 +305,181 @@ class PreviewPagesTest {
 
         assertThat(html).contains("/admin-preview/login?state=bad-credentials", "/admin-preview/error?state=server-error",
                 "/admin-preview/dashboard?state=minimal&amp;chrome=flash-all-levels");
+    }
+
+    // ---- U1: the sidebar --------------------------------------------------------------------------------------------
+
+    @Test
+    void theSidebarHasTheBrandWithItsSubtitleAndALabelledSearchBox() throws Exception {
+        String html = render("dashboard", "minimal", "default");
+
+        assertThat(html).contains("<span class=\"brand-name\">JPA Admin</span>",
+                "<span class=\"brand-subtitle\">Administration</span>")
+                .contains("<label class=\"nav-search\" for=\"nav-search-input\">",
+                        "<span class=\"visually-hidden\">Search entities</span>",
+                        "id=\"nav-search-input\"", "type=\"search\"", "data-nav-search");
+    }
+
+    @Test
+    void anEmptySidebarHasNoSearchBoxBecauseThereWouldBeNothingToSearch() throws Exception {
+        String html = render("dashboard", "minimal", "empty-sidebar");
+
+        assertThat(html).doesNotContain("data-nav-search").contains("Your entities will be listed here.");
+    }
+
+    @Test
+    void everyGroupIsADetailsElementThatIsOpenAndCarriesItsNameForTheScript() throws Exception {
+        String html = render("dashboard", "minimal", "default");
+
+        assertThat(count(html, "<details class=\"nav-group\" open")).isEqualTo(3);
+        assertThat(html).contains("data-nav-group=\"Content\"", "data-nav-group=\"People\"",
+                "data-nav-group=\"Billing\"", "<summary class=\"nav-group-title\">", "icon icon-chevron");
+        assertThat(count(html, "data-nav-item=")).as("one per entity, for the search").isEqualTo(8);
+    }
+
+    @Test
+    void anEntityItemCarriesExactlyOneIcon() throws Exception {
+        String html = render("dashboard", "minimal", "default");
+
+        Matcher items = Pattern.compile("(?s)<li data-nav-item=\"[^\"]*\">(.*?)</li>").matcher(html);
+        int found = 0;
+        while (items.find()) {
+            found++;
+            assertThat(count(items.group(1), "<svg")).as("one icon, not the whole sprite").isEqualTo(1);
+        }
+        assertThat(found).isEqualTo(8);
+    }
+
+    @Test
+    void countsAreFormattedWithThousandsSeparatorsAndAnUnreadableCountSaysSo() throws Exception {
+        String html = render("dashboard", "minimal", "long-sidebar");
+
+        assertThat(html).contains("<span class=\"nav-count\">1,000,000</span>",
+                "<span class=\"nav-count\">987,654</span>", "<span class=\"nav-count\">0</span>")
+                .contains("<span class=\"nav-count nav-count-missing\"", "unavailable");
+        assertThat(count(html, "class=\"nav-link\"")).as("sixty entities and the dashboard").isEqualTo(61);
+    }
+
+    @Test
+    void aLongSidebarKeepsLongAndNonLatinNamesInFull() throws Exception {
+        String html = render("dashboard", "minimal", "long-sidebar");
+
+        assertThat(html).contains("Scheduled newsletter delivery attempts and their bounce reports",
+                "\u00dcr\u00fcn kategorileri", "\u041f\u043b\u0430\u0442\u0451\u0436\u043d\u044b\u0435 \u043f\u043e\u0440\u0443\u0447\u0435\u043d\u0438\u044f",
+                "\u914d\u9001\u5148\u4f4f\u6240", "\u03a0\u03b1\u03c1\u03b1\u03b3\u03b3\u03b5\u03bb\u03af\u03b5\u03c2 \u03c0\u03b5\u03bb\u03b1\u03c4\u03ce\u03bd");
+        assertThat(count(html, "<details class=\"nav-group\" open")).isEqualTo(8);
+    }
+
+    // ---- U1: the user chip ------------------------------------------------------------------------------------------
+
+    @Test
+    void theUserChipShowsTheSignedInNameAndSignsOutWithAPostAndTheToken() throws Exception {
+        String html = render("dashboard", "minimal", "default");
+
+        Matcher chip = Pattern.compile("(?s)<div class=\"user-chip\">(.*?)</div>").matcher(html);
+        assertThat(chip.find()).isTrue();
+        assertThat(chip.group(1)).contains("<span class=\"avatar\" aria-hidden=\"true\">A</span>",
+                "<span class=\"user-name\">admin</span>",
+                "<form method=\"post\" action=\"/admin-preview/logout\">",
+                "name=\"_csrf\" value=\"preview-fake-token-not-a-secret\"", "<span>Sign out</span>");
+        assertThat(html).doesNotContain("href=\"/admin-preview/logout\"");
+    }
+
+    @Test
+    void thereIsNoUserChipWhenNobodyIsSignedIn() throws Exception {
+        assertThat(render("dashboard", "minimal", "no-user")).doesNotContain("user-chip", "Sign out");
+    }
+
+    @Test
+    void thereIsOneSignOutOnThePageAndItIsInTheSidebar() throws Exception {
+        String html = render("dashboard", "minimal", "default");
+
+        assertThat(count(html, "Sign out")).as("one sign-out on the page, in the chip").isEqualTo(1);
+        assertThat(html.indexOf("Sign out")).isLessThan(html.indexOf("class=\"topbar\""));
+    }
+
+    // ---- U1: the dashboard ------------------------------------------------------------------------------------------
+
+    @Test
+    void theDashboardShowsFourStatCardsAndOneCardPerGroup() throws Exception {
+        String html = render("dashboard", "normal", "no-active-entity");
+
+        assertThat(count(html, "class=\"card stat-card\"")).isEqualTo(4);
+        assertThat(html).contains(">Total records</h2>", "<p class=\"stat-value\">12,745</p>", "Across 8 entities",
+                        ">Entities</h2>", "Discovered from the JPA model", ">Groups</h2>", "Sections in the sidebar",
+                        ">Largest table</h2>", "Comments", "5,430 records")
+                .doesNotContain("Welcome to");
+        assertThat(count(html, "class=\"card group-card\"")).isEqualTo(3);
+        assertThat(html).contains("<li class=\"entity-row\">", "href=\"/admin-preview/article\"", "1,204 records");
+    }
+
+    @Test
+    void theDashboardOfAnEmptyDatabaseShowsZerosAndNoLargestTable() throws Exception {
+        String html = render("dashboard", "empty-database", "no-active-entity");
+
+        assertThat(html).contains("<p class=\"stat-value\">0</p>",
+                "<p class=\"stat-value stat-value-text\">None</p>", "No record has been counted yet", "0 records");
+    }
+
+    @Test
+    void aCountTheConsoleCouldNotReadSaysSoOnTheDashboardToo() throws Exception {
+        String html = render("dashboard", "count-unavailable", "no-active-entity");
+
+        assertThat(html).contains("Count unavailable").contains("5,430 records");
+    }
+
+    @Test
+    void aConsoleWithoutEntitiesExplainsHowEntitiesAreFoundAndWhyOneCouldBeMissing() throws Exception {
+        String html = render("dashboard", "no-entities", "empty-sidebar");
+
+        assertThat(html).contains("Welcome to", "discovered from the JPA model", "<code>@AdminHidden</code>",
+                        "<code>jpa.admin.excluded-entities</code>", "composite primary key")
+                .doesNotContain("stat-card", "group-card");
+    }
+
+    @Test
+    void theDashboardSurvivesSixtyEntitiesInEightGroups() throws Exception {
+        String html = render("dashboard", "many-groups", "long-sidebar");
+
+        assertThat(count(html, "class=\"card group-card\"")).isEqualTo(8);
+        assertThat(count(html, "class=\"entity-row\"")).isEqualTo(60);
+        assertThat(html).contains("<p class=\"stat-value\">3,456,789</p>", "Across 60 entities");
+    }
+
+    @Test
+    void noDashboardCardOffersAnActionYetBecauseNothingCanBeDoneWithARecordSoFar() throws Exception {
+        String html = render("dashboard", "normal", "default");
+
+        assertThat(html).doesNotContain("New record", "Delete record", "Export");
+    }
+
+    // ---- U1: one entity's page --------------------------------------------------------------------------------------
+
+    @Test
+    void theEntityPageSaysTheTableIsNotAvailableYetAndKeepsTheShell() throws Exception {
+        String html = render("entity", "not-available", "entity-active");
+
+        assertThat(html).contains("<title>Articles | JPA Admin</title>",
+                        "<h1 class=\"page-title\">Articles</h1>",
+                        "<h2>This table view is not available yet</h2>",
+                        "This table view is not available yet.",
+                        "<a class=\"btn\" href=\"/admin-preview\">Go to dashboard</a>")
+                .contains("href=\"/admin-preview/article\" aria-current=\"page\"")
+                .contains("class=\"sidebar\"", "class=\"topbar\"", "user-chip");
+        assertThat(count(html, "toast toast-info")).as("the notice the controller adds").isEqualTo(1);
+    }
+
+    @Test
+    void theEntityPageShowsNoDataAtAll() throws Exception {
+        String html = render("entity", "not-available", "entity-active");
+
+        assertThat(html).doesNotContain("<table", "<tbody", "New record");
+    }
+
+    private static String crumbs(String html) {
+        Matcher trail = Pattern.compile("(?s)<ol class=\"crumbs\">(.*?)</ol>").matcher(html);
+        assertThat(trail.find()).isTrue();
+        return trail.group(1);
     }
 
     private static int count(String text, String needle) {

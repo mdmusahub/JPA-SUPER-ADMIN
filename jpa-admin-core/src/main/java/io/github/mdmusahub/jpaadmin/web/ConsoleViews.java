@@ -33,9 +33,22 @@ public final class ConsoleViews {
      * @param view     the page's record, model attribute {@value PageChrome#VIEW_ATTRIBUTE}
      */
     public ModelAndView page(HttpServletRequest request, String template, PageChrome chrome, Object view) {
+        ModelAndView page = page(request, template, chrome);
+        page.addObject(PageChrome.VIEW_ATTRIBUTE, Objects.requireNonNull(view, "view"));
+        return page;
+    }
+
+    /**
+     * A page that has nothing but the shell, so it needs no record of its own and gets no {@code view} attribute.
+     * Only the temporary entity page uses it, until Phase 4 fills a {@code ListView} there.
+     *
+     * @param request  the request being answered, for its locale
+     * @param template one of the contract's template names
+     * @param chrome   the shell data, model attribute {@value PageChrome#ATTRIBUTE}
+     */
+    public ModelAndView page(HttpServletRequest request, String template, PageChrome chrome) {
         ModelAndView page = new ModelAndView(factory.create(template, RequestContextUtils.getLocale(request)));
         page.addObject(PageChrome.ATTRIBUTE, Objects.requireNonNull(chrome, "chrome"));
-        page.addObject(PageChrome.VIEW_ATTRIBUTE, Objects.requireNonNull(view, "view"));
         return page;
     }
 }

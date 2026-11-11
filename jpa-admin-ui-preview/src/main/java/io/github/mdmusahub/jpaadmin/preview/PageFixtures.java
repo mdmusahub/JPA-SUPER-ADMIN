@@ -4,7 +4,11 @@ import io.github.mdmusahub.jpaadmin.web.ErrorViews;
 import io.github.mdmusahub.jpaadmin.web.view.DashboardView;
 import io.github.mdmusahub.jpaadmin.web.view.ErrorView;
 import io.github.mdmusahub.jpaadmin.web.view.LoginView;
+import io.github.mdmusahub.jpaadmin.web.view.PageChrome.NavGroup;
+import io.github.mdmusahub.jpaadmin.web.view.PageChrome.NavItem;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -21,6 +25,11 @@ final class PageFixtures {
     private static final Map<String, LoginView> LOGIN = new LinkedHashMap<>();
     private static final Map<String, DashboardView> DASHBOARD = new LinkedHashMap<>();
     private static final Map<String, ErrorView> ERROR = new LinkedHashMap<>();
+    private static final Set<String> ENTITY = new LinkedHashSet<>();
+
+    /** What the console offers for an entity in Phase 3: nothing yet, so no card shows an action. */
+    private static final DashboardView.Permissions PERMISSIONS =
+            new DashboardView.Permissions(false, false, false, false);
 
     static {
         LOGIN.put("normal", new LoginView("JPA Admin", null, false));
@@ -30,8 +39,32 @@ final class PageFixtures {
         LOGIN.put("long-title", new LoginView(
                 "Back office of the Example Company Regional Operations and Customer Support Team", null, false));
 
-        // Zero values, like the real Phase 2 dashboard: no groups, no chart.
+        // Zero values, like the dashboard of a console that found no entity at all.
         DASHBOARD.put("minimal", new DashboardView(new DashboardView.Stats(0, 0, 0, null), List.of(), false));
+        DASHBOARD.put("normal", new DashboardView(
+                new DashboardView.Stats(12_745, 8, 3, new DashboardView.LargestTable("Comments", 5_430)),
+                groups(), true));
+        DASHBOARD.put("no-chart", new DashboardView(
+                new DashboardView.Stats(12_745, 8, 3, new DashboardView.LargestTable("Comments", 5_430)),
+                groups(), false));
+        // An empty database: entities are there, every count is zero, so there is no largest table.
+        DASHBOARD.put("empty-database", new DashboardView(new DashboardView.Stats(0, 8, 3, null),
+                groups(count -> 0L), false));
+        // One count could not be read: the card says so and the entity is left out of the total.
+        DASHBOARD.put("count-unavailable", new DashboardView(
+                new DashboardView.Stats(7_315, 8, 3, new DashboardView.LargestTable("Comments", 5_430)),
+                groups(count -> count == 1_204L ? null : count), false));
+        DASHBOARD.put("no-entities", new DashboardView(new DashboardView.Stats(0, 0, 0, null), List.of(), false));
+        DASHBOARD.put("many-groups", new DashboardView(
+                new DashboardView.Stats(3_456_789, ChromeFixtures.LONG_NAVIGATION_ENTITIES, 8,
+                        new DashboardView.LargestTable("Entity 8", 1_000_000)),
+                manyGroups(), false));
+        DASHBOARD.put("read-only-entities", new DashboardView(
+                new DashboardView.Stats(12_745, 8, 3, new DashboardView.LargestTable("Comments", 5_430)),
+                groups(), false));
+
+        // The entity page has nothing of its own to show yet: it is the shell plus the notice (Phase 3).
+        ENTITY.add("not-available");
 
         ERROR.put("not-found", ErrorViews.forStatus(404));
         ERROR.put("forbidden", ErrorViews.forStatus(403));
@@ -58,11 +91,48 @@ final class PageFixtures {
         return Optional.ofNullable(ERROR.get(state));
     }
 
+    /** The entity page carries no record of its own, so a state is only a name that has to be known. */
+    static boolean hasEntityState(String state) {
+        return ENTITY.contains(state);
+    }
+
+    /** The dashboard groups that match the default sidebar, with the counts the sidebar shows. */
+    private static List<DashboardView.Group> groups() {
+        return groups(count -> count);
+    }
+
+    private static List<DashboardView.Group> groups(java.util.function.LongFunction<Long> count) {
+        List<DashboardView.Group> groups = new ArrayList<>();
+        for (NavGroup group : ChromeFixtures.navigationForDashboard()) {
+            List<DashboardView.EntityCard> cards = new ArrayList<>();
+            for (NavItem item : group.items()) {
+                cards.add(new DashboardView.EntityCard(item.entity(), item.label(), item.icon(),
+                        count.apply(item.count()), PERMISSIONS));
+            }
+            groups.add(new DashboardView.Group(group.label(), cards));
+        }
+        return List.copyOf(groups);
+    }
+
+    private static List<DashboardView.Group> manyGroups() {
+        List<DashboardView.Group> groups = new ArrayList<>();
+        for (NavGroup group : ChromeFixtures.longNavigation()) {
+            List<DashboardView.EntityCard> cards = new ArrayList<>();
+            for (NavItem item : group.items()) {
+                cards.add(new DashboardView.EntityCard(item.entity(), item.label(), item.icon(), item.count(),
+                        PERMISSIONS));
+            }
+            groups.add(new DashboardView.Group(group.label(), cards));
+        }
+        return List.copyOf(groups);
+    }
+
     /** Every page and the states it has, in display order. */
     static Map<String, Set<String>> catalog() {
         Map<String, Set<String>> catalog = new LinkedHashMap<>();
         catalog.put("login", LOGIN.keySet());
         catalog.put("dashboard", DASHBOARD.keySet());
+        catalog.put("entity", ENTITY);
         catalog.put("error", ERROR.keySet());
         return catalog;
     }

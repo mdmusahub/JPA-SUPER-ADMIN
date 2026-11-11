@@ -51,11 +51,26 @@ a.brand:hover {
   color: var(--on-accent);
 }
 
+.brand-text {
+  display: grid;
+  min-width: 0;
+}
+
 .brand-name {
   min-width: 0;
   font-size: var(--text-lg);
   font-weight: 600;
   overflow-wrap: anywhere;
+}
+
+/* The sidebar brand is tighter than the sign-in page's, and carries a subtitle. */
+.sidebar .brand-name {
+  font-size: var(--text);
+}
+
+.brand-subtitle {
+  color: var(--muted);
+  font-size: var(--text-sm);
 }
 
 .auth-card h1 {
@@ -150,6 +165,110 @@ a.brand:hover {
   font-size: var(--text-sm);
 }
 
+/* ---- sidebar: search, groups and the user chip -------------------------------------------------------------- */
+
+/* The search only filters what is already on the page, so without JavaScript it is not shown at all. */
+html:not(.js) .nav-search {
+  display: none;
+}
+
+.nav-search {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: 0 var(--s3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  color: var(--muted);
+}
+
+.nav-search:focus-within {
+  border-color: var(--muted);
+}
+
+.nav-search-input {
+  min-width: 0;
+  flex: 1;
+  min-height: 34px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+}
+
+.nav-search-input:focus {
+  outline: none;
+}
+
+.nav-group > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s2) var(--s3) var(--s1);
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  list-style: none;
+}
+
+.nav-group > summary::-webkit-details-marker {
+  display: none;
+}
+
+.nav-group > summary:hover {
+  color: var(--ink);
+}
+
+.nav-group > summary .icon-chevron {
+  margin-left: auto;
+  transform: rotate(-90deg);
+}
+
+.nav-group[open] > summary .icon-chevron {
+  transform: none;
+}
+
+.nav-count-missing {
+  font-style: italic;
+}
+
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin-top: auto;
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line);
+}
+
+.user-chip .user-name {
+  min-width: 0;
+  flex: 1;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.user-chip form {
+  flex: none;
+  margin: 0;
+}
+
+.avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent-tint);
+  color: var(--accent-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
 .main-column {
   display: flex;
   min-width: 0;
@@ -221,6 +340,83 @@ a.brand:hover {
 .welcome {
   display: grid;
   gap: var(--s2);
+}
+
+/* ---- dashboard -------------------------------------------------------------------------------------------- */
+
+.page-intro {
+  margin-top: calc(-1 * var(--s3));
+  margin-bottom: var(--s5);
+}
+
+.stat-cards {
+  display: grid;
+  gap: var(--s4);
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.stat-card {
+  display: grid;
+  gap: var(--s1);
+  align-content: start;
+}
+
+.stat-label {
+  color: var(--muted);
+  font-size: var(--text);
+  font-weight: 500;
+}
+
+.stat-value {
+  font-size: var(--text-2xl);
+  font-weight: 650;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-value-text {
+  overflow-wrap: anywhere;
+}
+
+.stat-note {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.group-cards {
+  display: grid;
+  gap: var(--s4);
+  margin-top: var(--s4);
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.entity-rows {
+  margin-top: var(--s2);
+}
+
+.entity-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s3) 0;
+  border-top: 1px solid var(--line);
+}
+
+.entity-row:first-child {
+  border-top: 0;
+}
+
+.entity-row > a {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.entity-row-count {
+  margin-left: auto;
+  flex: none;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ---- error page ------------------------------------------------------------------------------------------------- */
