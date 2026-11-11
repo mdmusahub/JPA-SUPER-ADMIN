@@ -5,6 +5,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.mdmusahub.jpaadmin.autoconfigure.testmodel.Gizmo;
 import io.github.mdmusahub.jpaadmin.metadata.AdminEntityRegistry;
 import io.github.mdmusahub.jpaadmin.service.CountService;
+import io.github.mdmusahub.jpaadmin.service.ListPage;
+import io.github.mdmusahub.jpaadmin.service.ListQuery;
+import io.github.mdmusahub.jpaadmin.service.ListQueryService;
+import io.github.mdmusahub.jpaadmin.web.EntityController;
 import io.github.mdmusahub.jpaadmin.web.ConsoleNavigation;
 import jakarta.persistence.EntityManagerFactory;
 import java.util.OptionalLong;
@@ -14,9 +18,13 @@ import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration;
+import org.springframework.aop.support.AopUtils;
 import org.springframework.boot.persistence.autoconfigure.EntityScan;
+import org.springframework.boot.transaction.autoconfigure.TransactionAutoConfiguration;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.boot.webmvc.autoconfigure.WebMvcAutoConfiguration;
+import org.springframework.core.annotation.AnnotatedElementUtils;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * The discovery beans register only when the host has JPA, and back off cleanly when it does not (ARCH-7). When it
@@ -88,6 +96,49 @@ class DiscoveryAutoConfigurationTest {
                     assertThat(context).doesNotHaveBean(AdminEntityRegistry.class);
                     assertThat(context).doesNotHaveBean(CountService.class);
                 });
+    }
+
+    @Test
+    void withJpaTheListQueryServiceAndTheListControllerAreThereAndListRealRows() {
+        withJpa().run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context).hasSingleBean(ListQueryService.class);
+            assertThat(context).hasSingleBean(EntityController.class);
+
+            AdminEntityRegistry registry = context.getBean(AdminEntityRegistry.class);
+            insertGizmos(context.getBean(EntityManagerFactory.class), 3);
+            ListPage page = context.getBean(ListQueryService.class).list(registry.find("gizmo").orElseThrow(),
+                    ListQuery.defaults());
+
+            assertThat(page.total()).isEqualTo(3);
+            assertThat(page.rows()).hasSize(3);
+        });
+    }
+
+    @Test
+    void theListQueryServiceReadsInsideAReadOnlyTransactionWhenTheHostManagesTransactions() {
+        // With Boot's transaction support (every host with Spring Data JPA has it) the service is wrapped in a proxy,
+        // and the method that reads is annotated read-only (ARCH-5).
+        withJpa().withConfiguration(AutoConfigurations.of(TransactionAutoConfiguration.class)).run(context -> {
+            assertThat(context).hasNotFailed();
+            ListQueryService service = context.getBean(ListQueryService.class);
+
+            assertThat(AopUtils.isAopProxy(service)).isTrue();
+            var transactional = AnnotatedElementUtils.findMergedAnnotation(
+                    ListQueryService.class.getMethod("list", io.github.mdmusahub.jpaadmin.metadata.AdminEntity.class,
+                            ListQuery.class), Transactional.class);
+            assertThat(transactional).isNotNull();
+            assertThat(transactional.readOnly()).isTrue();
+        });
+    }
+
+    @Test
+    void withoutJpaTheListQueryServiceBacksOffToo() {
+        new WebApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(WebMvcAutoConfiguration.class, JpaAdminAutoConfiguration.class))
+                .withPropertyValues("jpa.admin.username=console-admin",
+                        "jpa.admin.password=console-pw-Qx7-not-a-real-secret")
+                .run(context -> assertThat(context).doesNotHaveBean(ListQueryService.class));
     }
 
     @Test

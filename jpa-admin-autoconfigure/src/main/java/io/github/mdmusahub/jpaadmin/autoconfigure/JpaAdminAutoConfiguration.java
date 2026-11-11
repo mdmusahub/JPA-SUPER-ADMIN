@@ -3,6 +3,7 @@ package io.github.mdmusahub.jpaadmin.autoconfigure;
 import io.github.mdmusahub.jpaadmin.metadata.AdminEntityRegistry;
 import io.github.mdmusahub.jpaadmin.metadata.EntityScanner;
 import io.github.mdmusahub.jpaadmin.service.CountService;
+import io.github.mdmusahub.jpaadmin.service.ListQueryService;
 import io.github.mdmusahub.jpaadmin.web.BasePath;
 import io.github.mdmusahub.jpaadmin.web.ConsoleChromeFactory;
 import io.github.mdmusahub.jpaadmin.web.ConsoleController;
@@ -162,6 +163,22 @@ public class JpaAdminAutoConfiguration {
     }
 
     /**
+     * The list pages' query service. Same entity manager as the counts: Spring's shared, transaction-aware one, so the
+     * service's {@code @Transactional(readOnly = true)} is a real read-only transaction (ARCH-5) and nothing is kept
+     * between requests. It reads records only through the metadata, never an entity (ARCH-3).
+     */
+    @Bean
+    @ConditionalOnBean(type = ENTITY_MANAGER_FACTORY)
+    @ConditionalOnMissingBean
+    ListQueryService jpaAdminListQueryService(ObjectProvider<EntityManagerFactory> factories,
+                                              ObjectProvider<AdminEntityRegistry> registries) {
+        EntityManagerFactory factory = consoleEntityManagerFactory(factories);
+        return factory == null ? ListQueryService.unavailable()
+                : ListQueryService.over(SharedEntityManagerCreator.createSharedEntityManager(factory),
+                        registries.getIfAvailable(AdminEntityRegistry::empty));
+    }
+
+    /**
      * The sidebar and the dashboard. Without JPA, or without an entity manager factory, the console still works:
      * it then has no entities, and the pages say so.
      */
@@ -204,12 +221,14 @@ public class JpaAdminAutoConfiguration {
         return new ConsoleController(chromeFactory, views, settings, basePath, navigation);
     }
 
-    /** One entity's page at {@code {path}/{entity}}. */
+    /** One entity's list page at {@code {path}/{entity}}. */
     @Bean
     @ConditionalOnMissingBean
     EntityController jpaAdminEntityController(ConsoleChromeFactory chromeFactory, ConsoleViews views,
-                                              ConsoleNavigation navigation, BasePath basePath) {
-        return new EntityController(chromeFactory, views, navigation, basePath);
+                                              ConsoleNavigation navigation, ObjectProvider<ListQueryService> lists,
+                                              BasePath basePath) {
+        return new EntityController(chromeFactory, views, navigation,
+                lists.getIfAvailable(ListQueryService::unavailable), basePath);
     }
 
     /** {@code {path}/theme.css}: the accent colour as one CSS variable (SEC-15). */

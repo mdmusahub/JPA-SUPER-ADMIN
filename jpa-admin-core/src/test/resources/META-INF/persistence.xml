@@ -35,4 +35,29 @@
       <property name="hibernate.show_sql" value="false"/>
     </properties>
   </persistence-unit>
+  <!--
+    The list tests' own unit: separate entities and a separate in-memory database, so the rows they write never change a
+    count that the discovery and count tests assert. Every SQL statement is recorded by RecordingStatementInspector.
+  -->
+  <persistence-unit name="list-test" transaction-type="RESOURCE_LOCAL">
+    <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Parcel</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.ParcelItem</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Depot</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Courier</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Crate</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Vault</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Stamp</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Dimensions</class>
+    <exclude-unlisted-classes>true</exclude-unlisted-classes>
+    <properties>
+      <property name="jakarta.persistence.jdbc.url" value="jdbc:h2:mem:jpa-admin-core-list-test;DB_CLOSE_DELAY=-1"/>
+      <property name="jakarta.persistence.jdbc.driver" value="org.h2.Driver"/>
+      <property name="jakarta.persistence.jdbc.user" value="sa"/>
+      <property name="jakarta.persistence.jdbc.password" value=""/>
+      <property name="jakarta.persistence.schema-generation.database.action" value="drop-and-create"/>
+      <property name="hibernate.show_sql" value="false"/>
+      <property name="hibernate.session_factory.statement_inspector"
+                value="io.github.mdmusahub.jpaadmin.testsupport.RecordingStatementInspector"/>
+    </properties>
+  </persistence-unit>
 </persistence>

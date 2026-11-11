@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<body>
+<!--/*
+  The table of the list page. It sits in a scroll box of its own, so a table with many columns scrolls sideways inside
+  the box and never makes the page scroll sideways. The box can take focus (tabindex 0, with a role and a name), so a
+  keyboard user can scroll it with the arrow keys.
+
+  A header of a sortable column is a link to view.columns[i].sortHref (the next direction); the arrow comes from the
+  aria-sort attribute through the stylesheet, so the screen reader and the eye get the same state. A column that
+  cannot be sorted is plain text. A column with visible = false is skipped, in the header and in every row.
+
+  Every cell goes through the cell fragment, which decides how each cell type looks. The table builds no link.
+*/-->
+<div th:fragment="table" class="table-scroll" tabindex="0" role="region"
+     th:attr="aria-label=${view.entity.plural} + ' table'">
+  <table class="data-table">
+    <caption class="visually-hidden"
+             th:text="${view.entity.plural} + ', page ' + ${view.paging.page + 1} + ' of ' + ${view.paging.totalPages()}">Articles</caption>
+    <thead>
+      <tr>
+        <th th:each="col : ${view.columns}" th:if="${col.visible}" scope="col"
+            th:classappend="${col.align.name() == 'END'} ? 'align-end'"
+            th:attr="aria-sort=${col.sortState.name() == 'ASCENDING'} ? 'ascending' : (${col.sortState.name() == 'DESCENDING'} ? 'descending' : (${col.sortable} ? 'none' : null))">
+          <a class="sort-link" th:if="${col.sortable}" th:href="@{${col.sortHref}}">
+            <span th:text="${col.label}">Title</span>
+            <span class="sort-mark" aria-hidden="true"></span>
+          </a>
+          <span th:unless="${col.sortable}" th:text="${col.label}">Author</span>
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr th:each="row : ${view.rows}">
+        <th:block th:each="cell, i : ${row.cells}">
+          <td th:if="${view.columns[i.index].visible}"
+              th:classappend="${view.columns[i.index].align.name() == 'END'} ? 'align-end'">
+            <th:block th:replace="~{jpa-admin/fragments/cell :: cell(${cell})}"></th:block>
+          </td>
+        </th:block>
+      </tr>
+    </tbody>
+  </table>
+</div>
+</body>
+</html>

@@ -1,6 +1,5 @@
 package io.github.mdmusahub.jpaadmin.preview;
 
-import io.github.mdmusahub.jpaadmin.web.EntityController;
 import io.github.mdmusahub.jpaadmin.web.view.PageChrome;
 import io.github.mdmusahub.jpaadmin.web.view.PageChrome.Breadcrumb;
 import io.github.mdmusahub.jpaadmin.web.view.PageChrome.Csrf;
@@ -72,10 +71,9 @@ final class ChromeFixtures {
                 List.of(new Breadcrumb("Dashboard", BASE), new Breadcrumb("Ürün kategorileri", null)), List.of()));
         VARIANTS.put("no-user", () -> chrome(BASE, Theme.SYSTEM, navigation(), null,
                 List.of(new Breadcrumb("Dashboard", null)), List.of(), null));
-        // What an entity's page really carries today: the entity active, and the notice the controller adds.
-        VARIANTS.put("entity-active", () -> chrome(BASE, Theme.SYSTEM, navigation(), "article",
-                List.of(new Breadcrumb("Dashboard", BASE), new Breadcrumb("Articles", null)),
-                List.of(new FlashMessage(FlashMessage.Level.INFO, EntityController.TABLE_NOT_AVAILABLE_YET))));
+        // The list of another entity: "Members" is the active item, as the masked-column list fixture needs.
+        VARIANTS.put("member-active", () -> chrome(BASE, Theme.SYSTEM, navigation(), "member",
+                List.of(new Breadcrumb("Dashboard", BASE), new Breadcrumb("Members", null)), List.of()));
     }
 
     private ChromeFixtures() {

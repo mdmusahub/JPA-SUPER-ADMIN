@@ -80,12 +80,13 @@ Out of scope for v0.1: S3 storage provider (planned for v0.2), multiple admins a
 **US-5 View records.** As an admin, I browse an entity as a table.
 - Columns show readable values: dates, booleans, enum badges, relation labels, numbers.
 - Sensitive fields show as masked dots.
-- Paging offers 10, 25, 50 and 100 rows per page, with a range summary.
+- Paging offers 10, 25, 50 and 100 rows per page (25 unless you choose), with a range summary ("Showing 26-50 of 94"), "Page 2 of 4" and first, previous, next and last links.
+- A page number that is too high shows the last page; a page, size or sort that makes no sense falls back to the default, so a shared or old link never shows an error.
 - Empty tables show a helpful empty state.
 
 **US-6 Search and sort.** As an admin, I find records quickly.
-- Search matches non-sensitive text fields, case-insensitively.
-- Clicking a header sorts ascending, then descending.
+- Search matches non-sensitive text fields, case-insensitively, anywhere in the text. What you type is taken literally: `%`, `_`, quotes and a pasted address such as `http://x` are searched for as typed. Numbers, dates, enums, relations and hidden or sensitive fields are not searched. Text longer than 100 characters is cut.
+- Clicking a header sorts ascending, then descending. Relation columns and masked columns have no sort. Rows with equal values keep a fixed order, so paging never repeats or skips a row.
 - State is in the URL and survives refresh and Back.
 
 **US-7 Filter.** As an admin, I narrow results by field.
@@ -302,7 +303,9 @@ Running behind a reverse proxy, HTTPS, multiple instances (set `jpa.admin.upload
 
 Current limits: single admin account, a servlet path prefix is not supported in v0.1 (`spring.mvc.servlet.path` must be unset; otherwise the console answers 500 and logs why, D-41), password at most 72 bytes, console templates are cached and not reloaded at run time (D-40), no audit log, no login rate limiting, no inline child rows, one file per upload field, no image resizing, English only, saved views stored per browser, CSV only, servlet applications only.
 
-Discovery limits (Phase 3): an entity with a composite primary key (`@EmbeddedId` or `@IdClass`) is not supported and is left out of the console, with a one-line startup warning (entities need a single-column id in v0.1). The console reads one `EntityManagerFactory`: if the host has several and marks none `@Primary`, the console lists no entities and logs a warning rather than guessing which database it would show. Opening an entity shows a "table view is not available yet" notice until the list page ships in the next version (D-47). Sensitive-field name matching is a case-insensitive substring match, so it can mask a field nobody meant it to (for example `tokenizer`, which contains `token`); narrow `jpa.admin.sensitive-fields` to avoid it.
+Discovery limits (Phase 3): an entity with a composite primary key (`@EmbeddedId` or `@IdClass`) is not supported and is left out of the console, with a one-line startup warning (entities need a single-column id in v0.1). The console reads one `EntityManagerFactory`: if the host has several and marks none `@Primary`, the console lists no entities and logs a warning rather than guessing which database it would show. Sensitive-field name matching is a case-insensitive substring match, so it can mask a field nobody meant it to (for example `tokenizer`, which contains `token`); narrow `jpa.admin.sensitive-fields` to avoid it.
+
+List limits (Phase 4): a relation column shows the related record's label, chosen as the first text field named `name`, `title`, `label`, `fullName` and similar, else the first text field, else `#id` (`@AdminLookup` will let you choose, later); it is not a link until the detail page exists. Relation columns cannot be sorted. To-many relations, embedded values and binary data are not shown in the list. A text longer than 120 characters is cut, with the full text on hover. Numbers are shown as stored, dates as `yyyy-MM-dd`, and an instant in UTC. The plural in the heading is a plain English guess (`Category` is `Categories`, `Person` would wrongly be `Persons`) until `@AdminResource`. Each list page runs two queries, a count and a page, and the sidebar adds one count per entity at most every five seconds; on a very large table the count is not free. The page size default is 25 and cannot be configured yet (`jpa.admin.page-size` is planned). "New record", export, bulk delete and filters are not on the list yet.
 
 Roadmap: v0.2 rate limiting, S3 storage provider and multi-value filters, v0.3 audit log, v0.4 multiple admins with roles, v0.5 inline child rows, v0.6 galleries and thumbnails, v1.0 stable API, `@Embedded` and composite keys. A Spring Boot 3.5 compatibility build can be reconsidered if users ask.
 

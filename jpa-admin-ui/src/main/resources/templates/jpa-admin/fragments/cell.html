@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<body>
+<!--/*
+  One cell of a table, by its type. The value is always printed with th:text, so it is escaped (SEC-9): a stored value
+  such as <script> shows as text. Nothing here builds a link: a cell that is a link carries its own href.
+
+    TEXT      plain text; title is the full text when the display was cut
+    NUMBER    right aligned through the column
+    BOOLEAN   a check or a cross with the word, so colour is never the only signal
+    ENUM      a badge; the tone decides the colour (grey for NONE and GREY)
+    RELATION  the related record's label, a link when the record has an href
+    DATE      the formatted date, with the full value as the hover text
+    IMAGE     a small picture, href is the image address and display the file name
+    FILE      a link with a file icon
+    MASKED    dots only; the cell holds no value, so there is nothing to leak. A screen reader hears "Hidden value"
+    EMPTY     a dash, with "No value" for a screen reader
+*/-->
+<th:block th:fragment="cell(cell)" th:switch="${cell.type.name()}">
+  <span th:case="'MASKED'" class="cell-masked"><span aria-hidden="true" th:text="${cell.display}">••••••••</span><span class="visually-hidden">Hidden value</span></span>
+  <span th:case="'EMPTY'" class="cell-empty"><span aria-hidden="true">–</span><span class="visually-hidden">No value</span></span>
+  <span th:case="'NUMBER'" class="cell-number" th:text="${cell.display}">1,199</span>
+  <span th:case="'BOOLEAN'" class="cell-bool" th:classappend="${cell.tone.name() == 'GREEN'} ? 'is-yes' : 'is-no'"
+        th:text="${cell.display}">Yes</span>
+  <span th:case="'ENUM'" class="badge" th:classappend="'badge-' + ${#strings.toLowerCase(cell.tone.name())}"
+        th:text="${cell.display}">Published</span>
+  <th:block th:case="'RELATION'">
+    <a th:if="${cell.href != null}" class="cell-link" th:href="@{${cell.href}}" th:title="${cell.title}"
+       th:text="${cell.display}">Related record</a>
+    <span th:if="${cell.href == null}" class="cell-text" th:title="${cell.title}" th:text="${cell.display}">Related record</span>
+  </th:block>
+  <span th:case="'DATE'" class="cell-date" th:title="${cell.title}" th:text="${cell.display}">2026-11-01</span>
+  <a th:case="'IMAGE'" class="cell-thumb-link" th:href="@{${cell.href}}">
+    <img class="cell-thumb" th:src="@{${cell.href}}" th:alt="${cell.display}">
+  </a>
+  <a th:case="'FILE'" class="cell-link cell-file" th:href="@{${cell.href}}" th:title="${cell.title}">
+    <th:block th:replace="~{jpa-admin/fragments/icons :: file}"></th:block>
+    <span th:text="${cell.display}">report.pdf</span>
+  </a>
+  <span th:case="*" class="cell-text" th:title="${cell.title}" th:text="${cell.display}">Text</span>
+</th:block>
+</body>
+</html>
