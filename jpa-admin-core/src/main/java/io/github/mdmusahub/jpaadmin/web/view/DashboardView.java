@@ -27,10 +27,12 @@ public record DashboardView(Stats stats, List<Group> groups, boolean chartAvaila
      *
      * <p>Draft, internal, not stable API (ARCH-9 exception). Holds no sensitive values (SEC-1).
      *
-     * @param totalRecords total number of records in all entities
+     * @param totalRecords total number of records in all entities whose count could be read; an entity with an
+     *                     unavailable count is left out instead of being guessed at
      * @param entityCount  number of entities
      * @param groupCount   number of groups
-     * @param largestTable the entity with most records, or {@code null} when there are no entities
+     * @param largestTable the entity with most records, or {@code null} when there are no entities, or when no
+     *                     count could be read
      */
     public record Stats(long totalRecords, int entityCount, int groupCount, LargestTable largestTable) {
         public Stats {
@@ -80,16 +82,17 @@ public record DashboardView(Stats stats, List<Group> groups, boolean chartAvaila
      * @param entity      URL name of the entity
      * @param label       display name
      * @param icon        icon name from the icon sprite
-     * @param count       number of records
+     * @param count       number of records, or {@code null} when the count could not be read (the card then says
+     *                    "unavailable" instead of a number, and the entity is left out of the totals)
      * @param permissions what the console allows for this entity
      */
-    public record EntityCard(String entity, String label, String icon, long count, Permissions permissions) {
+    public record EntityCard(String entity, String label, String icon, Long count, Permissions permissions) {
         public EntityCard {
             Objects.requireNonNull(entity, "entity");
             Objects.requireNonNull(label, "label");
             Objects.requireNonNull(icon, "icon");
             Objects.requireNonNull(permissions, "permissions");
-            if (count < 0) {
+            if (count != null && count < 0) {
                 throw new IllegalArgumentException("count must not be negative");
             }
         }

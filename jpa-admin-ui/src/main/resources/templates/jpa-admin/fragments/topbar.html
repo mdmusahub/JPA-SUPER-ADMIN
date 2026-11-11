@@ -2,10 +2,12 @@
 <html>
 <body>
 <!--/*
-  The sticky top bar: the drawer button (shown on narrow screens when JavaScript runs), the breadcrumbs, the theme
-  toggle and, when the page asks for it, the sign-out form. Signing out is a POST with the CSRF token from the chrome,
-  so it works without JavaScript and cannot be triggered by a link (SEC-5). The error pages leave the button out,
-  because a visitor who is not signed in can land on them.
+  The sticky top bar: the drawer button (shown on narrow screens when JavaScript runs), the breadcrumbs and the
+  theme toggle. Signing out lives in the sidebar's user chip next to the name it signs out, so there is one
+  sign-out on the page and no button that has to be explained twice.
+
+  signOut  kept as a parameter: the layout decides with it whether the visitor is signed in, and the sidebar shows
+           the user chip. The top bar itself looks the same either way.
 */-->
 <header th:fragment="topbar(signOut)" class="topbar">
   <button type="button" class="icon-button nav-toggle" data-nav-toggle aria-label="Open navigation"
@@ -18,14 +20,6 @@
   <div class="topbar-spacer"></div>
 
   <th:block th:replace="~{jpa-admin/fragments/theme-toggle :: toggle}"></th:block>
-
-  <form th:if="${signOut}" method="post" th:attr="action=@{${chrome.basePath} + '/logout'}">
-    <input type="hidden" th:name="${chrome.csrf.parameterName}" th:value="${chrome.csrf.token}">
-    <button type="submit" class="btn">
-      <th:block th:replace="~{jpa-admin/fragments/icons :: sign-out}"></th:block>
-      <span>Sign out</span>
-    </button>
-  </form>
 </header>
 </body>
 </html>

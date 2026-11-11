@@ -37,6 +37,8 @@ class JpaAdminPropertiesTest {
         assertThat(properties.getPrimaryColor()).isEqualTo("#0d9f6e");
         assertThat(properties.getUsername()).isNull();
         assertThat(properties.getPassword()).isNull();
+        assertThat(properties.getExcludedEntities()).isEmpty();
+        assertThat(properties.getSensitiveFields()).containsExactly("password", "secret", "token", "apikey");
     }
 
     @Test
@@ -234,6 +236,53 @@ class JpaAdminPropertiesTest {
     @Test
     void toStringSaysWhenNoPasswordIsSet() {
         assertThat(new JpaAdminProperties().toString()).contains("<not set>");
+    }
+
+    @Test
+    void theTwoNewListsHaveTheDocumentedDefaultsAndCanBeSet() {
+        JpaAdminProperties properties = new JpaAdminProperties();
+        properties.setExcludedEntities(java.util.List.of("AuditEntry", "io.example.Secret"));
+        properties.setSensitiveFields(java.util.List.of("ssn"));
+
+        assertThat(properties.getExcludedEntities()).containsExactly("AuditEntry", "io.example.Secret");
+        assertThat(properties.getSensitiveFields()).containsExactly("ssn");
+        assertThat(properties.discoverySettings().excludedEntities()).containsExactly("AuditEntry", "io.example.Secret");
+        assertThat(properties.discoverySettings().sensitiveFields()).containsExactly("ssn");
+    }
+
+    @Test
+    void anExcludedEntitiesWithValuesIsAccepted() {
+        JpaAdminProperties properties = valid();
+        properties.setExcludedEntities(java.util.List.of("AuditEntry"));
+
+        assertThatCode(properties::validate).doesNotThrowAnyException();
+    }
+
+    @Test
+    void aBlankExcludedEntityStopsStartupAndNamesThePropertyAndThePosition() {
+        JpaAdminProperties properties = valid();
+        properties.setExcludedEntities(java.util.Arrays.asList("AuditEntry", "  "));
+
+        assertThatThrownBy(properties::validate).isInstanceOf(JpaAdminConfigurationException.class)
+                .hasMessageContaining("jpa.admin.excluded-entities").hasMessageContaining("position 2");
+    }
+
+    @Test
+    void aBlankSensitiveFieldStopsStartupAndNamesThePropertyAndThePosition() {
+        JpaAdminProperties properties = valid();
+        properties.setSensitiveFields(java.util.Arrays.asList("password", ""));
+
+        assertThatThrownBy(properties::validate).isInstanceOf(JpaAdminConfigurationException.class)
+                .hasMessageContaining("jpa.admin.sensitive-fields").hasMessageContaining("position 2");
+    }
+
+    @Test
+    void aBlankListEntryMessageNeverRepeatsAValueThatCouldBeASecret() {
+        JpaAdminProperties properties = valid();
+        properties.setSensitiveFields(java.util.Arrays.asList("my-secret-field-name", null));
+
+        assertThatThrownBy(properties::validate).isInstanceOfSatisfying(JpaAdminConfigurationException.class,
+                e -> assertThat(e.getMessage()).doesNotContain("my-secret-field-name"));
     }
 
     @ParameterizedTest

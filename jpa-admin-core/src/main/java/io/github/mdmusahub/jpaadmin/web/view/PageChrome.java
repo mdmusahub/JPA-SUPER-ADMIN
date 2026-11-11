@@ -20,10 +20,13 @@ import java.util.Objects;
  * @param activeEntity URL name of the entity being shown, or {@code null} outside an entity
  * @param breadcrumbs  trail shown above the content; every link lies under {@code basePath}
  * @param flash        one-time messages for this response
+ * @param user         name of the signed-in console user, or {@code null} when nobody is signed in (the sign-in page
+ *                     and the error pages, which an anonymous visitor can reach). It is the configured
+ *                     {@code jpa.admin.username}, never a password or any other credential (SEC-1, SEC-6)
  * @param csrf         name and value of the CSRF token for forms and scripts (SEC-5)
  */
 public record PageChrome(String title, String basePath, Theme theme, List<NavGroup> nav, String activeEntity,
-                         List<Breadcrumb> breadcrumbs, List<FlashMessage> flash, Csrf csrf) {
+                         List<Breadcrumb> breadcrumbs, List<FlashMessage> flash, String user, Csrf csrf) {
 
     /** Model attribute name of the {@code PageChrome}. */
     public static final String ATTRIBUTE = "chrome";
@@ -80,14 +83,15 @@ public record PageChrome(String title, String basePath, Theme theme, List<NavGro
      * @param entity URL name of the entity
      * @param label  display name
      * @param icon   icon name from the icon sprite
-     * @param count  number of records
+     * @param count  number of records, or {@code null} when the count could not be read (the page then says
+     *               "unavailable" instead of a number, because a wrong number would be worse than none)
      */
-    public record NavItem(String entity, String label, String icon, long count) {
+    public record NavItem(String entity, String label, String icon, Long count) {
         public NavItem {
             Objects.requireNonNull(entity, "entity");
             Objects.requireNonNull(label, "label");
             Objects.requireNonNull(icon, "icon");
-            if (count < 0) {
+            if (count != null && count < 0) {
                 throw new IllegalArgumentException("count must not be negative");
             }
         }

@@ -1,5 +1,6 @@
 package io.github.mdmusahub.jpaadmin.preview;
 
+import io.github.mdmusahub.jpaadmin.web.EntityController;
 import io.github.mdmusahub.jpaadmin.web.view.PageChrome;
 import io.github.mdmusahub.jpaadmin.web.view.PageChrome.Breadcrumb;
 import io.github.mdmusahub.jpaadmin.web.view.PageChrome.Csrf;
@@ -31,6 +32,9 @@ final class ChromeFixtures {
     static final String ALTERNATE_BASE = "/preview-alt";
 
     private static final Csrf CSRF = new Csrf("_csrf", "X-CSRF-TOKEN", "preview-fake-token-not-a-secret");
+
+    /** The signed-in name the user chip shows. A made-up name, like every other value here. */
+    private static final String USER = "admin";
 
     private static final Map<String, Supplier<PageChrome>> VARIANTS = new LinkedHashMap<>();
 
@@ -64,6 +68,14 @@ final class ChromeFixtures {
                 List.of(new Breadcrumb("Dashboard", null)), List.of()));
         VARIANTS.put("custom-base-path", () -> chrome(ALTERNATE_BASE, Theme.SYSTEM, navigation(), "article", List.of(
                 new Breadcrumb("Dashboard", ALTERNATE_BASE), new Breadcrumb("Articles", null)), List.of()));
+        VARIANTS.put("long-sidebar", () -> chrome(BASE, Theme.SYSTEM, longNavigation(), "entity-11",
+                List.of(new Breadcrumb("Dashboard", BASE), new Breadcrumb("Ürün kategorileri", null)), List.of()));
+        VARIANTS.put("no-user", () -> chrome(BASE, Theme.SYSTEM, navigation(), null,
+                List.of(new Breadcrumb("Dashboard", null)), List.of(), null));
+        // What an entity's page really carries today: the entity active, and the notice the controller adds.
+        VARIANTS.put("entity-active", () -> chrome(BASE, Theme.SYSTEM, navigation(), "article",
+                List.of(new Breadcrumb("Dashboard", BASE), new Breadcrumb("Articles", null)),
+                List.of(new FlashMessage(FlashMessage.Level.INFO, EntityController.TABLE_NOT_AVAILABLE_YET))));
     }
 
     private ChromeFixtures() {
@@ -81,22 +93,77 @@ final class ChromeFixtures {
 
     private static PageChrome chrome(String basePath, Theme theme, List<NavGroup> nav, String activeEntity,
                                      List<Breadcrumb> breadcrumbs, List<FlashMessage> flash) {
-        return new PageChrome("JPA Admin", basePath, theme, nav, activeEntity, new ArrayList<>(breadcrumbs), flash, CSRF);
+        return chrome(basePath, theme, nav, activeEntity, breadcrumbs, flash, USER);
+    }
+
+    private static PageChrome chrome(String basePath, Theme theme, List<NavGroup> nav, String activeEntity,
+                                     List<Breadcrumb> breadcrumbs, List<FlashMessage> flash, String user) {
+        return new PageChrome("JPA Admin", basePath, theme, nav, activeEntity, new ArrayList<>(breadcrumbs), flash,
+                user, CSRF);
+    }
+
+    /** The same three groups the default sidebar shows, so the dashboard fixtures agree with it. */
+    static List<NavGroup> navigationForDashboard() {
+        return navigation();
     }
 
     /** Three groups, eight entities. */
     private static List<NavGroup> navigation() {
         return List.of(
                 new NavGroup("Content", List.of(
-                        new NavItem("article", "Articles", "file", 1204),
-                        new NavItem("comment", "Comments", "message", 5430),
-                        new NavItem("page", "Pages", "layout", 12))),
+                        new NavItem("article", "Articles", "file", 1204L),
+                        new NavItem("comment", "Comments", "file", 5430L),
+                        new NavItem("page", "Pages", "file", 12L))),
                 new NavGroup("People", List.of(
-                        new NavItem("member", "Members", "user", 318),
-                        new NavItem("team", "Teams", "users", 9))),
+                        new NavItem("member", "Members", "users", 318L),
+                        new NavItem("team", "Teams", "users", 9L))),
                 new NavGroup("Billing", List.of(
-                        new NavItem("invoice", "Invoices", "receipt", 2871),
-                        new NavItem("payment", "Payments", "card", 2871),
-                        new NavItem("plan", "Plans", "layers", 4))));
+                        new NavItem("invoice", "Invoices", "layers", 2871L),
+                        new NavItem("payment", "Payments", "layers", 2871L),
+                        new NavItem("plan", "Plans", "layers", 4L))));
     }
+
+    /**
+     * Eight groups and sixty entities, with the hard cases in one place: a count of zero, a count in the millions,
+     * a count the console could not read ({@code null}), a very long name, and names in other scripts.
+     */
+    static List<NavGroup> longNavigation() {
+        List<NavGroup> groups = new ArrayList<>();
+        String[] names = {"Archive", "Billing", "Catalogue", "Content", "Logistics", "Messaging", "People",
+                "Reporting"};
+        long[] counts = {0L, 7L, 48L, 312L, 2_048L, 54_321L, 987_654L, 1_000_000L};
+        int entity = 0;
+        for (int g = 0; g < names.length; g++) {
+            // 60 entities over 8 groups: the first four hold one more than the others.
+            int size = LONG_NAVIGATION_ENTITIES / names.length + (g < LONG_NAVIGATION_ENTITIES % names.length ? 1 : 0);
+            List<NavItem> items = new ArrayList<>();
+            for (int i = 0; i < size; i++, entity++) {
+                items.add(new NavItem("entity-" + entity, longNavigationLabel(entity),
+                        ICONS[entity % ICONS.length], longNavigationCount(entity, counts)));
+            }
+            groups.add(new NavGroup(names[g], items));
+        }
+        return List.copyOf(groups);
+    }
+
+    private static String longNavigationLabel(int entity) {
+        return switch (entity) {
+            case 3 -> "Scheduled newsletter delivery attempts and their bounce reports";
+            case 11 -> "Ürün kategorileri";
+            case 19 -> "Платёжные поручения";
+            case 27 -> "配送先住所";
+            case 35 -> "Παραγγελίες πελατών";
+            default -> "Entity " + (entity + 1);
+        };
+    }
+
+    /** Entity 5 has no count at all: that is what a failed count looks like. */
+    private static Long longNavigationCount(int entity, long[] counts) {
+        return entity == 5 ? null : counts[entity % counts.length];
+    }
+
+    /** How many entities the long sidebar holds. */
+    static final int LONG_NAVIGATION_ENTITIES = 60;
+
+    private static final String[] ICONS = {"table", "file", "users", "box", "layers", "unknown-icon-name"};
 }

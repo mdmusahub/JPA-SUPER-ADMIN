@@ -39,3 +39,12 @@ jobs:
 
       - name: Build and test
         run: mvn -B clean verify
+
+      # The host-check project is outside the reactor (D-26): it depends on the published starter, so the snapshot
+      # has to be in the local Maven repository before it can build. `verify` above does not install, so install the
+      # reactor (no tests: they just ran), then build and test host-check against it. This proves the library works
+      # for a host with entirely different entities and only the starter added.
+      - name: Install the starter and run the host-check project
+        run: |
+          mvn -B -DskipTests install
+          mvn -B -f host-check/pom.xml verify

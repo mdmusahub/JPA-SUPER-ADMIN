@@ -10,7 +10,7 @@
 
   pageTitle  the text before the console title in the browser tab (escaped on output)
   content    the page's <main id="main"> element
-  signOut    whether the top bar shows the sign-out button
+  signOut    whether the visitor is signed in, so the sidebar shows the user chip with Sign out
 
   The template reads only chrome (PageChrome) and view (the page's record) (UI-12). No inline script, style or handler.
 */-->
@@ -22,7 +22,7 @@
   <a class="skip-link" href="#main">Skip to content</a>
 
   <div class="shell" data-shell data-nav-open="false">
-    <th:block th:replace="~{jpa-admin/fragments/sidebar :: sidebar}"></th:block>
+    <th:block th:replace="~{jpa-admin/fragments/sidebar :: sidebar(${signOut})}"></th:block>
     <div class="shell-backdrop" data-nav-close></div>
 
     <div class="main-column">

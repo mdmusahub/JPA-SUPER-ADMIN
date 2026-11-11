@@ -1,5 +1,6 @@
 package io.github.mdmusahub.jpaadmin.autoconfigure;
 
+import io.github.mdmusahub.jpaadmin.metadata.DiscoverySettings;
 import io.github.mdmusahub.jpaadmin.web.BasePath;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -53,6 +54,19 @@ public class JpaAdminProperties implements InitializingBean {
     /** Accent colour of the console, written as #rrggbb. */
     private String primaryColor = "#0d9f6e";
 
+    /**
+     * Entities the console never shows. An entry matches an entity by simple class name or by fully qualified
+     * class name, ignoring case. A hidden entity is not in the sidebar, not on the dashboard and not reachable by
+     * URL. Empty by default.
+     */
+    private List<String> excludedEntities = new ArrayList<>();
+
+    /**
+     * Field names whose values are always masked. The match ignores case, '_' and '-', and is a substring match,
+     * so "password" also covers "userPassword" and "api_key" matches "apikey". @AdminSensitive adds to this list.
+     */
+    private List<String> sensitiveFields = new ArrayList<>(DiscoverySettings.DEFAULT_SENSITIVE_FIELDS);
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -101,6 +115,31 @@ public class JpaAdminProperties implements InitializingBean {
         this.primaryColor = primaryColor;
     }
 
+    public List<String> getExcludedEntities() {
+        return excludedEntities;
+    }
+
+    public void setExcludedEntities(List<String> excludedEntities) {
+        this.excludedEntities = excludedEntities;
+    }
+
+    public List<String> getSensitiveFields() {
+        return sensitiveFields;
+    }
+
+    public void setSensitiveFields(List<String> sensitiveFields) {
+        this.sensitiveFields = sensitiveFields;
+    }
+
+    /**
+     * What the scanner needs, without the property names. Called after {@link #validate()}, so both lists hold
+     * usable values.
+     */
+    DiscoverySettings discoverySettings() {
+        return new DiscoverySettings(excludedEntities == null ? List.of() : excludedEntities,
+                sensitiveFields == null ? List.of() : sensitiveFields);
+    }
+
     @Override
     public void afterPropertiesSet() {
         validate();
@@ -126,8 +165,31 @@ public class JpaAdminProperties implements InitializingBean {
             problems.add(PREFIX + ".primary-color must be a colour written as #rrggbb (six hex digits), "
                     + "for example jpa.admin.primary-color=#0d9f6e.");
         }
+        checkNames("excluded-entities", excludedEntities, "Each entry is an entity's simple or fully qualified class "
+                + "name, for example jpa.admin.excluded-entities[0]=AuditEntry.", problems);
+        checkNames("sensitive-fields", sensitiveFields, "Each entry is a field name or part of one, for example "
+                + "jpa.admin.sensitive-fields[0]=password. Leave the property out to keep the defaults ("
+                + String.join(", ", DiscoverySettings.DEFAULT_SENSITIVE_FIELDS) + ").", problems);
         if (!problems.isEmpty()) {
             throw new JpaAdminConfigurationException(problems);
+        }
+    }
+
+    /**
+     * A list property holds no blank entry. The message names the property and the position, and never repeats the
+     * entry itself, so this report stays as quiet about values as the rest of it (SEC-6).
+     */
+    private static void checkNames(String name, List<String> values, String hint, List<String> problems) {
+        if (values == null) {
+            return;
+        }
+        for (int i = 0; i < values.size(); i++) {
+            String value = values.get(i);
+            if (value == null || value.isBlank()) {
+                problems.add(PREFIX + "." + name + " has a blank entry at position " + (i + 1)
+                        + ". Remove it or give it a value. " + hint);
+                return;
+            }
         }
     }
 
@@ -151,6 +213,7 @@ public class JpaAdminProperties implements InitializingBean {
     public String toString() {
         return "JpaAdminProperties[enabled=" + enabled + ", path=" + path + ", username=" + username
                 + ", password=" + (password == null ? "<not set>" : "<hidden>") + ", title=" + title
-                + ", primaryColor=" + primaryColor + "]";
+                + ", primaryColor=" + primaryColor + ", excludedEntities=" + excludedEntities
+                + ", sensitiveFields=" + sensitiveFields + "]";
     }
 }

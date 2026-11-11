@@ -50,7 +50,7 @@ class ViewHrefRuleTest {
             place("Cell.href", h -> new Cell(Cell.Type.RELATION, "x", Cell.Tone.NONE, h, null)),
             place("Breadcrumb.href", h -> new PageChrome.Breadcrumb("x", h)),
             place("PageChrome.basePath", h -> new PageChrome("t", h, PageChrome.Theme.SYSTEM, List.of(), null,
-                    List.of(), List.of(), Samples.csrf())),
+                    List.of(), List.of(), "admin", Samples.csrf())),
             place("Filters.clearAllHref", h -> new ListView.Filters(List.of(), List.of(), h)),
             place("Chip.removeHref", h -> new ListView.Filters.Chip("k", "l", "d", h)),
             place("Column.sortHref", h -> new ListView.Column("k", "l", Cell.Type.TEXT, true, h,
@@ -172,7 +172,7 @@ class ViewHrefRuleTest {
 
     private static PageChrome chromeWithBreadcrumb(String basePath, String href) {
         return new PageChrome("t", basePath, PageChrome.Theme.SYSTEM, List.of(), null,
-                List.of(new PageChrome.Breadcrumb("Crumb", href)), List.of(), Samples.csrf());
+                List.of(new PageChrome.Breadcrumb("Crumb", href)), List.of(), "admin", Samples.csrf());
     }
 
     @Test

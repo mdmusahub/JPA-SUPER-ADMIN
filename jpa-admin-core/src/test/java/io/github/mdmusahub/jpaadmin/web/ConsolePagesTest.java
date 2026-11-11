@@ -53,9 +53,10 @@ class ConsolePagesTest {
     private static final BasePath BASE = BasePath.of("/admin");
     private static final ConsoleSettings SETTINGS = new ConsoleSettings("Back office", "#336699");
     private static final CsrfTokens TOKENS = request -> new PageChrome.Csrf("_csrf", "X-CSRF-TOKEN", "token-123");
-    private final ConsoleChromeFactory chromes = new ConsoleChromeFactory(BASE, SETTINGS, TOKENS);
+    private final ConsoleNavigation navigation = ConsoleNavigation.empty();
+    private final ConsoleChromeFactory chromes = new ConsoleChromeFactory(BASE, SETTINGS, TOKENS, navigation);
     private final ConsoleViews views = new ConsoleViews(FACTORY);
-    private final ConsoleController controller = new ConsoleController(chromes, views, SETTINGS, BASE);
+    private final ConsoleController controller = new ConsoleController(chromes, views, SETTINGS, BASE, navigation);
 
     private static Page pageOf(ModelAndView result) {
         assertThat(result.getViewName()).as("a name would be offered to the host's view resolvers").isNull();
@@ -96,7 +97,7 @@ class ConsolePagesTest {
     // ---- controller ---------------------------------------------------------------------------------------------------
 
     @Test
-    void theDashboardIsBuiltFromZeroValuesAndNeverFromStoredData() {
+    void theDashboardOfAConsoleWithoutEntitiesIsBuiltFromZeroValuesAndNeverFromStoredData() {
         ModelAndView result = controller.dashboard(new MockHttpServletRequest());
 
         assertThat(pageOf(result).template()).isEqualTo(DashboardView.TEMPLATE).isEqualTo("jpa-admin/dashboard");

@@ -36,24 +36,25 @@ public class ConsoleController {
     private final ConsoleViews views;
     private final ConsoleSettings settings;
     private final BasePath basePath;
+    private final ConsoleNavigation navigation;
 
     public ConsoleController(ConsoleChromeFactory chromeFactory, ConsoleViews views, ConsoleSettings settings,
-                             BasePath basePath) {
+                             BasePath basePath, ConsoleNavigation navigation) {
         this.chromeFactory = Objects.requireNonNull(chromeFactory, "chromeFactory");
         this.views = Objects.requireNonNull(views, "views");
         this.settings = Objects.requireNonNull(settings, "settings");
         this.basePath = Objects.requireNonNull(basePath, "basePath");
+        this.navigation = Objects.requireNonNull(navigation, "navigation");
     }
 
     /**
-     * {@code GET {base path}}: the dashboard. Phase 2 has no data yet, so it is built from zero values; the page shows
-     * a welcome state.
+     * {@code GET {base path}}: the dashboard. The numbers come from the entity metadata and the cached record
+     * counts; a console that found no entity shows a welcome state instead of empty cards.
      */
     @GetMapping
     public ModelAndView dashboard(HttpServletRequest request) {
         PageChrome chrome = chromeFactory.chrome(request, List.of(new Breadcrumb("Dashboard", null)));
-        return views.page(request, DashboardView.TEMPLATE, chrome,
-                new DashboardView(new DashboardView.Stats(0, 0, 0, null), List.of(), false));
+        return views.page(request, DashboardView.TEMPLATE, chrome, navigation.dashboard());
     }
 
     /**
