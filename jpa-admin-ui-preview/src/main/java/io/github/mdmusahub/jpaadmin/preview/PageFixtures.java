@@ -3,20 +3,20 @@ package io.github.mdmusahub.jpaadmin.preview;
 import io.github.mdmusahub.jpaadmin.web.ErrorViews;
 import io.github.mdmusahub.jpaadmin.web.view.DashboardView;
 import io.github.mdmusahub.jpaadmin.web.view.ErrorView;
+import io.github.mdmusahub.jpaadmin.web.view.ListView;
 import io.github.mdmusahub.jpaadmin.web.view.LoginView;
 import io.github.mdmusahub.jpaadmin.web.view.PageChrome.NavGroup;
 import io.github.mdmusahub.jpaadmin.web.view.PageChrome.NavItem;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
 /**
- * The page fixtures of {@code docs/FIXTURES.md} that task U0 needs: the sign-in page (section 2), the minimal dashboard
- * (a U0 addition to section 3) and the error pages (section 9). Each one is a fake record built through the real
+ * The page fixtures of {@code docs/FIXTURES.md}: the sign-in page (section 2), the dashboards (section 3), the list pages
+ * (section 5, in {@link ListFixtures}) and the error pages (section 9). Each one is a fake record built through the real
  * constructor. The texts for the standard error pages come from {@link ErrorViews}, the same class that the real
  * console uses, so the preview shows what a visitor really sees.
  */
@@ -25,7 +25,6 @@ final class PageFixtures {
     private static final Map<String, LoginView> LOGIN = new LinkedHashMap<>();
     private static final Map<String, DashboardView> DASHBOARD = new LinkedHashMap<>();
     private static final Map<String, ErrorView> ERROR = new LinkedHashMap<>();
-    private static final Set<String> ENTITY = new LinkedHashSet<>();
 
     /** What the console offers for an entity in Phase 3: nothing yet, so no card shows an action. */
     private static final DashboardView.Permissions PERMISSIONS =
@@ -63,9 +62,6 @@ final class PageFixtures {
                 new DashboardView.Stats(12_745, 8, 3, new DashboardView.LargestTable("Comments", 5_430)),
                 groups(), false));
 
-        // The entity page has nothing of its own to show yet: it is the shell plus the notice (Phase 3).
-        ENTITY.add("not-available");
-
         ERROR.put("not-found", ErrorViews.forStatus(404));
         ERROR.put("forbidden", ErrorViews.forStatus(403));
         ERROR.put("server-error", ErrorViews.forStatus(500));
@@ -91,9 +87,9 @@ final class PageFixtures {
         return Optional.ofNullable(ERROR.get(state));
     }
 
-    /** The entity page carries no record of its own, so a state is only a name that has to be known. */
-    static boolean hasEntityState(String state) {
-        return ENTITY.contains(state);
+    /** The list page for {@code state}, with its links under {@code basePath} (the base path of the chrome in use). */
+    static Optional<ListView> list(String state, String basePath) {
+        return ListFixtures.list(state, basePath);
     }
 
     /** The dashboard groups that match the default sidebar, with the counts the sidebar shows. */
@@ -132,7 +128,7 @@ final class PageFixtures {
         Map<String, Set<String>> catalog = new LinkedHashMap<>();
         catalog.put("login", LOGIN.keySet());
         catalog.put("dashboard", DASHBOARD.keySet());
-        catalog.put("entity", ENTITY);
+        catalog.put("list", ListFixtures.states());
         catalog.put("error", ERROR.keySet());
         return catalog;
     }

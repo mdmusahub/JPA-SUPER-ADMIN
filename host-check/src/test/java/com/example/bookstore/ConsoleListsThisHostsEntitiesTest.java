@@ -90,16 +90,68 @@ class ConsoleListsThisHostsEntitiesTest {
         assertThat(html).contains("<p class=\"stat-value\">" + total + "</p>", "Across 3 entities");
     }
 
+    /** The text of every cell of every row of the table, tags removed. */
+    private static List<List<String>> table(String html) {
+        List<List<String>> rows = new ArrayList<>();
+        Matcher body = Pattern.compile("(?s)<tbody>(.*?)</tbody>").matcher(html);
+        if (!body.find()) {
+            return rows;
+        }
+        Matcher row = Pattern.compile("(?s)<tr>(.*?)</tr>").matcher(body.group(1));
+        while (row.find()) {
+            List<String> cells = new ArrayList<>();
+            Matcher cell = Pattern.compile("(?s)<td\\b[^>]*>(.*?)</td>").matcher(row.group(1));
+            while (cell.find()) {
+                cells.add(cell.group(1).replaceAll("(?s)<[^>]*>", "").strip());
+            }
+            rows.add(cells);
+        }
+        return rows;
+    }
+
+    private String page(String path) throws Exception {
+        MockHttpServletResponse page = send(MockMvcRequestBuilders.get(path));
+        assertThat(page.getStatus()).as(path).isEqualTo(200);
+        return page.getContentAsString();
+    }
+
     @Test
-    void eachEntityHasAPageAndTheSecretTokenValueNeverAppears() throws Exception {
+    void eachEntityListsItsRowsAndTheSecretTokenValueNeverAppears() throws Exception {
         signInAndOpenDashboard();
 
+        assertThat(table(page("/admin/book"))).hasSize(BookstoreData.BOOKS);
+        assertThat(table(page("/admin/author"))).hasSize(BookstoreData.AUTHORS);
+        assertThat(table(page("/admin/publisher"))).hasSize(BookstoreData.PUBLISHERS);
         for (String entity : List.of("book", "author", "publisher")) {
-            MockHttpServletResponse page = send(MockMvcRequestBuilders.get("/admin/" + entity));
-            assertThat(page.getStatus()).as(entity).isEqualTo(200);
-            assertThat(page.getContentAsString()).contains("This table view is not available yet.")
-                    .doesNotContain("not-a-real-secret");
+            assertThat(page("/admin/" + entity)).as(entity).doesNotContain("not-a-real-secret");
         }
+    }
+
+    @Test
+    void theBookListShowsTheTitlesTheRelationLabelsAndAMaskedTokenColumn() throws Exception {
+        signInAndOpenDashboard();
+        String html = page("/admin/book");
+
+        // Columns by name: ID, Author, Publisher, Secret token, Title.
+        assertThat(html).contains("<h1 class=\"page-title\">Books</h1>", "5 records");
+        List<List<String>> rows = table(html);
+        assertThat(rows.stream().map(row -> row.get(4))).containsExactly("Book 1", "Book 2", "Book 3", "Book 4", "Book 5");
+        assertThat(rows.stream().map(row -> row.get(1))).containsExactly("Author 1", "Author 2", "Author 3", "Author 1", "Author 2");
+        assertThat(rows.stream().map(row -> row.get(2))).containsExactly("Publisher 1", "Publisher 2", "Publisher 1", "Publisher 2", "Publisher 1");
+        assertThat(rows).allSatisfy(row -> assertThat(row.get(3)).isEqualTo("••••••••Hidden value"));
+        assertThat(html).contains("Secret token").doesNotContain("token-0", "not-a-real-secret");
+    }
+
+    @Test
+    void searchSortAndPagingWorkOnThisHostsEntitiesToo() throws Exception {
+        signInAndOpenDashboard();
+
+        assertThat(table(page("/admin/book?q=BOOK 3")).stream().map(row -> row.get(4))).containsExactly("Book 3");
+        assertThat(table(page("/admin/book?sort=title&dir=desc")).stream().map(row -> row.get(4)))
+                .containsExactly("Book 5", "Book 4", "Book 3", "Book 2", "Book 1");
+        assertThat(table(page("/admin/book?size=10&page=7"))).hasSize(BookstoreData.BOOKS);
+        assertThat(page("/admin/book?q=not-a-real-secret")).contains("No matching records");
+        assertThat(page("/admin/book?sort=secretToken&dir=asc")).doesNotContain("aria-sort=\"ascending\"");
     }
 
     @Test

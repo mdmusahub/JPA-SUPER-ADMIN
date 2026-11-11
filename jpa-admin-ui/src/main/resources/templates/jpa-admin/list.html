@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en"
+      th:replace="~{jpa-admin/layout :: layout(${view.entity.plural}, ~{::main}, true)}">
+<!--/*
+  One entity's list page (task U2): the heading with the record count, a search form, the table, the paging and the
+  empty state. It reads only chrome and view (a ListView), and it prints the links the record gives it: it builds none
+  of the sort, page, page-size or export links itself (D-28).
+
+  Search is a plain GET form, sort and paging are plain links, so the page works without JavaScript and the state
+  (search, sort, page, size) is always in the address: a reload or Back shows the same page (UI-10). The form keeps the
+  current sort and page size in hidden fields and starts again at the first page, which is the only page that is
+  always there for a new search.
+
+  Actions that do not exist yet are simply not in the record: nothing here is a disabled button. "New record" and the
+  export button appear only when view.actions says so.
+*/-->
+<body>
+<main id="main" class="content" tabindex="-1">
+  <header class="list-header">
+    <span class="list-mark" aria-hidden="true">
+      <th:block th:replace="~{jpa-admin/fragments/icons :: entity-icon(${view.entity.icon})}"></th:block>
+    </span>
+    <div class="list-title">
+      <h1 class="page-title" th:text="${view.entity.plural}">Articles</h1>
+      <p class="muted list-count"
+         th:text="${#numbers.formatInteger(view.paging.total, 1, 'COMMA')} + (${view.paging.total == 1} ? ' record' : ' records')">0 records</p>
+    </div>
+    <div class="list-actions" th:if="${view.actions.canExport or view.actions.canCreate}">
+      <a class="btn" th:if="${view.actions.canExport}" th:href="@{${view.actions.exportHref}}">Export CSV</a>
+      <a class="btn btn-primary" th:if="${view.actions.canCreate}"
+         th:href="@{${chrome.basePath} + '/' + ${chrome.activeEntity} + '/new'}">New record</a>
+    </div>
+  </header>
+
+  <form class="list-toolbar" method="get" role="search"
+        th:action="@{${chrome.basePath} + '/' + ${chrome.activeEntity}}">
+    <div class="search-field">
+      <label class="visually-hidden" for="list-search"
+             th:text="'Search ' + ${#strings.toLowerCase(view.entity.plural)}">Search articles</label>
+      <th:block th:replace="~{jpa-admin/fragments/icons :: search}"></th:block>
+      <input id="list-search" class="search-input" type="search" name="q" maxlength="100" autocomplete="off"
+             th:value="${view.search}" th:placeholder="'Search ' + ${#strings.toLowerCase(view.entity.plural)}">
+    </div>
+    <input type="hidden" name="sort" th:if="${view.sort != null}" th:value="${view.sort}">
+    <input type="hidden" name="dir" th:if="${view.sort != null}" th:value="${view.dir}">
+    <input type="hidden" name="size" th:value="${view.paging.size}">
+    <button type="submit" class="btn">Search</button>
+    <a class="btn btn-quiet" th:if="${!view.search.isEmpty()}"
+       th:href="@{${chrome.basePath} + '/' + ${chrome.activeEntity}}">Clear search</a>
+  </form>
+
+  <section class="card table-card" th:if="${!view.rows.isEmpty()}">
+    <th:block th:replace="~{jpa-admin/fragments/table :: table}"></th:block>
+    <th:block th:replace="~{jpa-admin/fragments/pager :: pager}"></th:block>
+  </section>
+
+  <section class="card empty-state" th:if="${view.rows.isEmpty()}">
+    <span class="empty-state-mark"><th:block th:replace="~{jpa-admin/fragments/icons :: table}"></th:block></span>
+    <h2 th:if="${view.empty.reason.name() == 'NO_MATCHES'}">No matching records</h2>
+    <h2 th:if="${view.empty.reason.name() != 'NO_MATCHES'}">No records yet</h2>
+    <p th:text="${view.empty.hint}">What to do next.</p>
+    <a class="btn" th:if="${view.empty.reason.name() == 'NO_MATCHES'}"
+       th:href="@{${chrome.basePath} + '/' + ${chrome.activeEntity}}">Clear search</a>
+    <a class="btn btn-primary" th:if="${view.empty.reason.name() == 'NO_RECORDS' and view.actions.canCreate}"
+       th:href="@{${chrome.basePath} + '/' + ${chrome.activeEntity} + '/new'}">Create the first one</a>
+  </section>
+</main>
+</body>
+</html>

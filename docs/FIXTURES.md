@@ -10,7 +10,7 @@ A **fixture** is a named, fake instance of a view-model record. The preview app 
 - **Fake data only:** no real names, no real secrets. Masked values are never given a value, even in a fixture (SEC-1).
 - **Generic names:** fixtures use invented entities such as Article, Member and Invoice, never entity names from `sample-app` (ARCH-12).
 - **Links:** every link in a fixture is a local path under the chrome's base path (`docs/UI_PLAN.md` section 3, "Links"). Fixtures are built through the real record constructors, so a link that breaks the rule cannot be written. A fixture never contains an external link. Templates print the links the fixture gives them and never build sort, page, page-size, export or form links themselves.
-- **Status:** each fixture below belongs to the UI task that first needs it (U0 to U9, `docs/UI_PLAN.md` section 7). A fixture is part of "done" for that task.
+- **Status:** each fixture below belongs to the UI task that first needs it (U0 to U9, `docs/UI_PLAN.md` section 7). A fixture is part of "done" for that task. After Phase 4 the list fixtures of task U2 exist; those of U3 (filters) and U8 (export, saved views) do not yet.
 
 Fixture names are lower-case with hyphens. A fixture listed under "Covers" proves that the template handles that state.
 
@@ -29,7 +29,7 @@ Used with any page through `&chrome=`.
 | `theme-dark`, `theme-light`, `theme-system` | `PageChrome.theme` set to each value | Initial theme before first paint, no flash on load | U0 |
 | `custom-base-path` | `basePath` set to a different console path, with breadcrumbs under it | Every link and asset URL starts with that base path, whether the fixture or the template made it | U0 |
 | `no-user` | `PageChrome.user` is `null` | A page with no signed-in user: no user chip, no sign-out (the error pages) | U1 |
-| `entity-active` | one entity active, one info flash ("not available yet") | The real chrome of an entity's page in Phase 3 | U1 |
+| `member-active` | the Members entity active, breadcrumbs Dashboard and Members, no flash | The list of a second entity (the masked-column list fixture uses it by default) | U2 |
 
 ## 2. Login (record: `LoginView`)
 
@@ -53,13 +53,9 @@ Used with any page through `&chrome=`.
 | `count-unavailable` | one entity's `count` is `null` | The dashboard card and the sidebar item show "unavailable", and that entity is left out of the totals | U1 |
 | `read-only-entities` | `Permissions` with some flags false | Actions hidden or disabled per permission (no action is offered yet in Phase 3) | U1 |
 
-## 3b. Entity page (Phase 3 temporary, no record of its own)
+## 3b. Entity page (removed in Phase 4)
 
-The entity page has no view-model record yet: it is the shell plus a flash notice (task U2 replaces it with the list page and `ListView`). The preview renders it through `EntityController.TEMPLATE`.
-
-| Fixture | Fills | Covers | Task |
-|---|---|---|---|
-| `not-available` | nothing; use with `&chrome=entity-active` | A known entity's page in Phase 3: the entity active in the sidebar and the "table view is not available yet" notice | U1 |
+The Phase 3 entity page had no record of its own: the shell plus a "not available yet" notice. Phase 4 replaced it with the list page (section 5), and deleted the notice, the page `entity`, its fixture `not-available` and the chrome variant `entity-active`.
 
 ## 4. Chart data (record: `ChartSeries`, JSON)
 
@@ -77,11 +73,11 @@ The preview serves these from a stub endpoint, so the chart can be built without
 
 | Fixture | Fills | Covers | Task |
 |---|---|---|---|
-| `normal` | `ListView` with 6 columns (5 sortable with `sortHref` and `SortState.NONE`, 1 not sortable with no link), 25 rows, page 0 of 4, sizes 10, 25, 50, 100 each with a link and 25 `current`, export on | Table, header links, pager range text, row checkboxes, bulk bar when rows are selected. First page: next and last links, no first or previous link | U2 |
+| `normal` | `ListView` with 6 columns (5 sortable with `sortHref` and `SortState.NONE`, 1 not sortable with no link), 25 rows of 94, page 0 of 4, sizes 10, 25, 50, 100 each with a link and 25 `current`, export and "New record" on (the real backend offers neither yet) | Table, header links, pager range text, row checkboxes, bulk bar when rows are selected. First page: next and last links, no first or previous link | U2 |
 | `empty-no-records` | No rows, `Empty.Reason.NO_RECORDS` | Empty state that explains how to create the first record | U2 |
 | `empty-no-matches` | No rows, `NO_MATCHES`, search and filters active | Empty state with a way to clear search and filters | U2, U3 |
 | `long-text` | Cells with 300-character values, long words without spaces, long column labels | Truncation, wrapping, `title` hover text | U2 |
-| `many-columns` | 20 columns, 5 hidden | Horizontal scroll on a phone, sticky first column, column visibility | U2 |
+| `many-columns` | 20 columns (the 5 hidden ones belong to column visibility, U8) | Horizontal scroll on a phone, sticky first column, column visibility | U2 |
 | `all-cell-types` | One column per `Cell.Type`: text, number, boolean, enum with each `Tone`, relation with `href`, date, image, file, masked, empty | Cell renderer for every type | U2 |
 | `masked-column` | A column of `MASKED` cells, `sortable` false and `sortHref` `null` | Dots only, no value, no tooltip, no sorting or filter control | U2 |
 | `search-active` | `search` set | Search box shows the term, empty-state wording | U2 |
@@ -96,6 +92,9 @@ The preview serves these from a stub endpoint, so the chart can be built without
 | `read-only` | `Actions` with create, export and bulk delete all false, `exportHref` `null` | No "New record", no export, no checkboxes | U2 |
 | `export-enabled` | `Actions.canExport` true and `exportHref` carrying the current search, filters, sort and visible columns | Export button links to `exportHref`, plus its disabled and busy states | U8 |
 | `export-disabled` | `canExport` false and `exportHref` `null`, create and bulk delete on | No export button while the other actions stay | U8 |
+| `page-size-10` | page 2 of pages of 10, the 10 option `current` | Page-size control, range "21-30 of 94" | U2 |
+| `relation-cells` | Relation cells with and without an `href`, and an empty relation | Link or text, "No value" | U2 |
+| `unicode` | Titles in Turkish, Russian, Japanese, Greek and Arabic, an emoji with a combining mark, and a title that is markup | Text is shown as text and escaped | U2 |
 | `saved-views` | `ListView` with search, sort and filters set, plus page size 50 and hidden columns; every link keeps that state | Saved views menu applies and restores this exact state from the URL | U8 |
 
 ## 6. Detail (records: `DetailView`, `Cell`)
