@@ -307,6 +307,21 @@ Discovery limits (Phase 3): an entity with a composite primary key (`@EmbeddedId
 
 List limits (Phase 4): a relation column shows the related record's label, chosen as the first text field named `name`, `title`, `label`, `fullName` and similar, else the first text field, else `#id` (`@AdminLookup` will let you choose, later); it is not a link until the detail page exists. Relation columns cannot be sorted. To-many relations, embedded values and binary data are not shown in the list. A text longer than 120 characters is cut, with the full text on hover. Numbers are shown as stored, dates as `yyyy-MM-dd`, and an instant in UTC. The plural in the heading is a plain English guess (`Category` is `Categories`, `Person` would wrongly be `Persons`) until `@AdminResource`. Each list page runs two queries, a count and a page, and the sidebar adds one count per entity at most every five seconds; on a very large table the count is not free. The page size default is 25 and cannot be configured yet (`jpa.admin.page-size` is planned). "New record", export, bulk delete and filters are not on the list yet.
 
+Known limits and the phase that addresses each (re-scope, D-60). This list adds to the limits above; none of them is removed.
+
+- **A relation column costs one `LEFT JOIN` per relation column** (two statements per page whatever the number of columns, but each relation column adds a join to the page query). An entity with many relation columns on a large table can be slow. A column hidden by a saved view will stop being queried (Phase 12). A cost bound is measured and documented, or the strategy changed, in Phase 14.
+- **The search is a full scan.** It is a case-insensitive "contains" (`lower(column) like '%text%'`), which an ordinary index cannot serve, so on a large table it reads the table. `count(*)` is not free either. Measured, with index advice, in Phase 14.
+- **Database portability is untested.** All list tests run on H2. `lower(...)` on large-text columns, the `!` escape in `like`, and null ordering may behave differently on PostgreSQL and MySQL. Tested on both in Phase 14. A large-text column that does not support `lower(...)` would make that entity's list answer with the console's 500 page.
+- **The phone-width behaviour is proven by a manual browser pass and by tests that read the stylesheet**, not by an automated browser test. A manual responsive pass of every page is part of Phase 13; the automated real-browser test of the list is a Phase 14 item (it needs a browser-driver dependency, which needs approval then).
+- **Null ordering depends on the database** (H2 puts nulls first in an ascending sort, PostgreSQL last). Phase 5 sets one rule: nulls last in both directions, then the identifier (approved, D-60).
+- **A search does not say what it covers.** The empty state does not name the searched columns and a search cut at 100 characters is cut silently. Both change in Phase 5.
+- **Relation columns cannot be sorted and a relation's label is not searched.** Sorting by a relation's label is planned for Phase 5 (approved, D-60; a relation shown as `#id` will stay unsortable); finding records by a relation's label is a relation filter in Phase 6.
+- **Filters are not on the list yet**, and neither are their links. Phase 6.
+- **A relation cell is not a link.** It becomes one when the detail page exists, in Phase 7. Row checkboxes and bulk delete come then too.
+- **There is no "New record" and no export on the list.** They arrive with Phase 8 and Phase 11.
+- **The page size is fixed at 25 by default** and `jpa.admin.page-size` does not exist yet; the plural, the badge tones and the relation label are rules of the console, not choices of the host. The property and the annotations that replace the rules arrive in Phase 13.
+- **An image cell has no picture in the preview** until the uploader exists (Phase 9).
+
 Roadmap: v0.2 rate limiting, S3 storage provider and multi-value filters, v0.3 audit log, v0.4 multiple admins with roles, v0.5 inline child rows, v0.6 galleries and thumbnails, v1.0 stable API, `@Embedded` and composite keys. A Spring Boot 3.5 compatibility build can be reconsidered if users ask.
 
 ## B13. Contributing pages (draft outline)
