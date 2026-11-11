@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Changed
+- The phase plan was revised (D-60): Phase 5 is now "Sort and search quality" (relation-aware sort, nulls last in both directions, a sort proof on every sample column, a search that says what it covers); the filter links promised for Phase 4, relation links, PostgreSQL and MySQL runs, cost measurements and an automated browser test moved to Phases 6, 7, 12, 13 and 14, and `jpa.admin.page-size` moved to Phase 13. D-53 is superseded by D-60 for relations and null ordering. Documentation only.
+- Documentation correction: Phase 4 is "delivered, with the filter-links exception". The filter links (`filter.*`, chip removal, clear all) were promised for Phase 4 but not delivered, and are now a Phase 6 item (D-60). A dated note was added to `docs/logs/phase-4-report.md`.
+
+## [0.0.4] - 2026-11-11
+
 ### Added
 - The list page (Phase 4, UI task U2). `GET {path}/{entity}` shows the entity as a table: a heading with the record count, a search box, sortable column headers with a direction indicator, rows with readable values, paging with a range summary, first/previous/next/last links and a page-size choice (10, 25, 50, 100; 25 by default), and an empty state that says what to do next. Sensitive fields appear as a masked column (dots only, never a value). Search, sort, page and size live in the address, so a reload, Back or a shared link shows the same page, and the page works without JavaScript.
 - Search (`q`): case-insensitive "contains" over the entity's non-sensitive text fields; what you type is taken literally (`%`, `_`, quotes, a pasted `http://x`); text longer than 100 characters is cut. Sort (`sort`, `dir`): sortable columns only, both directions, with the identifier as the last sort key so paging is stable.
