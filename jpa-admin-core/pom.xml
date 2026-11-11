@@ -28,6 +28,43 @@
       <optional>true</optional>
     </dependency>
 
+    <!--
+      Provided: the JPA API the scanner and the count service are written against (metamodel, EntityManager,
+      Criteria). Provided, not compile, so it is not transitive and the starter never adds JPA to a host: every host
+      of this console already has it, and the auto-configuration backs off when it does not (ARCH-7). Version from
+      the Boot BOM (3.2.0).
+    -->
+    <dependency>
+      <groupId>jakarta.persistence</groupId>
+      <artifactId>jakarta.persistence-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <!--
+      Provided, for the same reason: @Transactional(readOnly = true) on the read services (ARCH-5). Any host with
+      Spring Data JPA has spring-tx at run time. Version from the Boot BOM.
+    -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-tx</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
+    <!--
+      Test scope only: a real Hibernate EntityManagerFactory over H2, so the scanner is tested against a real JPA
+      metamodel instead of a hand-made one. The tests bootstrap it with plain JPA (persistence.xml), so no Spring
+      Boot context is started in this module.
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <scope>test</scope>
+    </dependency>
+
     <!-- Test scope only (D-34): MockHttpServletRequest and friends for the controller and resolver unit tests. -->
     <dependency>
       <groupId>org.springframework</groupId>

@@ -50,6 +50,22 @@
   cursor: not-allowed;
 }
 
+/* A button that sits inside something else, for example the user chip: no border until it is used. */
+.btn-quiet {
+  min-height: 30px;
+  padding: 0 var(--s2);
+  border-color: transparent;
+  background: none;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.btn-quiet:hover {
+  border-color: var(--line-strong);
+  background: var(--hover);
+  color: var(--ink);
+}
+
 /* A square button that holds only an icon. It always needs an aria-label (UI-4). */
 .icon-button {
   display: inline-flex;

@@ -242,22 +242,22 @@ class ViewInvariantsTest {
     @ValueSource(strings = {"admin", "", "/"})
     void chromeRejectsBasePathsThatAreNotAConsolePath(String basePath) {
         assertThatThrownBy(() -> new PageChrome("t", basePath, PageChrome.Theme.SYSTEM, List.of(), null, List.of(),
-                List.of(), Samples.csrf()))
+                List.of(), "admin", Samples.csrf()))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void chromeAcceptsAnotherConsolePath() {
         assertThat(new PageChrome("t", "/admin-preview", PageChrome.Theme.DARK, List.of(), null, List.of(), List.of(),
-                Samples.csrf()).basePath()).isEqualTo("/admin-preview");
+                "admin", Samples.csrf()).basePath()).isEqualTo("/admin-preview");
     }
 
     @Test
     void negativeCountsAreRejected() {
-        assertThatThrownBy(() -> new PageChrome.NavItem("e", "l", "i", -1)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new PageChrome.NavItem("e", "l", "i", -1L)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new DashboardView.Stats(-1, 0, 0, null)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new DashboardView.LargestTable("l", -1)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new DashboardView.EntityCard("e", "l", "i", -1,
+        assertThatThrownBy(() -> new DashboardView.EntityCard("e", "l", "i", -1L,
                 new DashboardView.Permissions(true, true, true, true))).isInstanceOf(IllegalArgumentException.class);
     }
 

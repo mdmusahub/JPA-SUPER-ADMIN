@@ -28,7 +28,8 @@ class ConsoleAtNestedPathTest {
         mvc.perform(get("/tools/admin/assets/css/tokens.css")).andExpect(status().isOk());
         MockBrowser browser = MockBrowser.signedIn(mvc, "/tools/admin");
         org.assertj.core.api.Assertions.assertThat(browser.get("/tools/admin").getContentAsString())
-                .contains("Welcome to <span>JPA Admin</span>", "action=\"/tools/admin/logout\"");
+                .contains("<h1 class=\"page-title\">Dashboard</h1>", "action=\"/tools/admin/logout\"",
+                        "href=\"/tools/admin/product\"");
     }
 
     @ParameterizedTest

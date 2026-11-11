@@ -1,0 +1,47 @@
+# ARCH-12 name check: the allow-list
+#
+# The check (NameCheck, run by NameCheckTest in jpa-admin-core) reads every source and resource file of the library
+# modules jpa-admin-core, jpa-admin-autoconfigure, jpa-admin-ui and jpa-admin-starter, main and test, and fails on
+# any whole-word, case-sensitive hit for Category, Product, Customer, Order or Tag: the demo entity names, which a
+# library that discovers entities through the JPA metamodel must never contain.
+#
+# An entry here allows one line of one file. The rules (D-42):
+#   * every entry names one file path (relative to the repository root), the line text, and a written reason;
+#   * the check fails when an entry matches nothing any more, so a stale entry cannot hide a later hit;
+#   * the check fails when an entry has no reason;
+#   * no entry for a whole folder, and no wildcards.
+#
+# Format: three lines per entry, in this order, separated by a blank line. The line text is compared with the file's
+# line after both have had their leading and trailing whitespace removed.
+#
+#   path: <file path from the repository root>
+#   line: <the exact line text>
+#   reason: <why this is not the demo entity>
+
+path: jpa-admin-autoconfigure/src/main/java/io/github/mdmusahub/jpaadmin/autoconfigure/JpaAdminSecurityConfiguration.java
+line: import org.springframework.core.annotation.Order;
+reason: Spring Framework's @Order annotation, imported for the console chain's precedence. It is a Spring type, not the demo entity Order.
+
+path: jpa-admin-autoconfigure/src/main/java/io/github/mdmusahub/jpaadmin/autoconfigure/JpaAdminSecurityConfiguration.java
+line: @Order(Ordered.HIGHEST_PRECEDENCE)
+reason: Spring's @Order on the console's SecurityFilterChain bean: the chain must be matched before any host chain (SEC-4, D-35).
+
+path: jpa-admin-autoconfigure/src/test/java/io/github/mdmusahub/jpaadmin/autoconfigure/HostIsolationTest.java
+line: import org.springframework.core.annotation.Order;
+reason: Spring's @Order annotation, imported so a test host can order its own security chain.
+
+path: jpa-admin-autoconfigure/src/test/java/io/github/mdmusahub/jpaadmin/autoconfigure/HostIsolationTest.java
+line: @Order(1)
+reason: Spring's @Order on a test host's own chain, which the isolation test proves the console does not disturb.
+
+path: jpa-admin-autoconfigure/src/test/java/io/github/mdmusahub/jpaadmin/autoconfigure/JpaAdminSecurityModesTest.java
+line: import org.springframework.core.annotation.Order;
+reason: Spring's @Order annotation, imported for the test of the chain's precedence.
+
+path: jpa-admin-autoconfigure/src/test/java/io/github/mdmusahub/jpaadmin/autoconfigure/JpaAdminSecurityModesTest.java
+line: @Order(5)
+reason: Spring's @Order on a test host's own chain, used to show the console's chain still comes first.
+
+path: jpa-admin-autoconfigure/src/test/java/io/github/mdmusahub/jpaadmin/autoconfigure/JpaAdminSecurityModesTest.java
+line: assertThat(method.getAnnotation(Order.class).value()).isEqualTo(Ordered.HIGHEST_PRECEDENCE);
+reason: Reads Spring's @Order from the console's chain bean to prove its precedence is the highest.

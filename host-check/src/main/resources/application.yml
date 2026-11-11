@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: host-check
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: create-drop
+
+# Default run (by hand) listens on 8090. A missing password here is fine: the two required properties are set from
+# the environment when running by hand (see README) and from a test resource during the build.
+server:
+  port: 8090

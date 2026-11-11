@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  A second, independent host application, OUTSIDE the reactor build (it is deliberately not listed in the root pom's
+  <modules>). Its parent is spring-boot-starter-parent, NOT jpa-super-admin: it depends on the published starter
+  exactly as a real user would, and on nothing of this project except that one artifact.
+
+  It proves the library is entity-agnostic (ARCH-12, D-26): different entities (Book, Author, Publisher), only the
+  starter plus the two required properties, and the console shows all three with the right counts and nothing of the
+  demo shop. Run it with `mvn -f host-check/pom.xml verify` after `mvn install` has put the snapshot in the local
+  Maven repository.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>4.1.2</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>com.example</groupId>
+  <artifactId>host-check</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
+
+  <name>JPA Super Admin host check</name>
+  <description>An unrelated host application that adds only the starter, to prove the library is entity-agnostic.</description>
+
+  <properties>
+    <java.version>17</java.version>
+  </properties>
+
+  <dependencies>
+    <!-- The one and only dependency on this project: the published starter, exactly as a user adds it. -->
+    <dependency>
+      <groupId>io.github.mdmusahub</groupId>
+      <artifactId>jpa-super-admin-spring-boot-starter</artifactId>
+      <version>0.1.0-SNAPSHOT</version>
+      <type>pom</type>
+    </dependency>
+
+    <!-- What any Spring Boot + JPA web application already has. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-webmvc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-webmvc-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+</project>

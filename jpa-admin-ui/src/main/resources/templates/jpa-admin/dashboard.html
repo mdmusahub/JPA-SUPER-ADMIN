@@ -2,8 +2,12 @@
 <html lang="en"
       th:replace="~{jpa-admin/layout :: layout('Dashboard', ~{::main}, true)}">
 <!--/*
-  The dashboard. Task U0 builds the shell and a welcome state only: there are no stat cards, entity cards or chart yet
-  (they arrive with entity discovery, task U1). view is a DashboardView whose numbers are zero until then.
+  The dashboard: four stat cards and one card per entity group (task U1). The chart card arrives with task U7, so
+  nothing is drawn for it while view.chartAvailable is false.
+
+  A console that found no entity shows a welcome state instead of empty cards, and says where entities come from and
+  why one might be missing. Counts are printed with thousands separators; a count the console could not read says
+  "unavailable" instead of a number, and such an entity is left out of the totals.
 */-->
 <body>
 <main id="main" class="content" tabindex="-1">
@@ -11,8 +15,60 @@
 
   <section th:if="${view.groups.isEmpty()}" class="card welcome" aria-labelledby="welcome-title">
     <h2 id="welcome-title">Welcome to <span th:text="${chrome.title}">JPA Admin</span></h2>
-    <p class="muted">You are signed in. Your entities will be listed in the sidebar, and here with their record counts, as soon as the console has found them.</p>
+    <p class="muted">The console lists every JPA entity it finds in this application, with its records. It has not
+      found one yet.</p>
+    <p class="muted">Entities are discovered from the JPA model at startup, so no code is needed to add one. An
+      entity is left out when it is annotated with <code>@AdminHidden</code>, when its name is in
+      <code>jpa.admin.excluded-entities</code>, or when the console cannot manage it, for example because it has a
+      composite primary key. The application log says which entities were left out and why.</p>
   </section>
+
+  <th:block th:unless="${view.groups.isEmpty()}">
+    <p class="page-intro muted">An overview of the data this application manages.</p>
+
+    <div class="stat-cards">
+      <section class="card stat-card">
+        <h2 class="stat-label">Total records</h2>
+        <p class="stat-value" th:text="${#numbers.formatInteger(view.stats.totalRecords, 1, 'COMMA')}">0</p>
+        <p class="stat-note" th:text="'Across ' + ${view.stats.entityCount} + ' entities'">Across 0 entities</p>
+      </section>
+      <section class="card stat-card">
+        <h2 class="stat-label">Entities</h2>
+        <p class="stat-value" th:text="${#numbers.formatInteger(view.stats.entityCount, 1, 'COMMA')}">0</p>
+        <p class="stat-note">Discovered from the JPA model</p>
+      </section>
+      <section class="card stat-card">
+        <h2 class="stat-label">Groups</h2>
+        <p class="stat-value" th:text="${#numbers.formatInteger(view.stats.groupCount, 1, 'COMMA')}">0</p>
+        <p class="stat-note">Sections in the sidebar</p>
+      </section>
+      <section class="card stat-card">
+        <h2 class="stat-label">Largest table</h2>
+        <p class="stat-value stat-value-text" th:if="${view.stats.largestTable != null}"
+           th:text="${view.stats.largestTable.label}">Entity</p>
+        <p class="stat-note" th:if="${view.stats.largestTable != null}"
+           th:text="${#numbers.formatInteger(view.stats.largestTable.count, 1, 'COMMA')} + ' records'">0 records</p>
+        <p class="stat-value stat-value-text" th:if="${view.stats.largestTable == null}">None</p>
+        <p class="stat-note" th:if="${view.stats.largestTable == null}">No record has been counted yet</p>
+      </section>
+    </div>
+
+    <div class="group-cards">
+      <section class="card group-card" th:each="group : ${view.groups}">
+        <h2 th:text="${group.label}">Group</h2>
+        <ul class="entity-rows">
+          <li class="entity-row" th:each="card : ${group.entities}">
+            <th:block th:replace="~{jpa-admin/fragments/icons :: entity-icon(${card.icon})}"></th:block>
+            <a th:href="@{${chrome.basePath} + '/' + ${card.entity}}" th:text="${card.label}">Entity</a>
+            <span class="entity-row-count muted" th:if="${card.count != null}"
+                  th:text="${#numbers.formatInteger(card.count, 1, 'COMMA')} + ' records'">0 records</span>
+            <span class="entity-row-count muted" th:if="${card.count == null}"
+                  title="The console could not read this count">Count unavailable</span>
+          </li>
+        </ul>
+      </section>
+    </div>
+  </th:block>
 </main>
 </body>
 </html>

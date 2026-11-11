@@ -141,7 +141,8 @@ class ConsoleSignInTest {
         assertThat(signedIn.getHeader("Location")).isEqualTo("/admin");
         assertThat(dashboard.getStatus()).isEqualTo(200);
         assertThat(dashboard.getContentAsString()).contains("<h1 class=\"page-title\">Dashboard</h1>",
-                "Welcome to <span>JPA Admin</span>", "action=\"/admin/logout\"", "<span>Sign out</span>");
+                "class=\"card stat-card\"", "action=\"/admin/logout\"", "<span>Sign out</span>",
+                "<span class=\"user-name\">" + USER + "</span>");
     }
 
     @Test

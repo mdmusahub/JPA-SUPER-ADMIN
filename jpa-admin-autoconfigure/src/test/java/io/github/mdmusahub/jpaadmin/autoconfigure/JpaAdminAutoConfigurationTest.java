@@ -6,6 +6,7 @@ import io.github.mdmusahub.jpaadmin.web.BasePath;
 import io.github.mdmusahub.jpaadmin.web.ConsoleChromeFactory;
 import io.github.mdmusahub.jpaadmin.web.ConsoleController;
 import io.github.mdmusahub.jpaadmin.web.ConsoleExceptionResolver;
+import io.github.mdmusahub.jpaadmin.web.ConsoleNavigation;
 import io.github.mdmusahub.jpaadmin.web.ConsoleSettings;
 import io.github.mdmusahub.jpaadmin.web.ConsoleViews;
 import io.github.mdmusahub.jpaadmin.web.ThemeController;
@@ -207,9 +208,9 @@ class JpaAdminAutoConfigurationTest {
         ConsoleController hostHome() {
             return new ConsoleController(
                     new ConsoleChromeFactory(BasePath.of("/admin"), new ConsoleSettings("Host", "#0d9f6e"),
-                            request -> new PageChrome.Csrf("_csrf", "X-CSRF-TOKEN", "t")),
+                            request -> new PageChrome.Csrf("_csrf", "X-CSRF-TOKEN", "t"), ConsoleNavigation.empty()),
                     new ConsoleViews((name, locale) -> null),
-                    new ConsoleSettings("Host", "#0d9f6e"), BasePath.of("/admin"));
+                    new ConsoleSettings("Host", "#0d9f6e"), BasePath.of("/admin"), ConsoleNavigation.empty());
         }
 
         @Bean

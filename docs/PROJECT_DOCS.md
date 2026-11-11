@@ -261,6 +261,10 @@ Start the application and open `/admin`. If either property is missing, the app 
 
 Reproduce the property table from `docs/PLAN.md` section 5, with a sentence per property and an example. State clearly which properties are required (only `username` and `password`), that an environment variable which is not set counts as missing (`password: ${ADMIN_PASSWORD}` with no such variable stops startup), the rules for `path` and `primary-color`, and that one startup report lists every wrong property.
 
+**`jpa.admin.excluded-entities`** (list, empty by default). Entity class names the console must never show. An entry matches by simple class name or by fully qualified class name, ignoring case (`AuditEntry`, `com.example.AuditEntry`, `auditentry` all match the same class). A hidden entity is not in the sidebar, not on the dashboard, and its address returns the same 404 as an address that was never an entity. Example: `jpa.admin.excluded-entities[0]=AuditEntry`.
+
+**`jpa.admin.sensitive-fields`** (list, default `password, secret, token, apikey`). Field names whose values are always masked. The match ignores case, `_` and `-`, and is a substring match, so `password` also covers `userPassword` and `api_key` matches `apikey`. Because it is a substring match it masks a little too much on purpose: a field called `tokenizer` contains `token` and is masked. Narrow the list if that is not wanted. `@AdminSensitive` adds to this list and is never removed from it. Example: `jpa.admin.sensitive-fields[0]=password`.
+
 ## B5. Using the console (draft outline)
 
 Sign in, sidebar and groups, dashboard and chart, browsing records, readable values, search and sort, filters, saved views, display options, bulk actions, export, viewing a record, creating and editing, validation, uploads, keyboard shortcuts, themes, what is stored in the browser. Add a screenshot for each section.
@@ -279,7 +283,12 @@ Sign-in and sessions (the console uses Spring Boot's default session cookie sett
 
 ## B9. Annotations reference (draft outline)
 
-Table per annotation: option, type, default, status, description.
+Table per annotation: option, type, default, status, description. Implemented in v0.1 (package `io.github.mdmusahub.jpaadmin.annotation`), both optional, both read on the field or its getter:
+
+- **`@AdminHidden`** — on an entity class or a field. On a class, the entity is removed from the console completely (no sidebar, no dashboard, not reachable by URL). On a field, the field is never shown, searched, sorted, filtered or exported. It cannot hide an entity's identifier (records are addressed by it); the console logs a warning and keeps the id if it is annotated.
+- **`@AdminSensitive`** — on a field. The value is masked everywhere (SEC-1), whatever the field is called. It adds to `jpa.admin.sensitive-fields`.
+
+The other annotations of `docs/PLAN.md` section 6 (`@AdminResource`, `@AdminField`, `@AdminBadge`, `@AdminLookup`, `@AdminUpload`) arrive in later phases.
 
 ## B10. Endpoints reference (draft outline)
 
@@ -291,7 +300,9 @@ Running behind a reverse proxy, HTTPS, multiple instances (set `jpa.admin.upload
 
 ## B12. Limitations and roadmap (draft)
 
-Current limits: single admin account, a servlet path prefix is not supported in v0.1 (`spring.mvc.servlet.path` must be unset; otherwise the console answers 500 and logs why, D-41), password at most 72 bytes, console templates are cached and not reloaded at run time (D-40), no audit log, no login rate limiting, no inline child rows, no embedded or composite keys, one file per upload field, no image resizing, English only, saved views stored per browser, CSV only, servlet applications only.
+Current limits: single admin account, a servlet path prefix is not supported in v0.1 (`spring.mvc.servlet.path` must be unset; otherwise the console answers 500 and logs why, D-41), password at most 72 bytes, console templates are cached and not reloaded at run time (D-40), no audit log, no login rate limiting, no inline child rows, one file per upload field, no image resizing, English only, saved views stored per browser, CSV only, servlet applications only.
+
+Discovery limits (Phase 3): an entity with a composite primary key (`@EmbeddedId` or `@IdClass`) is not supported and is left out of the console, with a one-line startup warning (entities need a single-column id in v0.1). The console reads one `EntityManagerFactory`: if the host has several and marks none `@Primary`, the console lists no entities and logs a warning rather than guessing which database it would show. Opening an entity shows a "table view is not available yet" notice until the list page ships in the next version (D-47). Sensitive-field name matching is a case-insensitive substring match, so it can mask a field nobody meant it to (for example `tokenizer`, which contains `token`); narrow `jpa.admin.sensitive-fields` to avoid it.
 
 Roadmap: v0.2 rate limiting, S3 storage provider and multi-value filters, v0.3 audit log, v0.4 multiple admins with roles, v0.5 inline child rows, v0.6 galleries and thumbnails, v1.0 stable API, `@Embedded` and composite keys. A Spring Boot 3.5 compatibility build can be reconsidered if users ask.
 

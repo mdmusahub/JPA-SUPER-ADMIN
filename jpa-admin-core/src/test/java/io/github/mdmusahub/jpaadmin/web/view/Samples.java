@@ -17,11 +17,11 @@ final class Samples {
 
     static PageChrome chrome() {
         return new PageChrome("Items", "/admin", PageChrome.Theme.SYSTEM,
-                List.of(new PageChrome.NavGroup("Catalog", List.of(new PageChrome.NavItem("item", "Items", "box", 3)))),
+                List.of(new PageChrome.NavGroup("Catalog", List.of(new PageChrome.NavItem("item", "Items", "box", 3L)))),
                 "item",
                 List.of(new PageChrome.Breadcrumb("Home", "/admin"), new PageChrome.Breadcrumb("Items", null)),
                 List.of(new PageChrome.FlashMessage(PageChrome.FlashMessage.Level.SUCCESS, "Saved")),
-                csrf());
+                "admin", csrf());
     }
 
     static LoginView login() {
@@ -32,7 +32,7 @@ final class Samples {
         return new DashboardView(
                 new DashboardView.Stats(3, 1, 1, new DashboardView.LargestTable("Items", 3)),
                 List.of(new DashboardView.Group("Catalog", List.of(new DashboardView.EntityCard(
-                        "item", "Items", "box", 3, new DashboardView.Permissions(true, true, true, true))))),
+                        "item", "Items", "box", 3L, new DashboardView.Permissions(true, true, true, true))))),
                 true);
     }
 
