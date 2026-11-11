@@ -4,6 +4,21 @@ Branch `phase/4-list`, from tag `v0.0.3`. Nothing is committed and nothing is st
 file and command is in `docs/logs/phase-4-change-log.md` (entries 1 to 85); the plan is `docs/logs/phase-4-plan.md`.
 The one-session exception to AI-11 is D-50. Decisions D-50 to D-59.
 
+## Correction, 2026-11-11 (added after the Phase 5 re-scope, D-60; the text below is left as it was written)
+
+1. **The filter links were not delivered.** The Phase 4 row of `docs/PLAN.md` promised "link builders for sort, page, page-size
+   **and filter links**". `ListViewFactory` still builds an empty `ListView.Filters` (`ListViewFactory.java`, the call
+   `new ListView.Filters(List.of(), List.of(), null)`), and no class builds a `filter.*` link: a search for "filter" in
+   `ListLinks`, `ListQuery`, `ListViewFactory` and `EntityController` finds nothing else. This report did not list them as
+   undelivered; it should have. They are a **Phase 6 item**. Phase 4's status is therefore **"delivered, with the
+   filter-links exception"**, not "complete". Every other statement in this report stands.
+2. **A clarification of "two statements whatever the number of relation columns"** (here and in the Phase 4 checklist of
+   `docs/PLAN.md`): it is true of the number of statements, but each relation column adds one `LEFT JOIN` to the page query, so the
+   cost of a page still grows with the number of relation columns. Phase 12 will stop querying hidden columns and Phase 14 will
+   measure and bound the cost (D-60).
+3. Section 5's list of what was "not done" omitted the filter links and the Phase 5 plan row it quotes was replaced by D-60; see
+   `docs/logs/phase-5-rescope-report.md`.
+
 **Result:** `mvn -B clean verify` passes for all 7 modules, **BUILD SUCCESS**, **3165 tests** (2510 before, +655),
 0 failures, 0 errors, 0 skipped. `host-check` passes (7 tests). All 11 mutation checks are caught and every file was
 restored byte-identically. The real jar behaves as specified over real HTTP and in a real browser. The browser pass found
