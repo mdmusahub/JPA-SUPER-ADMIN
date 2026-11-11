@@ -187,14 +187,16 @@ UI tasks use the prefix **U**. A UI task is "done" when it works in the preview 
 |---|---|---|---|
 | U0 | Tokens, base styles, layout, top bar, theme toggle, login page, error pages | 1 Auto-config, 2 Login | Phase 2 |
 | U1 | Sidebar with groups and counts, dashboard cards (no chart yet) | 3 Discovery | Phase 3 |
-| U2 | List table, cell renderer, search box, sortable headers, pager, empty state | 4 List, 5 Search and sort | Phase 4 (search and sort were built with the list, D-50) |
-| U3 | Filter panel, chips, clear all | 6 Filters | Phase 6 |
-| U4 | Detail page, confirm dialog, bulk bar, duplicate and delete flows | 7 Detail and delete | Phase 7 |
+| U2 | List table, cell renderer, search box, sortable headers, pager, empty state | 4 List (search and sort were built with the list, D-50); Phase 5, re-scoped (D-60), adds no new UI task | Phase 4 (connected: the real list page works in the sample app) |
+| U3 | Filter panel, chips, clear all (the filter links and the `Filters` data come with it from the backend, moved out of Phase 4, D-60) | 6 Filters | Phase 6 |
+| U4 | Detail page, confirm dialog, bulk bar, duplicate and delete flows, row checkboxes in the list, and relation cells as links (D-54) | 7 Detail and delete | Phase 7 |
 | U5 | Form page, all field inputs, validation display, unsaved-changes guard | 8 Create and edit | Phase 8 |
 | U6 | Uploader component, previews, progress, errors, image cells | 9 Uploads | Phase 9 |
 | U7 | Dashboard chart with range switch | 10 Charts | Phase 10 |
-| U8 | Export button states, saved views menu | 11 Export, 12 Saved views | Phase 12 |
-| U9 | Accessibility, responsive and dark theme passes, keyboard shortcuts, docs screenshots | 13 Polish | Phase 13 |
+| U8 | Export button states, saved views menu, column visibility | 11 Export, 12 Saved views | Phase 12 |
+| U9 | Accessibility, responsive and dark theme passes (including the manual phone-width pass of the list), keyboard shortcuts (`/` for the search box), sticky table header, docs screenshots | 13 Polish | Phase 13 |
+
+Phase 5 (re-scoped, D-60) has no UI task of its own: its four items change data the list templates already read (a relation header gains a sort link and `aria-sort`, the empty-state hint and a notice carry new text), so `list.html`, `table.html` and the stylesheets are expected to stay as they are. If one of them has to change, the change goes in with a note in this section. An automated real-browser test of the list belongs to Phase 14.
 
 ### U0 status (2026-11-01, Phase 2)
 
