@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<body>
+<!--/*
+  The line under the table: which rows are shown, the page-size choices, and first / previous / next / last. All of it
+  is plain links from view.paging (the backend built them, keeping the search and the sort); nothing needs JavaScript.
+
+  A control with no link (the first page has no previous page) is shown dimmed and hidden from screen readers, because
+  "Page 1 of 3" already says where you are. The page-size choices are a list of links, with the current size marked
+  by aria-current.
+*/-->
+<div th:fragment="pager" class="table-footer">
+  <p class="table-range"
+     th:text="'Showing ' + ${#numbers.formatInteger(view.paging.firstRow(), 1, 'COMMA')} + '–' + ${#numbers.formatInteger(view.paging.lastRow(), 1, 'COMMA')} + ' of ' + ${#numbers.formatInteger(view.paging.total, 1, 'COMMA')}">Showing 1–25 of 100</p>
+
+  <nav class="table-pager" aria-label="Pagination">
+    <div class="page-sizes">
+      <span class="page-sizes-label">Rows per page</span>
+      <ul class="page-size-list">
+        <li th:each="option : ${view.paging.sizes}">
+          <a th:if="${!option.current}" class="page-size" th:href="@{${option.href}}" th:text="${option.size}">10</a>
+          <span th:if="${option.current}" class="page-size is-current" aria-current="true" th:text="${option.size}">25</span>
+        </li>
+      </ul>
+    </div>
+
+    <p class="page-status" th:text="'Page ' + ${view.paging.page + 1} + ' of ' + ${view.paging.totalPages()}">Page 1 of 4</p>
+
+    <div class="page-buttons">
+      <a th:if="${view.paging.firstHref != null}" class="icon-button" th:href="@{${view.paging.firstHref}}" aria-label="First page">
+        <th:block th:replace="~{jpa-admin/fragments/icons :: page-first}"></th:block>
+      </a>
+      <span th:if="${view.paging.firstHref == null}" class="icon-button is-disabled" aria-hidden="true">
+        <th:block th:replace="~{jpa-admin/fragments/icons :: page-first}"></th:block>
+      </span>
+      <a th:if="${view.paging.prevHref != null}" class="icon-button" th:href="@{${view.paging.prevHref}}" aria-label="Previous page" rel="prev">
+        <th:block th:replace="~{jpa-admin/fragments/icons :: page-prev}"></th:block>
+      </a>
+      <span th:if="${view.paging.prevHref == null}" class="icon-button is-disabled" aria-hidden="true">
+        <th:block th:replace="~{jpa-admin/fragments/icons :: page-prev}"></th:block>
+      </span>
+      <a th:if="${view.paging.nextHref != null}" class="icon-button" th:href="@{${view.paging.nextHref}}" aria-label="Next page" rel="next">
+        <th:block th:replace="~{jpa-admin/fragments/icons :: page-next}"></th:block>
+      </a>
+      <span th:if="${view.paging.nextHref == null}" class="icon-button is-disabled" aria-hidden="true">
+        <th:block th:replace="~{jpa-admin/fragments/icons :: page-next}"></th:block>
+      </span>
+      <a th:if="${view.paging.lastHref != null}" class="icon-button" th:href="@{${view.paging.lastHref}}" aria-label="Last page">
+        <th:block th:replace="~{jpa-admin/fragments/icons :: page-last}"></th:block>
+      </a>
+      <span th:if="${view.paging.lastHref == null}" class="icon-button is-disabled" aria-hidden="true">
+        <th:block th:replace="~{jpa-admin/fragments/icons :: page-last}"></th:block>
+      </span>
+    </div>
+  </nav>
+</div>
+</body>
+</html>

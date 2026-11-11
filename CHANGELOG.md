@@ -6,6 +6,25 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
+- The list page (Phase 4, UI task U2). `GET {path}/{entity}` shows the entity as a table: a heading with the record count, a search box, sortable column headers with a direction indicator, rows with readable values, paging with a range summary, first/previous/next/last links and a page-size choice (10, 25, 50, 100; 25 by default), and an empty state that says what to do next. Sensitive fields appear as a masked column (dots only, never a value). Search, sort, page and size live in the address, so a reload, Back or a shared link shows the same page, and the page works without JavaScript.
+- Search (`q`): case-insensitive "contains" over the entity's non-sensitive text fields; what you type is taken literally (`%`, `_`, quotes, a pasted `http://x`); text longer than 100 characters is cut. Sort (`sort`, `dir`): sortable columns only, both directions, with the identifier as the last sort key so paging is stable.
+- Relation columns show the related record's label (the first text field named `name`, `title`, `label` and similar, else the first text field, else `#id`), read in the same query: a page costs two statements whatever its size. To-many relations, embedded values and binary data are not shown. A relation is not a link yet.
+- Every value a visitor can type (page, size, sort, direction, search) is checked; a bad one falls back to its default and the page still renders. Every link the page prints is percent-encoded and lies under the console path.
+- Preview app: 18 list fixtures (`/admin-preview/list?state=...`), built by the same code that builds the real links.
+- Tests: the query service against a real database with the SQL recorded (which columns are selected, how many statements, that the search text is bound), a log test with SQL, bind and extract logging at TRACE, the real flow in the sample app with `spring.jpa.open-in-view` both true and false, a search-safety contract, and the `host-check` project listing `Book`, `Author` and `Publisher`. Mutation checks are in `docs/logs/phase-4-report.md`.
+- Decisions D-50 to D-59.
+
+### Changed
+- Search (`q`) and sort (`sort`, `dir`) were built in Phase 4 together with the list, instead of Phase 5, because the list's links carry them.
+- A sensitive field now has a column in the list, shown as dots. Earlier tests asserted that its name appeared nowhere; the rule that remains, and is tested, is that its value never appears in any response, link, sort key, search result or log (D-58).
+- `EntityController` takes the list query service as an additional constructor argument (internal API).
+
+### Removed
+- The temporary "This table view is not available yet." notice on `GET {path}/{entity}` and its template `entity-notice.html` (Phase 4 replaces it with the real list page).
+
+## [0.0.3] - 2026-11-11
+
+### Added
 - Entity discovery (Phase 3). The console reads the JPA metamodel once at startup and lists every entity it finds in a grouped sidebar, each with its record count, plus a dashboard with stat cards (total records, entities, groups, largest table) and a card per group. No code and no annotation are needed; entities are found automatically. Works for any host application's entities, proven by a second project (`host-check/`) with `Book`, `Author` and `Publisher` that adds only the starter.
 - Annotations `@AdminHidden` (on an entity class or a field: removes it from the console completely) and `@AdminSensitive` (on a field: masked everywhere), in `io.github.mdmusahub.jpaadmin.annotation`, the console's first public API.
 - Properties `jpa.admin.excluded-entities` (hide entities by simple or fully qualified class name, case-insensitive) and `jpa.admin.sensitive-fields` (names always masked; default `password, secret, token, apikey`, matched case-insensitively, ignoring `_` and `-`, as a substring). A blank entry stops startup and names the property without printing the value.

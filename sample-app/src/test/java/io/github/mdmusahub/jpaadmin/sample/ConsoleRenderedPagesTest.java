@@ -30,6 +30,9 @@ class ConsoleRenderedPagesTest {
                 new MockBrowser(mvc).get("/admin/login?error").getContentAsString(),
                 new MockBrowser(mvc).get("/admin/login?logout").getContentAsString(),
                 browser.get("/admin").getContentAsString(), browser.get("/admin/nope").getContentAsString(),
+                browser.get("/admin/product").getContentAsString(), browser.get("/admin/customer").getContentAsString(),
+                browser.get("/admin/product?q=zzzz").getContentAsString(),
+                browser.get("/admin/product?size=10&page=1&sort=name&dir=desc").getContentAsString(),
                 browser.get("/admin/error/forbidden").getContentAsString());
     }
 
