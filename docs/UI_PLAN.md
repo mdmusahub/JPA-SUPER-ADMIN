@@ -47,7 +47,7 @@ Defined once, at the contract freeze (section 8). All fields are display-ready s
 
 | Record | Used by | Main fields |
 |---|---|---|
-| `PageChrome` | Every page | `title`, `basePath`, `theme`, `nav` (groups with entity name, label, icon, count), `activeEntity`, `breadcrumbs`, `flash` messages, `csrf` (parameter name and token) |
+| `PageChrome` | Every page | `title`, `basePath`, `theme`, `nav` (groups with entity name, label, icon, count; a `null` count means "unavailable"), `activeEntity`, `breadcrumbs`, `flash` messages, `user` (signed-in name, `null` when nobody is), `csrf` (parameter name and token) |
 | `LoginView` | Login | `title`, `error`, `logoutNotice` |
 | `DashboardView` | Dashboard | `stats` (total records, entities, groups, largest table), `groups` (entities with count and permissions), `chartAvailable` |
 | `ChartSeries` (JSON) | Chart endpoint | `range`, `days` (date, count per entity), `entities` |
@@ -91,7 +91,8 @@ Conventions the records enforce or assume:
 - Paging links: `firstHref` and `prevHref` are present exactly when `page > 0`; `nextHref` and `lastHref` exactly when there is a later page (`page + 1 < totalPages()`). Exactly the `SizeOption` whose size equals `size` has `current` true.
 - `Actions.exportHref` is present exactly when `canExport` is true. It carries the current search, filters, sort and visible columns.
 - `FormView.recordId` is present exactly in `EDIT` mode. The duplicate flow is a `CREATE` form that is pre-filled, so it has no `recordId`.
-- The login page also receives a `PageChrome`, with an empty sidebar, for the base path, theme and CSRF token.
+- The login page also receives a `PageChrome`, with an empty sidebar and `user` `null`, for the base path, theme and CSRF token.
+- A record count (`PageChrome.NavItem.count`, `DashboardView.EntityCard.count`) is a `Long`: a number, or `null` when the console could not read it, in which case the page prints "unavailable" and the entity is left out of `DashboardView.Stats.totalRecords` and `largestTable` (D-44). `PageChrome.user` is the signed-in username or `null`; it holds no credential (SEC-1).
 
 ### Template names and model attributes
 
@@ -200,6 +201,16 @@ UI tasks use the prefix **U**. A UI task is "done" when it works in the preview 
 Delivered and connected in the sample app: `tokens.css`, `base.css`, `components.css`, `pages.css`; `theme.js` (blocking, in `<head>`) and `nav.js`; `layout.html`, `login.html`, `dashboard.html` (welcome state only), `error.html`, and the fragments `head`, `sidebar`, `topbar`, `breadcrumbs`, `toast`, `icons`, `theme-toggle`; preview fixtures for login, the minimal dashboard, the error pages and nine chrome variants. The look follows section 5 because `docs/prototype/admin-console.html` was not in the repository when U0 was built. The maintainer is adding that file themselves (2026-11-02) and will ask for a UI alignment pass after their commit; that pass is not part of U0 and nothing was changed for it.
 Since 2026-11-02 (D-40) the real console renders these templates with its own private Thymeleaf engine, which finds them under `classpath:/templates/jpa-admin/` and reads nothing of the host's Thymeleaf setup or `spring.thymeleaf.*` settings. Template names must stay lower-case words joined by hyphens (`jpa-admin/entity-list`, not `jpa-admin/EntityList`), or the console refuses them. The preview app is unchanged: it keeps Boot's Thymeleaf with `spring.thymeleaf.cache=false`, so a template change shows after a rebuild.
 Not part of U0 and still to do: stat cards, entity cards and the chart (U1, U7), tables and everything after, the accent colour and theme polish pass and screenshots for the docs (U9), toasts that disappear by themselves (U9), a full focus trap in the drawer (U9), and the `long-sidebar` chrome variant (U1).
+
+### U1 status (2026-11-10, Phase 3)
+
+Delivered and connected in the sample app. The sidebar now has the brand subtitle "Administration", a nav search box that filters the entity list in the browser (an enhancement: hidden without JavaScript, and the list is fully usable without it), entity groups that collapse and expand as `<details>` elements (closed state remembered in one `localStorage` key, in try/catch, UI-11), entity items with an icon and a count (thousands separators, and "unavailable" when the console could not read the count), the active item highlighted, and a user chip at the bottom with the signed-in name and the sign-out (the POST with the CSRF token moved here from the top bar, so there is one sign-out on the page). The dashboard has four stat cards and one card per group listing its entities with counts and links, an empty-database state and a "no entities" welcome state that names `@AdminHidden` and `jpa.admin.excluded-entities`. A temporary `entity-notice.html` is the entity page until U2 builds the table.
+
+Contract change (D-44): `PageChrome` gained `user` (nullable; `null` on the sign-in and error pages and for an anonymous visitor), and `PageChrome.NavItem.count` and `DashboardView.EntityCard.count` became `Long` (`null` = the count could not be read). The `nav` of `PageChrome` now holds the discovered entities; before Phase 3 it was always empty.
+
+New preview fixtures: chrome variants `long-sidebar` (8 groups, 60 entities, counts from 0 to 1,000,000, one unavailable, a very long name and names in five scripts), `no-user` and `entity-active`; dashboard `normal`, `no-chart`, `empty-database`, `count-unavailable`, `no-entities`, `many-groups`, `read-only-entities`; the new `entity` page with the state `not-available`.
+
+A real Thymeleaf-precedence bug was found and fixed by the preview test: `th:replace` runs before `th:if`, so an `entity-icon(name)` fragment with both on one element rendered every icon; they are now on separate elements. Still to do (U9): the `read-only-entities` dashboard fixture does not yet hide actions, because Phase 3 offers no per-entity action at all (every `Permissions` is false); real permissions arrive with Phase 7.
 
 ## 8. Sync points
 

@@ -2,23 +2,42 @@
 <html>
 <body>
 <!--/*
-  The sidebar: the brand, a link to the dashboard, then the entity groups from chrome.nav. Every entity link is built
-  from the base path and the entity's URL name. The current entity (chrome.activeEntity) is marked with aria-current.
-  The dashboard link is the current page when no entity is active and the trail has a single step (the dashboard
-  itself, not an error page under it). The groups are empty until the console lists entities (Phase 3).
+  The sidebar: the brand, a search box that filters the list in the browser, a link to the dashboard, the entity
+  groups from chrome.nav, and the signed-in user at the bottom.
+
+  Every entity link is built from the base path and the entity's URL name. The current entity (chrome.activeEntity)
+  is marked with aria-current. The dashboard link is the current page when no entity is active and the trail has a
+  single step (the dashboard itself, not an error page under it).
+
+  A group is a <details> element, so it opens and closes without any JavaScript; nav.js only remembers the choice.
+  The search box is an enhancement: without JavaScript it is hidden by the stylesheet and every entity stays
+  visible. A count of null means the console could not read it, and the item says so instead of showing a number.
+
+  signOut  whether the visitor is signed in and may see the user chip (the error pages pass false, because an
+           anonymous visitor can reach them).
 */-->
-<aside th:fragment="sidebar" class="sidebar" id="sidebar" aria-label="Main navigation">
+<aside th:fragment="sidebar(signOut)" class="sidebar" id="sidebar" aria-label="Main navigation">
   <div class="sidebar-head">
     <a class="brand" th:href="@{${chrome.basePath}}">
       <span class="brand-mark"><th:block th:replace="~{jpa-admin/fragments/icons :: logo}"></th:block></span>
-      <span class="brand-name" th:text="${chrome.title}">JPA Admin</span>
+      <span class="brand-text">
+        <span class="brand-name" th:text="${chrome.title}">JPA Admin</span>
+        <span class="brand-subtitle">Administration</span>
+      </span>
     </a>
     <button type="button" class="icon-button sidebar-close" data-nav-close aria-label="Close navigation">
       <th:block th:replace="~{jpa-admin/fragments/icons :: close}"></th:block>
     </button>
   </div>
 
-  <nav aria-label="Entities">
+  <label class="nav-search" for="nav-search-input" th:if="${!chrome.nav.isEmpty()}">
+    <span class="visually-hidden">Search entities</span>
+    <th:block th:replace="~{jpa-admin/fragments/icons :: search}"></th:block>
+    <input id="nav-search-input" type="search" class="nav-search-input" placeholder="Search entities"
+           autocomplete="off" data-nav-search>
+  </label>
+
+  <nav aria-label="Entities" data-nav>
     <ul class="nav-list">
       <li>
         <a class="nav-link" th:href="@{${chrome.basePath}}"
@@ -29,21 +48,42 @@
       </li>
     </ul>
 
-    <section th:each="group : ${chrome.nav}">
-      <h2 class="nav-group-title" th:text="${group.label}">Group</h2>
+    <details class="nav-group" open th:each="group : ${chrome.nav}" th:attr="data-nav-group=${group.label}">
+      <summary class="nav-group-title">
+        <span th:text="${group.label}">Group</span>
+        <th:block th:replace="~{jpa-admin/fragments/icons :: chevron}"></th:block>
+      </summary>
       <ul class="nav-list">
-        <li th:each="item : ${group.items}">
+        <li th:each="item : ${group.items}" th:attr="data-nav-item=${item.label}">
           <a class="nav-link" th:href="@{${chrome.basePath} + '/' + ${item.entity}}"
              th:attr="aria-current=${item.entity == chrome.activeEntity} ? 'page'">
+            <th:block th:replace="~{jpa-admin/fragments/icons :: entity-icon(${item.icon})}"></th:block>
             <span th:text="${item.label}">Entity</span>
-            <span class="nav-count" th:text="${item.count}">0</span>
+            <span class="nav-count" th:if="${item.count != null}"
+                  th:text="${#numbers.formatInteger(item.count, 1, 'COMMA')}">0</span>
+            <span class="nav-count nav-count-missing" th:if="${item.count == null}"
+                  title="The console could not read this count">unavailable</span>
           </a>
         </li>
       </ul>
-    </section>
+    </details>
 
     <p class="nav-note" th:if="${chrome.nav.isEmpty()}">Your entities will be listed here.</p>
+    <p class="nav-note" hidden data-nav-empty>No entity matches your search.</p>
   </nav>
+
+  <div class="user-chip" th:if="${signOut and chrome.user != null}">
+    <span class="avatar" aria-hidden="true"
+          th:text="${#strings.toUpperCase(#strings.substring(chrome.user, 0, 1))}">A</span>
+    <span class="user-name" th:text="${chrome.user}">admin</span>
+    <form method="post" th:attr="action=@{${chrome.basePath} + '/logout'}">
+      <input type="hidden" th:name="${chrome.csrf.parameterName}" th:value="${chrome.csrf.token}">
+      <button type="submit" class="btn btn-quiet">
+        <th:block th:replace="~{jpa-admin/fragments/icons :: sign-out}"></th:block>
+        <span>Sign out</span>
+      </button>
+    </form>
+  </div>
 </aside>
 </body>
 </html>

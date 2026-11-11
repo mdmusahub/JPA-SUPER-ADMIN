@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The scanner and the count service are tested against a real JPA metamodel, not a hand-made one, so a wrong
+  assumption about the metamodel shows up here and not in a host application.
+
+  Plain JPA bootstrapping on purpose: jpa-admin-core has no Spring Boot, and its tests start no application context.
+  The entities are the neutral test model (Widget, Gadget and so on), never the sample application's (ARCH-12).
+-->
+<persistence xmlns="https://jakarta.ee/xml/ns/persistence"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="https://jakarta.ee/xml/ns/persistence https://jakarta.ee/xml/ns/persistence/persistence_3_2.xsd"
+             version="3.2">
+
+  <persistence-unit name="console-test" transaction-type="RESOURCE_LOCAL">
+    <class>io.github.mdmusahub.jpaadmin.metadata.testmodel.Widget</class>
+    <class>io.github.mdmusahub.jpaadmin.metadata.testmodel.WidgetPart</class>
+    <class>io.github.mdmusahub.jpaadmin.metadata.testmodel.Gadget</class>
+    <class>io.github.mdmusahub.jpaadmin.metadata.testmodel.Gizmo</class>
+    <class>io.github.mdmusahub.jpaadmin.metadata.testmodel.Doohickey</class>
+    <class>io.github.mdmusahub.jpaadmin.metadata.testmodel.Thingamajig</class>
+    <class>io.github.mdmusahub.jpaadmin.metadata.testmodel.HttpLogEntry</class>
+    <class>io.github.mdmusahub.jpaadmin.metadata.testmodel.Contraption</class>
+    <class>io.github.mdmusahub.jpaadmin.metadata.testmodel.Whatsit</class>
+    <class>io.github.mdmusahub.jpaadmin.metadata.testmodel.collide.a.Sprocket</class>
+    <class>io.github.mdmusahub.jpaadmin.metadata.testmodel.collide.b.Sprocket</class>
+    <class>io.github.mdmusahub.jpaadmin.metadata.testmodel.Address</class>
+    <class>io.github.mdmusahub.jpaadmin.metadata.testmodel.ContraptionKey</class>
+    <exclude-unlisted-classes>true</exclude-unlisted-classes>
+    <properties>
+      <property name="jakarta.persistence.jdbc.url" value="jdbc:h2:mem:jpa-admin-core-test;DB_CLOSE_DELAY=-1"/>
+      <property name="jakarta.persistence.jdbc.driver" value="org.h2.Driver"/>
+      <property name="jakarta.persistence.jdbc.user" value="sa"/>
+      <property name="jakarta.persistence.jdbc.password" value=""/>
+      <property name="jakarta.persistence.schema-generation.database.action" value="drop-and-create"/>
+      <property name="hibernate.show_sql" value="false"/>
+    </properties>
+  </persistence-unit>
+</persistence>

@@ -3,6 +3,7 @@ package io.github.mdmusahub.jpaadmin.preview;
 import static io.github.mdmusahub.jpaadmin.preview.ChromeFixtures.ALTERNATE_BASE;
 import static io.github.mdmusahub.jpaadmin.preview.ChromeFixtures.BASE;
 
+import io.github.mdmusahub.jpaadmin.web.EntityController;
 import io.github.mdmusahub.jpaadmin.web.view.DashboardView;
 import io.github.mdmusahub.jpaadmin.web.view.ErrorView;
 import io.github.mdmusahub.jpaadmin.web.view.LoginView;
@@ -24,8 +25,8 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 /**
  * Renders the real console templates with fixtures, with no database and no login: {@code /admin-preview/{page}?state=}
- * and {@code &chrome=} ({@code docs/FIXTURES.md}). The pages are {@code login}, {@code dashboard} and {@code error}
- * (task U0); each later UI task adds its own.
+ * and {@code &chrome=} ({@code docs/FIXTURES.md}). The pages are {@code login}, {@code dashboard}, {@code entity}
+ * and {@code error} (tasks U0 and U1); each later UI task adds its own.
  *
  * <p>It fills the same model attributes as the real controllers ({@code chrome} and {@code view}) and returns the same
  * template names, so what you see here is what the console renders. An unknown page, state or chrome variant answers 404
@@ -72,6 +73,13 @@ class PreviewController {
             case "dashboard" -> {
                 model.addAttribute(PageChrome.VIEW_ATTRIBUTE, PageFixtures.dashboard(state).orElseThrow(() -> unknown(page, state)));
                 yield DashboardView.TEMPLATE;
+            }
+            case "entity" -> {
+                // The one page with no record of its own: the shell plus the notice (Phase 3, EntityController).
+                if (!PageFixtures.hasEntityState(state)) {
+                    throw unknown(page, state);
+                }
+                yield EntityController.TEMPLATE;
             }
             case "error" -> {
                 model.addAttribute(PageChrome.VIEW_ATTRIBUTE, PageFixtures.error(state).orElseThrow(() -> unknown(page, state)));

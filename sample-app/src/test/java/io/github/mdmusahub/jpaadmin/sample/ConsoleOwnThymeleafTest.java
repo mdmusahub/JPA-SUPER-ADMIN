@@ -56,6 +56,7 @@ class ConsoleOwnThymeleafTest {
         assertThat(login.getContentType()).isEqualTo("text/html;charset=UTF-8");
         assertThat(login.getContentAsString()).contains("<h1>Sign in</h1>");
         assertThat(dashboard.getStatus()).isEqualTo(200);
-        assertThat(dashboard.getContentAsString()).contains("Welcome to <span>JPA Admin</span>");
+        assertThat(dashboard.getContentAsString()).contains("<h1 class=\"page-title\">Dashboard</h1>",
+                "class=\"card stat-card\"");
     }
 }

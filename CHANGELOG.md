@@ -6,6 +6,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
+- Entity discovery (Phase 3). The console reads the JPA metamodel once at startup and lists every entity it finds in a grouped sidebar, each with its record count, plus a dashboard with stat cards (total records, entities, groups, largest table) and a card per group. No code and no annotation are needed; entities are found automatically. Works for any host application's entities, proven by a second project (`host-check/`) with `Book`, `Author` and `Publisher` that adds only the starter.
+- Annotations `@AdminHidden` (on an entity class or a field: removes it from the console completely) and `@AdminSensitive` (on a field: masked everywhere), in `io.github.mdmusahub.jpaadmin.annotation`, the console's first public API.
+- Properties `jpa.admin.excluded-entities` (hide entities by simple or fully qualified class name, case-insensitive) and `jpa.admin.sensitive-fields` (names always masked; default `password, secret, token, apikey`, matched case-insensitively, ignoring `_` and `-`, as a substring). A blank entry stops startup and names the property without printing the value.
+- Record counts are cached for five seconds and are read in a read-only transaction. A count that fails shows as "unavailable" and is logged without a stack trace; it never breaks the page. Counts are shown with thousands separators.
+- A hidden, excluded or unsupported entity is not in the sidebar, not on the dashboard and not reachable by URL: its address answers exactly like an address that was never an entity, so the console does not reveal that it exists. An entity the console cannot manage (a composite primary key via `@EmbeddedId` or `@IdClass`) is skipped with a one-line startup warning, never an exception.
+- The console reads one `EntityManagerFactory` (the unique or `@Primary` one). With several and none primary, it lists no entities and logs a warning, and never fails the host's startup.
+- `GET {path}/{entity}` for a known entity returns the console shell with a notice that the table view is not available yet (the list arrives in the next phase); an unknown one returns the console's 404 page.
+- UI (task U1): the sidebar gained a brand subtitle, a client-side entity search, collapsible groups, counts, an active-item highlight and a user chip with the signed-in name and the sign-out; the dashboard gained stat cards, group cards and empty states. All of it works without JavaScript and in both themes.
+- An entity-name check (ARCH-12) with no new dependency: a test fails if any library module mentions a demo entity name, with an allow-list whose entries each carry a file path and a written reason and whose stale entries also fail.
+- Decisions D-43 to D-49.
+
+### Changed
+- `PageChrome` gained a `user` field (the signed-in name, `null` when nobody is), and the record counts in `PageChrome.NavItem` and `DashboardView.EntityCard` became nullable (`null` = unavailable), so a broken count is shown honestly instead of as a wrong zero (D-44).
+- The dashboard now shows real data. The Phase 2 welcome state remains only for a console that has found no entity.
+- `jpa-admin-core` and `jpa-admin-autoconfigure` depend on `jakarta.persistence-api`/`spring-tx` and `jakarta.persistence-api`/`spring-orm` respectively, all `provided`, so nothing new reaches a host's runtime classpath (D-49).
+
+### Notes
+- A field whose name contains a configured sensitive word is masked, so a name such as `tokenizer` (which contains `token`) is masked too. Narrow `jpa.admin.sensitive-fields` if that is not wanted.
+
+## [0.0.2] - 2026-11-10
+
+### Added
 - Sign-in (Phase 2). One security chain for the console path only, with the highest precedence: form login at `{path}/login`, sign-out only as a POST with the CSRF token (it clears the console's own session data and ends the session only if nothing else is in it, so a host login in the same browser stays; D-39), CSRF protection on every request, one admin from `jpa.admin.username` and `jpa.admin.password` (BCrypt hash made at startup, role `JPA_ADMIN`), session fixation protection, one generic message for a wrong username and a wrong password, and no redirect target ever taken from a request. Public: the sign-in page, `{path}/assets/**` and `{path}/theme.css`.
 - The host application is left alone (SEC-4): the console adds no `UserDetailsService`, `AuthenticationManager`, `AuthenticationProvider` or `PasswordEncoder` bean, so a host's own users and Boot's defaults are neither used nor changed; a host without Spring Security gets no newly protected route and no generated password in its log; a host with its own chain, or one that relies on Spring Boot's default chain, behaves exactly as before. The console keeps its login, CSRF token and saved page in the shared session under its own names. It refuses to answer (500, one log line) if a request reaches it without passing its chain, and backs off completely when Spring Security or Thymeleaf is missing.
 - The console renders its pages with its own private Thymeleaf engine and view resolver, limited to the console's templates (D-40). It does not read the host's `spring.thymeleaf.*` settings, template resolvers, dialects, engines or view resolvers, adds no bean of those types, and hands Spring MVC the finished view, so no view resolver of the host (another Thymeleaf setup, JSP, FreeMarker, Mustache, a catch-all resolver with a higher priority) is ever asked about a console page, and the host's own views render exactly as before. Console pages use the request's locale and are always `text/html;charset=UTF-8`.

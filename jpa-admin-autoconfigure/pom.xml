@@ -56,6 +56,25 @@
       <artifactId>thymeleaf-spring6</artifactId>
       <optional>true</optional>
     </dependency>
+    <!--
+      Provided, compile time only (approved for Phase 3): the console's auto-configuration has to name
+      EntityManagerFactory to ask whether the host has one, and SharedEntityManagerCreator (spring-orm) to hand the
+      count service Spring's transaction-aware entity manager, so @Transactional(readOnly = true) is real and not
+      decoration (ARCH-5). Provided, so neither is transitive and the starter adds neither to a host: every host of
+      this console already has both, and the auto-configuration backs off when JPA is missing (ARCH-7). Versions
+      from the Boot BOM.
+    -->
+    <dependency>
+      <groupId>jakarta.persistence</groupId>
+      <artifactId>jakarta.persistence-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-orm</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
     <!-- Optional: generates META-INF/spring-configuration-metadata.json for IDE completion of jpa.admin.* -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -100,11 +119,17 @@
     </dependency>
     <!--
       Test scope only (approved in D-19): puts jakarta.persistence.EntityManager on the test classpath so the
-      "JPA present" condition can be tested. Main code checks that class by name and has no JPA dependency.
+      "JPA present" condition can be tested, and Hibernate, so a test host can have a real entity manager factory.
     -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-data-jpa</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Test scope only: the in-memory database behind that factory (pre-approved for Phase 3). -->
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

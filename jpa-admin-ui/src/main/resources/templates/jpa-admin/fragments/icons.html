@@ -29,5 +29,28 @@
 <th:block th:fragment="warning"><svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.01"/></svg></th:block>
 
 <th:block th:fragment="alert"><svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg></th:block>
+
+<th:block th:fragment="search"><svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></th:block>
+
+<th:block th:fragment="chevron"><svg class="icon icon-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 9l6 6 6-6"/></svg></th:block>
+
+<th:block th:fragment="table"><svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg></th:block>
+
+<th:block th:fragment="file"><svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg></th:block>
+
+<th:block th:fragment="users"><svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-4 3.5-6 6.5-6s6 2 6.5 6M17 4.7a3.5 3.5 0 0 1 0 6.6M21.5 20c-.3-2.5-1.7-4.2-3.5-5"/></svg></th:block>
+
+<th:block th:fragment="box"><svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></th:block>
+
+<th:block th:fragment="layers"><svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5M3 17.5l9 5 9-5"/></svg></th:block>
+
+<!--/*
+  The icon of one entity, chosen by its metadata name. A name this sprite does not know falls back to the generic
+  table, so a host can never make a page break by asking for an icon that does not exist here.
+
+  The th:if and the th:replace are on separate elements on purpose: Thymeleaf processes fragment inclusion BEFORE
+  th:if, so both on one element would include every icon and ignore the condition. (Found by the preview test.)
+*/-->
+<th:block th:fragment="entity-icon(name)"><th:block th:if="${name == 'file'}"><th:block th:replace="~{jpa-admin/fragments/icons :: file}"></th:block></th:block><th:block th:if="${name == 'users'}"><th:block th:replace="~{jpa-admin/fragments/icons :: users}"></th:block></th:block><th:block th:if="${name == 'box'}"><th:block th:replace="~{jpa-admin/fragments/icons :: box}"></th:block></th:block><th:block th:if="${name == 'layers'}"><th:block th:replace="~{jpa-admin/fragments/icons :: layers}"></th:block></th:block><th:block th:unless="${name == 'file' or name == 'users' or name == 'box' or name == 'layers'}"><th:block th:replace="~{jpa-admin/fragments/icons :: table}"></th:block></th:block></th:block>
 </body>
 </html>

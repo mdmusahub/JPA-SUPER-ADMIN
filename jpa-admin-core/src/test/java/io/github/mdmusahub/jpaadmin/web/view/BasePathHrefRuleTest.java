@@ -60,7 +60,7 @@ class BasePathHrefRuleTest {
                 new PageChrome.Breadcrumb("Items", base.link("/item")), new PageChrome.Breadcrumb("Edit", null));
 
         assertThatCode(() -> new PageChrome("Items", base.value(), PageChrome.Theme.SYSTEM, List.of(), null, trail,
-                List.of(), Samples.csrf())).doesNotThrowAnyException();
+                List.of(), "admin", Samples.csrf())).doesNotThrowAnyException();
     }
 
     @ParameterizedTest
@@ -74,6 +74,6 @@ class BasePathHrefRuleTest {
 
     private static PageChrome chromeWith(String basePath) {
         return new PageChrome("Items", basePath, PageChrome.Theme.SYSTEM, List.of(), null, List.of(), List.of(),
-                Samples.csrf());
+                "admin", Samples.csrf());
     }
 }
