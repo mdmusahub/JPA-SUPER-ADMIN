@@ -10,9 +10,12 @@ import io.github.mdmusahub.jpaadmin.metadata.EntityScanner;
 import io.github.mdmusahub.jpaadmin.metadata.testmodel.Gadget;
 import io.github.mdmusahub.jpaadmin.metadata.testmodel.Widget;
 import io.github.mdmusahub.jpaadmin.service.CountService;
+import io.github.mdmusahub.jpaadmin.service.ListQueryService;
 import io.github.mdmusahub.jpaadmin.testsupport.TestPersistence;
+import io.github.mdmusahub.jpaadmin.web.view.Cell;
 import io.github.mdmusahub.jpaadmin.web.view.DashboardView;
 import io.github.mdmusahub.jpaadmin.web.view.ErrorView;
+import io.github.mdmusahub.jpaadmin.web.view.ListView;
 import io.github.mdmusahub.jpaadmin.web.view.PageChrome;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -75,7 +78,8 @@ class ConsoleEntityPagesTest {
         navigation = new ConsoleNavigation(registry, counts);
         chromes = new ConsoleChromeFactory(BASE, SETTINGS, TOKENS, navigation);
         ConsoleViews views = new ConsoleViews(Page::new);
-        entities = new EntityController(chromes, views, navigation, BASE);
+        entities = new EntityController(chromes, views, navigation,
+                ListQueryService.over(TestPersistence.entityManager(), registry), BASE);
         console = new ConsoleController(chromes, views, SETTINGS, BASE, navigation);
     }
 
@@ -83,6 +87,11 @@ class ConsoleEntityPagesTest {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setUserPrincipal((Principal) () -> "admin");
         return request;
+    }
+
+    /** The entity's page with no search, sort or paging parameters. */
+    private ModelAndView open(String entity) {
+        return entities.entity(entity, null, null, null, null, null, signedIn());
     }
 
     private static Page pageOf(ModelAndView result) {
@@ -224,25 +233,8 @@ class ConsoleEntityPagesTest {
     // ---- one entity's page ------------------------------------------------------------------------------------
 
     @Test
-    void aKnownEntityAnswersWithTheShellTheNoticeAndItselfMarkedInTheSidebar() {
-        ModelAndView result = entities.entity("widget", signedIn());
-
-        assertThat(pageOf(result).template()).isEqualTo(EntityController.TEMPLATE)
-                .isEqualTo("jpa-admin/entity-notice");
-        PageChrome chrome = chromeOf(result);
-        assertThat(chrome.activeEntity()).isEqualTo("widget");
-        assertThat(chrome.flash()).containsExactly(new PageChrome.FlashMessage(
-                PageChrome.FlashMessage.Level.INFO, "This table view is not available yet."));
-        assertThat(chrome.breadcrumbs()).containsExactly(new PageChrome.Breadcrumb("Dashboard", "/admin"),
-                new PageChrome.Breadcrumb("Widget", null));
-        assertThat(result.getModel()).as("the page has nothing of its own to show yet")
-                .doesNotContainKey(PageChrome.VIEW_ATTRIBUTE);
-        assertThat(chrome.nav()).isNotEmpty();
-    }
-
-    @Test
     void everyLinkOnTheEntityPageLiesUnderTheBasePath() {
-        PageChrome chrome = chromeOf(entities.entity("widget", signedIn()));
+        PageChrome chrome = chromeOf(open("widget"));
 
         assertThat(chrome.basePath()).isEqualTo("/admin");
         assertThat(chrome.breadcrumbs()).allSatisfy(crumb ->
@@ -253,7 +245,7 @@ class ConsoleEntityPagesTest {
     @ValueSource(strings = {"nothing", "doohickey", "contraption", "whatsit", "sprocket", "Widget", "WIDGET",
             "widget2", "internalNote", "assets", "login"})
     void anUnknownHiddenOrUnsupportedEntityAnswersTheSameNotFound(String typed) {
-        assertThatThrownBy(() -> entities.entity(typed, signedIn()))
+        assertThatThrownBy(() -> open(typed))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(failure -> assertThat(((ResponseStatusException) failure).getStatusCode())
                         .isEqualTo(HttpStatus.NOT_FOUND));
@@ -287,7 +279,7 @@ class ConsoleEntityPagesTest {
 
     private ResponseStatusException catchNotFound(String typed) {
         try {
-            entities.entity(typed, signedIn());
+            open(typed);
             throw new AssertionError("expected a 404 for " + typed.length() + " characters");
         } catch (ResponseStatusException expected) {
             return expected;
@@ -297,16 +289,25 @@ class ConsoleEntityPagesTest {
     // ---- no sensitive value anywhere -------------------------------------------------------------------------
 
     @Test
-    void noSensitiveFieldNameOrValueReachesThePages() {
-        ModelAndView dashboard = console.dashboard(signedIn());
-        ModelAndView page = entities.entity("widget", signedIn());
+    void noSensitiveFieldNameOrValueReachesTheDashboard() {
+        String rendered = String.valueOf(console.dashboard(signedIn()).getModel());
 
-        for (ModelAndView result : List.of(dashboard, page)) {
-            String rendered = String.valueOf(result.getModel());
-            assertThat(rendered).doesNotContain("userPassword", "api_key", "recoveryAnswer", "internalNote");
-        }
+        assertThat(rendered).doesNotContain("userPassword", "api_key", "recoveryAnswer", "internalNote");
         assertThat(registry.find("widget").orElseThrow().fields())
                 .anySatisfy(field -> assertThat(field.sensitive()).isTrue());
+    }
+
+    @Test
+    void anEntitysListShowsSensitiveFieldsOnlyAsMaskedColumnsAndHiddenFieldsNotAtAll() {
+        // Since Phase 4 the list shows a sensitive field as a masked column ("dots everywhere"), so its name is a
+        // header now. What stays forbidden is any value, and a hidden field in any form.
+        ListView view = (ListView) open("widget").getModel().get(PageChrome.VIEW_ATTRIBUTE);
+
+        assertThat(view.columns().stream().filter(column -> column.type() == Cell.Type.MASKED).map(ListView.Column::key))
+                .containsExactlyInAnyOrder("userPassword", "api_key", "recoveryAnswer");
+        assertThat(view.columns().stream().filter(column -> column.type() == Cell.Type.MASKED))
+                .allSatisfy(column -> assertThat(column.sortable()).isFalse());
+        assertThat(String.valueOf(view)).doesNotContain("internalNote");
     }
 
     @Test

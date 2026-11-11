@@ -69,15 +69,17 @@ class PreviewPagesTest {
     }
 
     @Test
-    void theCatalogHoldsTheU0AndU1FixturesOfFixturesMd() {
+    void theCatalogHoldsTheFixturesOfFixturesMd() {
         assertThat(PageFixtures.catalog().get("login")).containsExactly("normal", "bad-credentials", "logged-out", "long-title");
         assertThat(PageFixtures.catalog().get("dashboard")).containsExactly("minimal", "normal", "no-chart",
                 "empty-database", "count-unavailable", "no-entities", "many-groups", "read-only-entities");
-        assertThat(PageFixtures.catalog().get("entity")).containsExactly("not-available");
+        assertThat(PageFixtures.catalog().get("list")).contains("normal", "middle-page", "last-page", "empty-no-records",
+                "empty-no-matches", "sorted-asc", "sorted-desc", "masked-column", "long-text", "many-columns");
+        assertThat(PageFixtures.catalog()).doesNotContainKey("entity");
         assertThat(PageFixtures.catalog().get("error")).contains("not-found", "forbidden", "server-error", "bad-request", "long-hint");
         assertThat(ChromeFixtures.names()).containsExactly("default", "empty-sidebar", "no-active-entity", "deep-breadcrumbs",
                 "flash-all-levels", "theme-dark", "theme-light", "theme-system", "custom-base-path", "long-sidebar",
-                "no-user", "entity-active");
+                "no-user", "member-active");
     }
 
     // ---- sign-in page -----------------------------------------------------------------------------------------------
@@ -451,29 +453,6 @@ class PreviewPagesTest {
         String html = render("dashboard", "normal", "default");
 
         assertThat(html).doesNotContain("New record", "Delete record", "Export");
-    }
-
-    // ---- U1: one entity's page --------------------------------------------------------------------------------------
-
-    @Test
-    void theEntityPageSaysTheTableIsNotAvailableYetAndKeepsTheShell() throws Exception {
-        String html = render("entity", "not-available", "entity-active");
-
-        assertThat(html).contains("<title>Articles | JPA Admin</title>",
-                        "<h1 class=\"page-title\">Articles</h1>",
-                        "<h2>This table view is not available yet</h2>",
-                        "This table view is not available yet.",
-                        "<a class=\"btn\" href=\"/admin-preview\">Go to dashboard</a>")
-                .contains("href=\"/admin-preview/article\" aria-current=\"page\"")
-                .contains("class=\"sidebar\"", "class=\"topbar\"", "user-chip");
-        assertThat(count(html, "toast toast-info")).as("the notice the controller adds").isEqualTo(1);
-    }
-
-    @Test
-    void theEntityPageShowsNoDataAtAll() throws Exception {
-        String html = render("entity", "not-available", "entity-active");
-
-        assertThat(html).doesNotContain("<table", "<tbody", "New record");
     }
 
     private static String crumbs(String html) {

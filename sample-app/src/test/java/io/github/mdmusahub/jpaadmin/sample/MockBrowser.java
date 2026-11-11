@@ -33,6 +33,15 @@ final class MockBrowser {
         return perform(MockMvcRequestBuilders.get(path));
     }
 
+    /**
+     * GET of an address that is already percent-encoded. {@link #get} hands its argument to MockMvc as a URI
+     * <em>template</em>, which encodes it again (so {@code %20} would arrive as {@code %2520}); this sends it as written,
+     * the way a browser does.
+     */
+    MockHttpServletResponse getUri(String encodedAddress) throws Exception {
+        return perform(MockMvcRequestBuilders.get(java.net.URI.create(encodedAddress)));
+    }
+
     /** POST of a form: {@code fields} are name, value, name, value ... */
     MockHttpServletResponse post(String path, String... fields) throws Exception {
         MockHttpServletRequestBuilder request = MockMvcRequestBuilders.post(path);

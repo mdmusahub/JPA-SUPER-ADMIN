@@ -104,14 +104,12 @@ class ConsoleDiscoversEntitiesTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"category", "customer", "order", "product", "tag"})
-    void everyDemoEntityHasAPageThatSaysTheTableIsNotAvailableYet(String entity) throws Exception {
+    void everyDemoEntityHasAPageWithItselfMarkedInTheSidebar(String entity) throws Exception {
         MockHttpServletResponse response = MockBrowser.signedIn(mvc).get("/admin/" + entity);
 
         assertThat(response.getStatus()).isEqualTo(200);
         assertThat(response.getContentAsString())
-                .contains("This table view is not available yet.")
-                .contains("href=\"/admin/" + entity + "\" aria-current=\"page\"")
-                .contains("<a class=\"btn\" href=\"/admin\">Go to dashboard</a>");
+                .contains("href=\"/admin/" + entity + "\" aria-current=\"page\"");
     }
 
     @ParameterizedTest
@@ -160,9 +158,12 @@ class ConsoleDiscoversEntitiesTest {
     }
 
     @Test
-    void theConsoleNeverShowsAFieldNameOfASensitiveColumnEither() throws Exception {
+    void theCustomerListShowsThePasswordColumnAsDotsOnlyAndNeverAValue() throws Exception {
         String customers = MockBrowser.signedIn(mvc).get("/admin/customer").getContentAsString();
 
-        assertThat(customers).doesNotContain("password", "Password");
+        // Since Phase 4 the list shows a sensitive field as a masked column ("dots everywhere"), so the header is
+        // there; what must never be there is a value.
+        assertThat(customers).contains("<span aria-hidden=\"true\">••••••••</span>", "Hidden value")
+                .doesNotContain(Customer.DEMO_PASSWORD_PLACEHOLDER).doesNotContain("demo-placeholder");
     }
 }
