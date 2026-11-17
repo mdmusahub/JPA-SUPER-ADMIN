@@ -5,7 +5,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- Sorting by a relation (Phase 5, D-60, D-61). A to-one relation column whose target has a label (a `name`, `title` and so on, as shown in the cell) now has a sort link and is ordered by that label, in both directions, through the join the list already makes: no extra join, no extra statement. A relation shown as `#id` still cannot be sorted. A sensitive attribute is never the label, so it can never be a sort key.
+- When a search finds nothing, the page names the text columns that were searched, or says that the table has no text column a search can look in. A search longer than 100 characters now shows a notice that says it was cut and gives the limit.
+- Tests: a sort proof over every sortable column of the five sample entities, both directions, with and without a search, with `spring.jpa.open-in-view` on and off; the real row order and `aria-sort` of every header are asserted. Preview fixtures `relation-sort-asc`, `relation-sort-desc`, `nulls-last`, `nulls-last-desc`, `empty-search-scope`, `empty-search-nothing-searchable`, `empty-search-escaped` and `search-cut`.
+
 ### Changed
+- Every sort now puts records with no value last, in both directions, on every database, and then orders by the identifier. Before, the position of missing values depended on the database (H2 and MySQL first, PostgreSQL last, in an ascending sort).
+- Internal, not stable API: `ListQuery.parse` takes the entity registry, `ListPage` has a `searched` component, and `ListQuery.searchWasCut` is new. No annotation, property or view-model record changed.
 - The phase plan was revised (D-60): Phase 5 is now "Sort and search quality" (relation-aware sort, nulls last in both directions, a sort proof on every sample column, a search that says what it covers); the filter links promised for Phase 4, relation links, PostgreSQL and MySQL runs, cost measurements and an automated browser test moved to Phases 6, 7, 12, 13 and 14, and `jpa.admin.page-size` moved to Phase 13. D-53 is superseded by D-60 for relations and null ordering. Documentation only.
 - Documentation correction: Phase 4 is "delivered, with the filter-links exception". The filter links (`filter.*`, chip removal, clear all) were promised for Phase 4 but not delivered, and are now a Phase 6 item (D-60). A dated note was added to `docs/logs/phase-4-report.md`.
 

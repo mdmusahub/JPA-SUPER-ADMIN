@@ -46,7 +46,7 @@ class ListViewFactoryTest {
     }
 
     private static ListView view(String basePath, ListQuery query, long total, int rowCount) {
-        return ListViewFactory.build(basePath, "parcel", INFO, new ListPage(COLUMNS, rows(rowCount), total, query),
+        return ListViewFactory.build(basePath, "parcel", INFO, new ListPage(COLUMNS, rows(rowCount), total, query, List.of("Reference")),
                 new ListView.Actions(false, false, false, null));
     }
 
@@ -308,6 +308,102 @@ class ListViewFactoryTest {
         assertThat(Plurals.of("Http log entry")).isEqualTo("Http log entries");
         assertThat(Plurals.of("Y")).isEqualTo("Ys");
         assertThat(Plurals.of("")).isEmpty();
+    }
+
+    // ---- Phase 5: sortable relations, the search scope and the cut notice (D-60) -------------------------------
+
+    private static ListView viewWith(List<ListColumn> columns, ListQuery query, long total, List<String> searched) {
+        List<ListView.Row> rows = new ArrayList<>();
+        for (int i = 1; i <= Math.min(total, 25); i++) {
+            List<Cell> cells = new ArrayList<>();
+            for (ListColumn column : columns) {
+                cells.add(column.type() == Cell.Type.MASKED ? Cell.masked() : Cell.text("v" + i));
+            }
+            rows.add(new ListView.Row(String.valueOf(i), cells));
+        }
+        return ListViewFactory.build("/admin", "parcel", INFO, new ListPage(columns, rows, total, query, searched),
+                new ListView.Actions(false, false, false, null));
+    }
+
+    @Test
+    void aSortableRelationColumnHasASortLinkThatReversesWhenItIsTheSortedOne() {
+        List<ListColumn> columns = List.of(
+                new ListColumn("id", "ID", Cell.Type.NUMBER, true, ListView.Column.Align.END),
+                new ListColumn("depot", "Depot", Cell.Type.RELATION, true, ListView.Column.Align.START));
+
+        ListView unsorted = viewWith(columns, ListQuery.defaults(), 10, List.of());
+        assertThat(column(unsorted, "depot").sortable()).isTrue();
+        assertThat(column(unsorted, "depot").sortHref()).isEqualTo("/admin/parcel?sort=depot&dir=asc");
+        assertThat(column(unsorted, "depot").sortState()).isEqualTo(ListView.Column.SortState.NONE);
+
+        ListView ascending = viewWith(columns, new ListQuery("pkg", "depot", "asc", 0, 25), 10, List.of());
+        assertThat(column(ascending, "depot").sortState()).isEqualTo(ListView.Column.SortState.ASCENDING);
+        assertThat(column(ascending, "depot").sortHref()).isEqualTo("/admin/parcel?q=pkg&sort=depot&dir=desc");
+
+        ListView descending = viewWith(columns, new ListQuery("pkg", "depot", "desc", 0, 25), 10, List.of());
+        assertThat(column(descending, "depot").sortState()).isEqualTo(ListView.Column.SortState.DESCENDING);
+        assertThat(column(descending, "depot").sortHref()).isEqualTo("/admin/parcel?q=pkg&sort=depot&dir=asc");
+    }
+
+    @Test
+    void theNoMatchMessageNamesTheSearchedColumnsInTheOrderGiven() {
+        ListView list = viewWith(COLUMNS, new ListQuery("zzz", null, null, 0, 25), 0, List.of("Notes", "Reference"));
+
+        assertThat(list.empty().reason()).isEqualTo(ListView.Empty.Reason.NO_MATCHES);
+        assertThat(list.empty().hint()).isEqualTo("No parcels match your search. The search looked in these text "
+                + "columns: Notes, Reference. Check the spelling, or clear the search to see every record.");
+    }
+
+    @Test
+    void oneSearchedColumnReadsAsOne() {
+        ListView list = viewWith(COLUMNS, new ListQuery("zzz", null, null, 0, 25), 0, List.of("Name"));
+
+        assertThat(list.empty().hint()).contains("these text columns: Name.");
+    }
+
+    @Test
+    void whenNothingIsSearchableTheMessageSaysSoInsteadOfNamingNothing() {
+        ListView list = viewWith(COLUMNS, new ListQuery("zzz", null, null, 0, 25), 0, List.of());
+
+        assertThat(list.empty().hint()).contains("No parcels match your search.")
+                .contains("no text column that a search can look in").contains("Clear the search")
+                .doesNotContain("looked in these");
+    }
+
+    @Test
+    void aLongListOfColumnsIsCutAtTenAndTheRestAreCounted() {
+        List<String> labels = new ArrayList<>();
+        for (int i = 1; i <= 13; i++) {
+            labels.add("Col " + i);
+        }
+        ListView list = viewWith(COLUMNS, new ListQuery("zzz", null, null, 0, 25), 0, labels);
+
+        assertThat(list.empty().hint()).contains("Col 1, Col 2,").contains("Col 10 and 3 more.")
+                .doesNotContain("Col 11", "Col 13");
+    }
+
+    @Test
+    void theLabelsAreCarriedAsPlainTextSoTheTemplateIsTheOneThatEscapesThem() {
+        ListView list = viewWith(COLUMNS, new ListQuery("zzz", null, null, 0, 25), 0, List.of("<b>Bold</b> & \"q\""));
+
+        assertThat(list.empty().hint()).contains("<b>Bold</b> & \"q\"");
+    }
+
+    @Test
+    void thereIsNoScopeMessageWithoutASearchOrWithRows() {
+        assertThat(viewWith(COLUMNS, ListQuery.defaults(), 0, List.of("Notes")).empty().hint())
+                .contains("There are no parcels yet").doesNotContain("looked in");
+        assertThat(viewWith(COLUMNS, new ListQuery("pkg", null, null, 0, 25), 3, List.of("Notes")).empty().hint())
+                .isEmpty();
+    }
+
+    @Test
+    void theCutNoticeIsAnInfoMessageThatNamesTheLimitAndRepeatsNothingTyped() {
+        var notice = ListViewFactory.searchCutNotice();
+
+        assertThat(notice.level()).isEqualTo(io.github.mdmusahub.jpaadmin.web.view.PageChrome.FlashMessage.Level.INFO);
+        assertThat(notice.text()).isEqualTo("Your search was longer than 100 characters, so only the first 100 were used.");
+        assertThat(notice.text()).contains(String.valueOf(ListQuery.MAX_SEARCH_LENGTH));
     }
 
     private static ListView.Column column(ListView list, String key) {
