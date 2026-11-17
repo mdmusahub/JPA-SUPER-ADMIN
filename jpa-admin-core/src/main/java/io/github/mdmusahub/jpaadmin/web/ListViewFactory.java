@@ -4,6 +4,7 @@ import io.github.mdmusahub.jpaadmin.service.ListColumn;
 import io.github.mdmusahub.jpaadmin.service.ListPage;
 import io.github.mdmusahub.jpaadmin.service.ListQuery;
 import io.github.mdmusahub.jpaadmin.web.view.ListView;
+import io.github.mdmusahub.jpaadmin.web.view.PageChrome;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -19,6 +20,9 @@ import java.util.Objects;
  * <p>Internal, not stable API. Public because the controller and the preview use it.
  */
 public final class ListViewFactory {
+
+    /** The most column names the "nothing matched" message lists; the rest are counted. */
+    private static final int MAX_NAMED_COLUMNS = 10;
 
     private ListViewFactory() {
     }
@@ -76,10 +80,36 @@ public final class ListViewFactory {
         }
         String plural = entity.plural().toLowerCase(java.util.Locale.ROOT);
         if (!page.query().search().isEmpty()) {
-            return new ListView.Empty(ListView.Empty.Reason.NO_MATCHES, "No " + plural
-                    + " match your search. Check the spelling, or clear the search to see every record.");
+            String start = "No " + plural + " match your search. ";
+            if (page.searched().isEmpty()) {
+                return new ListView.Empty(ListView.Empty.Reason.NO_MATCHES, start
+                        + "This table has no text column that a search can look in, so a search cannot find anything. "
+                        + "Clear the search to see every record.");
+            }
+            return new ListView.Empty(ListView.Empty.Reason.NO_MATCHES, start + scope(page.searched())
+                    + " Check the spelling, or clear the search to see every record.");
         }
         return new ListView.Empty(ListView.Empty.Reason.NO_RECORDS, "There are no " + plural
                 + " yet. They appear here as soon as your application saves one.");
+    }
+
+    /**
+     * Says which columns a search looked in: header labels only, in display order, at most
+     * {@value #MAX_NAMED_COLUMNS} of them. It is plain text; the template escapes it on output (SEC-9).
+     */
+    private static String scope(List<String> searched) {
+        String names = String.join(", ", searched.subList(0, Math.min(searched.size(), MAX_NAMED_COLUMNS)));
+        int more = searched.size() - MAX_NAMED_COLUMNS;
+        return "The search looked in these text columns: " + names + (more > 0 ? " and " + more + " more" : "") + ".";
+    }
+
+    /**
+     * The notice for a search that was longer than {@value ListQuery#MAX_SEARCH_LENGTH} characters and was cut. The
+     * controller puts it in the page's flash messages only when {@link ListQuery#searchWasCut} says so.
+     */
+    public static PageChrome.FlashMessage searchCutNotice() {
+        return new PageChrome.FlashMessage(PageChrome.FlashMessage.Level.INFO,
+                "Your search was longer than " + ListQuery.MAX_SEARCH_LENGTH + " characters, so only the first "
+                        + ListQuery.MAX_SEARCH_LENGTH + " were used.");
     }
 }

@@ -44,10 +44,17 @@ final class ListFixtures {
     private static final List<ListColumn> ARTICLE_COLUMNS = List.of(
             new ListColumn("id", "ID", Cell.Type.NUMBER, true, Align.END),
             new ListColumn("title", "Title", Cell.Type.TEXT, true, Align.START),
-            new ListColumn("author", "Author", Cell.Type.RELATION, false, Align.START),
+            new ListColumn("author", "Author", Cell.Type.RELATION, true, Align.START),
             new ListColumn("status", "Status", Cell.Type.ENUM, true, Align.START),
             new ListColumn("views", "Views", Cell.Type.NUMBER, true, Align.END),
             new ListColumn("published", "Published", Cell.Type.DATE, true, Align.START));
+
+    private static final List<ListColumn> MEMBER_COLUMNS = List.of(
+            new ListColumn("id", "ID", Cell.Type.NUMBER, true, Align.END),
+            new ListColumn("name", "Name", Cell.Type.TEXT, true, Align.START),
+            new ListColumn("email", "Email", Cell.Type.TEXT, true, Align.START),
+            new ListColumn("password", "Password", Cell.Type.MASKED, false, Align.START),
+            new ListColumn("joined", "Joined", Cell.Type.DATE, true, Align.START));
 
     private static final ListView.Actions NO_ACTIONS = new ListView.Actions(false, false, false, null);
 
@@ -72,6 +79,14 @@ final class ListFixtures {
         FIXTURES.put("empty-no-records", fixture("default", ListFixtures::emptyNoRecords));
         FIXTURES.put("empty-no-matches", fixture("default", base -> articles(base, "no article has these words", null,
                 null, 0, 25, true)));
+        FIXTURES.put("relation-sort-asc", fixture("default", base -> articles(base, "", "author", "asc", 0, 25, true, false)));
+        FIXTURES.put("relation-sort-desc", fixture("default", base -> articles(base, "", "author", "desc", 0, 25, true, false)));
+        FIXTURES.put("nulls-last", fixture("default", base -> articles(base, "", "author", "asc", 0, 100, true, true)));
+        FIXTURES.put("nulls-last-desc", fixture("default", base -> articles(base, "", "author", "desc", 0, 100, true, true)));
+        FIXTURES.put("empty-search-scope", fixture("member-active", base -> membersNoMatch(base, MEMBER_COLUMNS, "nobody by this name")));
+        FIXTURES.put("empty-search-nothing-searchable", fixture("default", ListFixtures::noSearchableColumns));
+        FIXTURES.put("empty-search-escaped", fixture("default", ListFixtures::escapedColumnLabels));
+        FIXTURES.put("search-cut", fixture("search-cut", base -> articles(base, "a".repeat(ListQuery.MAX_SEARCH_LENGTH), null, null, 0, 25, true)));
         FIXTURES.put("read-only", fixture("default", base -> articles(base, "", null, null, 0, 25, false)));
         FIXTURES.put("masked-column", fixture("member-active", ListFixtures::maskedColumn));
         FIXTURES.put("relation-cells", fixture("default", ListFixtures::relationCells));
@@ -106,11 +121,11 @@ final class ListFixtures {
 
     // ---- articles: the fake data set, searched, sorted and paged like the console would ----------------------------
 
-    private static List<Article> allArticles() {
+    private static List<Article> allArticles(boolean unassigned) {
         List<Article> articles = new ArrayList<>();
         for (int i = 1; i <= ARTICLE_COUNT; i++) {
             articles.add(new Article(i, WORDS[i % WORDS.length] + " on " + TOPICS[(i * 5) % TOPICS.length] + " " + i,
-                    AUTHORS[i % AUTHORS.length], STATUSES[i % STATUSES.length], (i * 379) % 9000,
+                    unassigned && i % 9 == 0 ? null : AUTHORS[i % AUTHORS.length], STATUSES[i % STATUSES.length], (i * 379) % 9000,
                     LocalDate.of(2026, 10, 30).minusDays(i * 2L)));
         }
         return articles;
@@ -118,8 +133,14 @@ final class ListFixtures {
 
     private static ListView articles(String basePath, String search, String sort, String dir, int page, int size,
                                      boolean offersActions) {
+        return articles(basePath, search, sort, dir, page, size, offersActions, false);
+    }
+
+    /** {@code unassigned}: every ninth article has no author, to show where missing values sort (last). */
+    private static ListView articles(String basePath, String search, String sort, String dir, int page, int size,
+                                     boolean offersActions, boolean unassigned) {
         List<Article> matching = new ArrayList<>();
-        for (Article article : allArticles()) {
+        for (Article article : allArticles(unassigned)) {
             if (search.isEmpty() || article.title().toLowerCase(Locale.ROOT).contains(search.toLowerCase(Locale.ROOT))) {
                 matching.add(article);
             }
@@ -131,7 +152,8 @@ final class ListFixtures {
         for (int i = shown * size; i < Math.min(matching.size(), (shown + 1) * size); i++) {
             Article article = matching.get(i);
             rows.add(new ListView.Row(String.valueOf(article.id()), List.of(number(String.valueOf(article.id())),
-                    Cell.text(article.title()), relation(article.author(), null), status(article.status()),
+                    Cell.text(article.title()), article.author() == null ? Cell.empty() : relation(article.author(), null),
+                    status(article.status()),
                     number(String.format(Locale.ROOT, "%,d", article.views())),
                     new Cell(Cell.Type.DATE, article.published().toString(), Cell.Tone.NONE, null, null))));
         }
@@ -144,14 +166,22 @@ final class ListFixtures {
         if (sort == null) {
             return byId;
         }
+        boolean descending = "desc".equals(dir);
         Comparator<Article> primary = switch (sort) {
-            case "title" -> Comparator.comparing(Article::title);
-            case "views" -> Comparator.comparingInt(Article::views);
-            case "status" -> Comparator.comparing(Article::status);
-            case "published" -> Comparator.comparing(Article::published);
+            case "title" -> nullsLast(Article::title, descending);
+            case "author" -> nullsLast(Article::author, descending);
+            case "views" -> nullsLast(Article::views, descending);
+            case "status" -> nullsLast(Article::status, descending);
+            case "published" -> nullsLast(Article::published, descending);
             default -> byId;
         };
-        return ("desc".equals(dir) ? primary.reversed() : primary).thenComparing(byId);
+        return primary.thenComparing(byId);
+    }
+
+    /** The console's rule: missing values come last whichever way the column is sorted (D-60). */
+    private static <T extends Comparable<T>> Comparator<Article> nullsLast(Function<Article, T> key, boolean descending) {
+        Comparator<T> order = descending ? Comparator.<T>naturalOrder().reversed() : Comparator.<T>naturalOrder();
+        return Comparator.comparing(key, Comparator.nullsLast(order));
     }
 
     private static ListView emptyNoRecords(String basePath) {
@@ -166,12 +196,7 @@ final class ListFixtures {
     // ---- other shapes -------------------------------------------------------------------------------------------
 
     private static ListView maskedColumn(String basePath) {
-        List<ListColumn> columns = List.of(
-                new ListColumn("id", "ID", Cell.Type.NUMBER, true, Align.END),
-                new ListColumn("name", "Name", Cell.Type.TEXT, true, Align.START),
-                new ListColumn("email", "Email", Cell.Type.TEXT, true, Align.START),
-                new ListColumn("password", "Password", Cell.Type.MASKED, false, Align.START),
-                new ListColumn("joined", "Joined", Cell.Type.DATE, true, Align.START));
+        List<ListColumn> columns = MEMBER_COLUMNS;
         String[] names = {"Ava Stone", "Ben Carter", "Chloe Reed", "Dan Moore", "Eva Lane", "Finn Hale"};
         List<ListView.Row> rows = new ArrayList<>();
         for (int i = 0; i < names.length; i++) {
@@ -180,6 +205,29 @@ final class ListFixtures {
                     new Cell(Cell.Type.DATE, "2026-0" + (i + 1) + "-15", Cell.Tone.NONE, null, null))));
         }
         return build(basePath, "member", MEMBERS, columns, rows, rows.size(), ListQuery.defaults(), NO_ACTIONS);
+    }
+
+    /** A search that finds nothing, on a table whose masked column is never searched: the message names Name and Email only. */
+    private static ListView membersNoMatch(String basePath, List<ListColumn> columns, String search) {
+        return build(basePath, "member", MEMBERS, columns, List.of(), 0, new ListQuery(search, null, null, 0, 25), NO_ACTIONS);
+    }
+
+    /** A table with no text column at all: the message says a search cannot find anything here. */
+    private static ListView noSearchableColumns(String basePath) {
+        List<ListColumn> columns = List.of(
+                new ListColumn("id", "ID", Cell.Type.NUMBER, true, Align.END),
+                new ListColumn("views", "Views", Cell.Type.NUMBER, true, Align.END),
+                new ListColumn("published", "Published", Cell.Type.DATE, true, Align.START));
+        return build(basePath, "article", ARTICLES, columns, List.of(), 0, new ListQuery("anything", null, null, 0, 25), NO_ACTIONS);
+    }
+
+    /** Column labels that look like markup: the message prints them as text, escaped by the template (SEC-9). */
+    private static ListView escapedColumnLabels(String basePath) {
+        List<ListColumn> columns = List.of(
+                new ListColumn("id", "ID", Cell.Type.NUMBER, true, Align.END),
+                new ListColumn("first", "<b>Bold</b> & \"quoted\"", Cell.Type.TEXT, true, Align.START),
+                new ListColumn("second", "<script>alert(1)</script>", Cell.Type.TEXT, true, Align.START));
+        return build(basePath, "article", ARTICLES, columns, List.of(), 0, new ListQuery("nothing", null, null, 0, 25), NO_ACTIONS);
     }
 
     private static ListView relationCells(String basePath) {
@@ -287,7 +335,11 @@ final class ListFixtures {
 
     private static ListView build(String basePath, String urlName, ListView.EntityInfo info, List<ListColumn> columns,
                                   List<ListView.Row> rows, long total, ListQuery query, ListView.Actions actions) {
-        return ListViewFactory.build(basePath, urlName, info, new ListPage(columns, rows, total, query), actions);
+        // What the console's search covers: the text columns (never a masked one). The fake data is searched by the
+        // title only, but the message is about the rule, so it names every text column.
+        List<String> searched = columns.stream().filter(column -> column.type() == Cell.Type.TEXT)
+                .map(ListColumn::label).toList();
+        return ListViewFactory.build(basePath, urlName, info, new ListPage(columns, rows, total, query, searched), actions);
     }
 
     private static Cell number(String text) {

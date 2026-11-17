@@ -1,6 +1,7 @@
 package io.github.mdmusahub.jpaadmin.service;
 
 import io.github.mdmusahub.jpaadmin.metadata.AdminEntity;
+import io.github.mdmusahub.jpaadmin.metadata.AdminEntityRegistry;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -17,7 +18,8 @@ import java.util.stream.Collectors;
  *       {@value #MAX_SEARCH_LENGTH} characters (code points, so a character is never cut in half). Empty means no
  *       search.</li>
  *   <li><b>Sort</b> ({@code sort}, {@code dir}): the key must be a sortable column of the entity (visible, not
- *       sensitive, not a relation). Any other key means "no sort". With a valid key, {@code dir} is {@code asc} or
+ *       sensitive; a relation only when its target has a label, D-60). Any other key means "no sort". With a valid
+ *       key, {@code dir} is {@code asc} or
  *       {@code desc} in any letter case; anything else (or nothing) means {@code asc}. A direction without a key is
  *       ignored.</li>
  *   <li><b>Page</b> ({@code page}, zero-based): a whole number of digits only. Anything else (empty, negative,
@@ -75,16 +77,19 @@ public record ListQuery(String search, String sort, String dir, int page, int si
     /**
      * Checks the five request parameters of an entity's list page. Never throws.
      *
-     * @param entity the entity being listed; its columns decide which sort keys are acceptable
-     * @param q      the {@code q} parameter, or {@code null}
-     * @param sort   the {@code sort} parameter, or {@code null}
-     * @param dir    the {@code dir} parameter, or {@code null}
-     * @param page   the {@code page} parameter, or {@code null}
-     * @param size   the {@code size} parameter, or {@code null}
+     * @param entity   the entity being listed; its columns decide which sort keys are acceptable
+     * @param registry the entities the console manages; a relation column is sortable only when its target is in it
+     *                 and has a label
+     * @param q        the {@code q} parameter, or {@code null}
+     * @param sort     the {@code sort} parameter, or {@code null}
+     * @param dir      the {@code dir} parameter, or {@code null}
+     * @param page     the {@code page} parameter, or {@code null}
+     * @param size     the {@code size} parameter, or {@code null}
      */
-    public static ListQuery parse(AdminEntity entity, String q, String sort, String dir, String page, String size) {
+    public static ListQuery parse(AdminEntity entity, AdminEntityRegistry registry, String q, String sort, String dir,
+                                  String page, String size) {
         Objects.requireNonNull(entity, "entity");
-        String checkedSort = sort != null && sortableKeys(entity).contains(sort) ? sort : null;
+        String checkedSort = sort != null && sortableKeys(entity, registry).contains(sort) ? sort : null;
         return new ListQuery(normalizeSearch(q), checkedSort, checkedSort == null ? null : direction(dir),
                 parsePage(page), parseSize(size));
     }
@@ -104,8 +109,8 @@ public record ListQuery(String search, String sort, String dir, int page, int si
         return new ListQuery(search, key, direction, 0, size);
     }
 
-    private static Set<String> sortableKeys(AdminEntity entity) {
-        return ListColumns.of(entity).stream().filter(ListColumn::sortable).map(ListColumn::key)
+    private static Set<String> sortableKeys(AdminEntity entity, AdminEntityRegistry registry) {
+        return ListColumns.of(entity, registry).stream().filter(ListColumn::sortable).map(ListColumn::key)
                 .collect(Collectors.toUnmodifiableSet());
     }
 
@@ -114,17 +119,33 @@ public record ListQuery(String search, String sort, String dir, int page, int si
     }
 
     static String normalizeSearch(String raw) {
-        if (raw == null) {
-            return "";
-        }
-        StringBuilder cleaned = new StringBuilder(Math.min(raw.length(), 4 * MAX_SEARCH_LENGTH));
-        raw.codePoints().forEach(codePoint -> cleaned.appendCodePoint(Character.isISOControl(codePoint) ? ' ' : codePoint));
-        String stripped = cleaned.toString().strip();
+        String stripped = cleaned(raw);
         if (stripped.codePointCount(0, stripped.length()) <= MAX_SEARCH_LENGTH) {
             return stripped;
         }
         int end = stripped.offsetByCodePoints(0, MAX_SEARCH_LENGTH);
         return stripped.substring(0, end).strip();
+    }
+
+    /**
+     * Whether {@link #parse} cut the search text because it was longer than {@value #MAX_SEARCH_LENGTH} characters.
+     * It follows the same cleaning as the parser (control characters become spaces, the ends are trimmed), so a text
+     * that only looked long because of spaces around it is not reported as cut.
+     *
+     * @param raw the {@code q} parameter, or {@code null}
+     */
+    public static boolean searchWasCut(String raw) {
+        String stripped = cleaned(raw);
+        return stripped.codePointCount(0, stripped.length()) > MAX_SEARCH_LENGTH;
+    }
+
+    private static String cleaned(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        StringBuilder cleaned = new StringBuilder(Math.min(raw.length(), 4 * MAX_SEARCH_LENGTH));
+        raw.codePoints().forEach(codePoint -> cleaned.appendCodePoint(Character.isISOControl(codePoint) ? ' ' : codePoint));
+        return cleaned.toString().strip();
     }
 
     static int parsePage(String raw) {

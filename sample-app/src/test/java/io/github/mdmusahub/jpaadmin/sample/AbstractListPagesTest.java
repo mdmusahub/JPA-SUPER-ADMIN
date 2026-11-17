@@ -281,7 +281,7 @@ abstract class AbstractListPagesTest {
 
     @Test
     void anUnsortableKeyIsIgnoredAndNeverReachesTheQuery() throws Exception {
-        for (String key : List.of("password", "category", "tags", "nosuch", "' or 1=1 --")) {
+        for (String key : List.of("password", "tags", "nosuch", "' or 1=1 --")) {
             String html = page("/admin/product?sort=" + key.replace(" ", "%20").replace("'", "%27") + "&dir=desc");
 
             assertThat(html).as(key).doesNotContain("aria-sort=\"ascending\"", "aria-sort=\"descending\"");
@@ -471,7 +471,10 @@ abstract class AbstractListPagesTest {
     void aListPageCostsTwoStatementsWhateverTheRowsAndLoadsNoEntityAndNoCollection() throws Exception {
         Statistics statistics = statistics();
         for (String path : List.of("/admin/order?size=100", "/admin/product?size=100", "/admin/customer?size=100",
-                "/admin/product?q=bulk%20item&sort=price&dir=desc&page=1&size=10")) {
+                "/admin/product?q=bulk%20item&sort=price&dir=desc&page=1&size=10",
+                // A sort by a relation's label uses the join the column already has: still two statements (D-60).
+                "/admin/product?sort=category&dir=desc&size=100", "/admin/order?sort=customer&dir=asc&size=100",
+                "/admin/product?q=bulk%20item&sort=category&dir=asc&page=1&size=10", "/admin/order?sort=note&dir=desc")) {
             page(path); // the first request fills the sidebar's count cache
             statistics.clear();
 
