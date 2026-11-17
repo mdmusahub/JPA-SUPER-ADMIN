@@ -33,7 +33,8 @@ import org.springframework.web.servlet.ModelAndView;
  *
  * <p>The other parameters are untrusted as well, and never cause an error: a page that is not a number or is below
  * 0 is page 0, a page past the end is the last page, a size that is not on offer is the default, a search longer
- * than the limit is cut, and a sort the entity cannot do is ignored (see {@link ListQuery}). The page always renders.
+ * than the limit is cut (and the page says so in a notice), and a sort the entity cannot do is ignored (see
+ * {@link ListQuery}). The page always renders.
  *
  * <p>The list offers no action yet: "New record" arrives with Phase 8, CSV export with Phase 11, bulk delete with
  * Phase 7. They are absent, not disabled, so no button leads nowhere (SEC-11).
@@ -81,12 +82,12 @@ public class EntityController {
         AdminEntity found = navigation.find(entity)
                 // No message: the exception's text would otherwise repeat what the visitor typed.
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        ListPage listed = lists.list(found, ListQuery.parse(found, q, sort, dir, page, size));
+        ListPage listed = lists.list(found, lists.parse(found, q, sort, dir, page, size));
         ListView.EntityInfo info = new ListView.EntityInfo(found.label(), Plurals.of(found.label()), found.icon());
         ListView view = ListViewFactory.build(basePath.value(), found.urlName(), info, listed, NO_ACTIONS);
         PageChrome chrome = chromeFactory.chrome(request,
                 List.of(new Breadcrumb("Dashboard", basePath.value()), new Breadcrumb(info.plural(), null)),
-                found.urlName(), List.of());
+                found.urlName(), ListQuery.searchWasCut(q) ? List.of(ListViewFactory.searchCutNotice()) : List.of());
         return views.page(request, ListView.TEMPLATE, chrome, view);
     }
 }

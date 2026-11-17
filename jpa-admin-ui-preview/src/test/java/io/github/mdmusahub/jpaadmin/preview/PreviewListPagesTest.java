@@ -111,14 +111,12 @@ class PreviewListPagesTest {
     void everySortableHeaderIsALinkWithAriaSortNoneAndTheOthersArePlainText() throws Exception {
         String html = render("normal");
 
-        for (String label : List.of("ID", "Title", "Status", "Views", "Published")) {
+        for (String label : List.of("ID", "Title", "Author", "Status", "Views", "Published")) {
             String th = header(html, label);
             assertThat(th).as(label).contains("aria-sort=\"none\"").contains("<a class=\"sort-link\"")
                     .contains("class=\"sort-mark\" aria-hidden=\"true\"");
         }
-        String author = header(html, "Author");
-        assertThat(author).as("a relation column is not sortable").doesNotContain("<a ").doesNotContain("aria-sort");
-        assertThat(count(html, "class=\"sort-link\"")).isEqualTo(5);
+        assertThat(count(html, "class=\"sort-link\"")).as("a relation with a label is sortable now (D-60)").isEqualTo(6);
     }
 
     @Test
@@ -212,6 +210,126 @@ class PreviewListPagesTest {
 
         assertThat(html).contains("href=\"/admin-preview/article\">25</a>").contains("href=\"/admin-preview/article?size=50\">50</a>")
                 .contains("href=\"/admin-preview/article?size=100\">100</a>");
+    }
+
+    // ---- Phase 5: relation sort, nulls last, search scope, cut notice (D-60) ----------------------------------
+
+    /** The text of one column of every body row, tags removed. */
+    private static List<String> column(String html, int index) {
+        List<String> values = new ArrayList<>();
+        Matcher row = Pattern.compile("(?s)<tr>(.*?)</tr>").matcher(tbody(html));
+        while (row.find()) {
+            List<String> cells = new ArrayList<>();
+            Matcher cell = Pattern.compile("(?s)<td\\b[^>]*>(.*?)</td>").matcher(row.group(1));
+            while (cell.find()) {
+                cells.add(cell.group(1).replaceAll("(?s)<[^>]*>", "").strip());
+            }
+            values.add(cells.get(index));
+        }
+        return values;
+    }
+
+    @Test
+    void aRelationShownWithoutALabelStaysPlainText() throws Exception {
+        String html = render("long-text");
+
+        assertThat(header(html, "Author")).as("no label means no sort").doesNotContain("<a ").doesNotContain("aria-sort");
+        assertThat(header(html, "Title")).contains("aria-sort=\"none\"");
+    }
+
+    @Test
+    void aRelationSortedAscendingSaysSoLinksToDescendingAndShowsTheLabelsInOrder() throws Exception {
+        String html = render("relation-sort-asc");
+
+        assertThat(header(html, "Author")).contains("aria-sort=\"ascending\"")
+                .contains("href=\"/admin-preview/article?sort=author&amp;dir=desc\"");
+        assertThat(count(html, "aria-sort=\"ascending\"")).isEqualTo(1);
+        assertThat(count(html, "aria-sort=\"none\"")).as("the other five sortable headers").isEqualTo(5);
+        List<String> authors = column(html, 2);
+        assertThat(authors).hasSize(25).isSorted();
+        assertThat(authors.get(0)).isEqualTo("Ava Stone");
+        assertThat(authors.get(24)).isEqualTo("Ben Carter");
+        List<String> ids = column(html, 0);
+        for (int i = 1; i < ids.size(); i++) {
+            if (authors.get(i).equals(authors.get(i - 1))) {
+                assertThat(Integer.parseInt(ids.get(i))).as("equal labels keep identifier order")
+                        .isGreaterThan(Integer.parseInt(ids.get(i - 1)));
+            }
+        }
+    }
+
+    @Test
+    void aRelationSortedDescendingLinksBackToAscending() throws Exception {
+        String html = render("relation-sort-desc");
+
+        assertThat(header(html, "Author")).contains("aria-sort=\"descending\"")
+                .contains("href=\"/admin-preview/article?sort=author&amp;dir=asc\"");
+        List<String> authors = column(html, 2);
+        assertThat(authors).hasSize(25).isSortedAccordingTo(java.util.Comparator.reverseOrder());
+        assertThat(authors.get(0)).isEqualTo("Finn Hale");
+    }
+
+    @Test
+    void missingValuesAreLastWhetherTheColumnIsSortedUpOrDown() throws Exception {
+        for (String state : List.of("nulls-last", "nulls-last-desc")) {
+            List<String> authors = column(render(state), 2);
+
+            assertThat(authors).as(state).hasSize(94);
+            assertThat(authors.subList(84, 94)).as(state + ": the ten articles with no author are the last ten")
+                    .allSatisfy(author -> assertThat(author).contains("No value"));
+            assertThat(authors.subList(0, 84)).as(state + ": everything before them has an author")
+                    .allSatisfy(author -> assertThat(author).doesNotContain("No value").isNotBlank());
+        }
+        List<String> up = column(render("nulls-last"), 2).subList(0, 84);
+        List<String> down = column(render("nulls-last-desc"), 2).subList(0, 84);
+        assertThat(up).isSorted();
+        assertThat(down).isSortedAccordingTo(java.util.Comparator.reverseOrder());
+    }
+
+    @Test
+    void aSearchWithNoMatchNamesTheSearchedColumnsAndNotTheMaskedOne() throws Exception {
+        String html = render("empty-search-scope");
+
+        assertThat(html).contains("No matching records", "No members match your search.",
+                "The search looked in these text columns: Name, Email.", "Check the spelling, or clear the search");
+        assertThat(html).as("the masked Password column is never searched, so never named").doesNotContain("Password");
+        assertThat(html).doesNotContain("<table");
+    }
+
+    @Test
+    void aTableWithNoTextColumnSaysASearchCannotFindAnything() throws Exception {
+        String html = render("empty-search-nothing-searchable");
+
+        assertThat(html).contains("No articles match your search.", "no text column that a search can look in",
+                "Clear the search to see every record").doesNotContain("looked in these");
+    }
+
+    @Test
+    void columnLabelsInTheSearchMessageAreEscaped() throws Exception {
+        String html = render("empty-search-escaped");
+
+        assertThat(html).contains("&lt;b&gt;Bold&lt;/b&gt; &amp; &quot;quoted&quot;", "&lt;script&gt;alert(1)&lt;/script&gt;");
+        assertThat(html).doesNotContain("<b>Bold", "<script>alert");
+    }
+
+    @Test
+    void aSearchCutAtTheLimitShowsTheNoticeWithTheLimitAndTheCutTextInTheBox() throws Exception {
+        String html = render("search-cut");
+
+        assertThat(flat(html)).contains("class=\"toasts\"",
+                "Your search was longer than 100 characters, so only the first 100 were used.");
+        assertThat(html).contains("toast toast-info", "role=\"status\"");
+        assertThat(html).contains("value=\"" + "a".repeat(100) + "\"").doesNotContain("a".repeat(101));
+        assertThat(html).contains("No matching records");
+    }
+
+    @Test
+    void noOtherListFixtureShowsTheCutNotice() throws Exception {
+        for (String state : ListFixtures.states()) {
+            if (!state.equals("search-cut")) {
+                assertThat(render(state)).as(state).doesNotContain("Your search was longer than");
+            }
+        }
     }
 
     // ---- empty states -----------------------------------------------------------------------------------------

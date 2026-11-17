@@ -12,6 +12,7 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Nulls;
 import jakarta.persistence.criteria.ParameterExpression;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
@@ -20,11 +21,11 @@ import jakarta.persistence.criteria.Selection;
 import jakarta.persistence.metamodel.EntityType;
 import jakarta.persistence.metamodel.SingularAttribute;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,8 +52,10 @@ import org.springframework.transaction.annotation.Transactional;
  * </ul>
  *
  * <p>The search ({@link ListQuery}) is a case-insensitive "contains" over the entity's visible, non-sensitive
- * {@code String} attributes, with {@code %} and {@code _} taken literally. The sort always ends with the identifier
- * (ascending) so that paging is stable when the sort column has equal values.
+ * {@code String} attributes, with {@code %} and {@code _} taken literally. The sort puts missing values last in both
+ * directions, on every database, and always ends with the identifier (ascending) so that paging is stable when the
+ * sort column has equal values. A relation column with a label is sorted by that label, through the same join that
+ * shows it, so sorting costs no extra join and no extra statement (D-60).
  *
  * <p>A page past the end is clamped to the last page; the {@linkplain ListPage#query() effective query} says which
  * page was read. Anything the metadata does not allow in a query (a sort key, for instance) is dropped here as well,
@@ -64,9 +67,6 @@ public class ListQueryService {
 
     /** The character that escapes {@code %} and {@code _} in the search pattern. Not a backslash, which some databases treat specially. */
     private static final char ESCAPE = '!';
-
-    private static final List<String> PREFERRED_LABELS = List.of("name", "title", "label", "fullname", "displayname",
-            "username", "email", "code");
 
     private final EntityManager entityManager;
     private final AdminEntityRegistry registry;
@@ -115,7 +115,17 @@ public class ListQueryService {
         int lastPage = total == 0 ? 0 : (int) Math.min((total - 1) / checked.size(), Integer.MAX_VALUE);
         ListQuery effective = checked.withPage(Math.min(checked.page(), lastPage));
         List<ListView.Row> rows = total == 0 ? List.of() : rows(builder, entity, plan, effective);
-        return new ListPage(plan.listColumns(), rows, total, effective);
+        return new ListPage(plan.listColumns(), rows, total, effective, plan.searchedLabels());
+    }
+
+    /**
+     * Checks the five request parameters of {@code entity}'s list page against this console's metadata (see
+     * {@link ListQuery#parse}). Never throws.
+     *
+     * @param entity an entity from the registry
+     */
+    public ListQuery parse(AdminEntity entity, String q, String sort, String dir, String page, String size) {
+        return ListQuery.parse(entity, registry, q, sort, dir, page, size);
     }
 
     // ---- the two queries ------------------------------------------------------------------------------------
@@ -143,6 +153,9 @@ public class ListQueryService {
         selections.add(root.get(plan.idAttribute()));
         int[] valueAt = new int[plan.columns().size()];
         int[] labelAt = new int[plan.columns().size()];
+        // The label of each relation column, from the join the column already makes: a sort by that column orders by
+        // this path, so sorting adds neither a join nor a statement (D-60).
+        Map<String, Path<?>> labelPaths = new HashMap<>();
         for (int i = 0; i < plan.columns().size(); i++) {
             PlannedColumn column = plan.columns().get(i);
             valueAt[i] = -1;
@@ -156,7 +169,9 @@ public class ListQueryService {
                 selections.add(target.get(column.relation().idAttribute()));
                 if (column.relation().labelAttribute() != null) {
                     labelAt[i] = selections.size();
-                    selections.add(target.get(column.relation().labelAttribute()));
+                    Path<?> label = target.get(column.relation().labelAttribute());
+                    selections.add(label);
+                    labelPaths.put(column.column().key(), label);
                 }
             } else if (column.field().kind() != AdminField.Kind.TO_ONE) {
                 valueAt[i] = selections.size();
@@ -169,7 +184,7 @@ public class ListQueryService {
         if (search != null) {
             select.where(search.predicate());
         }
-        orderBy(builder, select, root, plan, query);
+        orderBy(builder, select, root, plan, query, labelPaths);
 
         TypedQuery<Tuple> typed = entityManager.createQuery(select);
         bind(typed, search);
@@ -201,18 +216,26 @@ public class ListQueryService {
         return CellFormatter.format(column.column().type(), value);
     }
 
-    /** Adds the sort, then the identifier ascending, so equal values never make the pages shift (stable paging). */
+    /**
+     * Adds the sort, then the identifier ascending, so equal values never make the pages shift (stable paging).
+     *
+     * <p>One rule for missing values, the same on every database (D-60): nulls come last in both directions
+     * ({@link Nulls#LAST}). Without it H2 and MySQL put nulls first in an ascending sort and PostgreSQL puts them last.
+     * A relation column is ordered by its target's label, through the join the select already has.
+     */
     private static void orderBy(CriteriaBuilder builder, CriteriaQuery<Tuple> select, Root<?> root, Plan plan,
-                                ListQuery query) {
+                                ListQuery query, Map<String, Path<?>> labelPaths) {
         var byId = builder.asc(root.get(plan.idAttribute()));
         if (query.sort() == null || plan.idAttribute().equals(query.sort())) {
-            // Sorted by the identifier itself, or not sorted: the identifier alone is already a total order.
+            // Sorted by the identifier itself, or not sorted: the identifier alone is already a total order, and it
+            // is never null, so no null rule is needed.
             select.orderBy(query.sort() != null && ListQuery.DESC.equals(query.dir())
                     ? builder.desc(root.get(plan.idAttribute())) : byId);
             return;
         }
-        Path<?> sorted = root.get(query.sort());
-        select.orderBy(ListQuery.DESC.equals(query.dir()) ? builder.desc(sorted) : builder.asc(sorted), byId);
+        Path<?> sorted = labelPaths.containsKey(query.sort()) ? labelPaths.get(query.sort()) : root.get(query.sort());
+        select.orderBy(ListQuery.DESC.equals(query.dir()) ? builder.desc(sorted, Nulls.LAST)
+                : builder.asc(sorted, Nulls.LAST), byId);
     }
 
     private static Search bind(TypedQuery<?> typed, Search search) {
@@ -262,19 +285,28 @@ public class ListQueryService {
     // ---- what an entity's list is made of ---------------------------------------------------------------------
 
     private Plan plan(AdminEntity entity) {
-        List<ListColumn> listColumns = ListColumns.of(entity);
+        List<ListColumn> listColumns = ListColumns.of(entity, registry);
         List<PlannedColumn> columns = new ArrayList<>();
         List<String> searchable = new ArrayList<>();
-        for (ListColumn column : listColumns) {
+        List<String> searchedLabels = new ArrayList<>();
+        for (ListColumn listed : listColumns) {
+            ListColumn column = listed;
             AdminField field = entity.visibleField(column.key()).orElseThrow();
             Relation relation = column.type() == Cell.Type.RELATION ? relationOf(field) : null;
+            if (column.type() == Cell.Type.RELATION && column.sortable()
+                    && (relation == null || relation.labelAttribute() == null)) {
+                // The metadata said the target has a label but the query cannot join to it: not sortable, never guessed.
+                column = new ListColumn(column.key(), column.label(), column.type(), false, column.align());
+            }
             columns.add(new PlannedColumn(column, field, relation));
             if (column.type() == Cell.Type.TEXT && field.kind() == AdminField.Kind.TEXT
                     && field.javaType() == String.class && !field.sensitive()) {
                 searchable.add(field.name());
+                searchedLabels.add(column.label());
             }
         }
-        return new Plan(entity.idAttribute(), List.copyOf(columns), List.copyOf(searchable));
+        return new Plan(entity.idAttribute(), List.copyOf(columns), List.copyOf(searchable),
+                List.copyOf(searchedLabels));
     }
 
     /**
@@ -300,24 +332,8 @@ public class ListQueryService {
         if (idAttribute == null) {
             return null;
         }
-        String label = registry.find(field.targetEntity()).flatMap(ListQueryService::labelAttributeOf).orElse(null);
+        String label = registry.find(field.targetEntity()).flatMap(ListColumns::labelAttributeOf).orElse(null);
         return new Relation(idAttribute, label);
-    }
-
-    /** The attribute that names a record of {@code target} on screen, or empty when it has no usable text attribute. */
-    static Optional<String> labelAttributeOf(AdminEntity target) {
-        List<AdminField> texts = target.visibleFields().stream()
-                .filter(field -> field.kind() == AdminField.Kind.TEXT && field.javaType() == String.class
-                        && !field.sensitive() && !field.id())
-                .toList();
-        for (String preferred : PREFERRED_LABELS) {
-            for (AdminField field : texts) {
-                if (field.name().equalsIgnoreCase(preferred)) {
-                    return Optional.of(field.name());
-                }
-            }
-        }
-        return texts.stream().map(AdminField::name).findFirst();
     }
 
     private record Relation(String idAttribute, String labelAttribute) {
@@ -331,7 +347,8 @@ public class ListQueryService {
     }
 
     /** Everything about an entity's list that does not depend on a request. Built once per entity. */
-    private record Plan(String idAttribute, List<PlannedColumn> columns, List<String> searchable) {
+    private record Plan(String idAttribute, List<PlannedColumn> columns, List<String> searchable,
+                        List<String> searchedLabels) {
 
         List<ListColumn> listColumns() {
             return columns.stream().map(PlannedColumn::column).toList();

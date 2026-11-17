@@ -155,6 +155,23 @@ class ConsoleListsThisHostsEntitiesTest {
     }
 
     @Test
+    void aRelationIsSortedByTheRelatedRecordsLabelOnThisHostsEntitiesToo() throws Exception {
+        signInAndOpenDashboard();
+        // Books: 1 (Author 1, Publisher 1), 2 (A2, P2), 3 (A3, P1), 4 (A1, P2), 5 (A2, P1). Column 4 is the title.
+        assertThat(table(page("/admin/book?sort=author&dir=asc")).stream().map(row -> row.get(4)))
+                .containsExactly("Book 1", "Book 4", "Book 2", "Book 5", "Book 3");
+        assertThat(table(page("/admin/book?sort=author&dir=desc")).stream().map(row -> row.get(4)))
+                .containsExactly("Book 3", "Book 2", "Book 5", "Book 1", "Book 4");
+        assertThat(table(page("/admin/book?sort=publisher&dir=asc")).stream().map(row -> row.get(4)))
+                .containsExactly("Book 1", "Book 3", "Book 5", "Book 2", "Book 4");
+        String sorted = page("/admin/book?sort=author&dir=asc");
+        assertThat(sorted).contains("aria-sort=\"ascending\"", "href=\"/admin/book?sort=author&amp;dir=desc\"");
+        assertThat(sorted.split("aria-sort=\"ascending\"", -1).length - 1).isEqualTo(1);
+        // The masked column still cannot be sorted.
+        assertThat(page("/admin/book?sort=secretToken&dir=asc")).doesNotContain("sort=secretToken");
+    }
+
+    @Test
     void anAddressThatIsNotOneOfThisHostsEntitiesIsNotFound() throws Exception {
         signInAndOpenDashboard();
 

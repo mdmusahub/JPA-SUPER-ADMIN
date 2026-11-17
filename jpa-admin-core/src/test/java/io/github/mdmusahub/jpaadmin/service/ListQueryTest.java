@@ -28,7 +28,7 @@ class ListQueryTest {
     private static final AdminEntity PARCEL = REGISTRY.find("parcel").orElseThrow();
 
     private static ListQuery parse(String q, String sort, String dir, String page, String size) {
-        return ListQuery.parse(PARCEL, q, sort, dir, page, size);
+        return ListQuery.parse(PARCEL, REGISTRY, q, sort, dir, page, size);
     }
 
     // ---- page -------------------------------------------------------------------------------------------------
@@ -107,7 +107,7 @@ class ListQueryTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"id", "reference", "notes", "weight", "pieces", "fragile", "status", "shippedOn",
-            "createdAt"})
+            "createdAt", "depot", "courier"})
     void aSortableColumnIsAccepted(String key) {
         ListQuery query = parse(null, key, "desc", null, null);
 
@@ -116,8 +116,8 @@ class ListQueryTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"nosuch", "", " ", "ID", "Reference", "accessToken", "memo", "internalCode", "depot",
-            "courier", "items", "picture", "dimensions", "reference desc", "reference;drop table parcel",
+    @ValueSource(strings = {"nosuch", "", " ", "ID", "Reference", "accessToken", "memo", "internalCode", "crate",
+            "vault", "items", "picture", "dimensions", "reference desc", "reference;drop table parcel",
             "' or 1=1 --", "reference,pieces", "p.reference", "../id", "1"})
     void anyOtherSortKeyMeansNoSort(String key) {
         ListQuery query = parse(null, key, "desc", null, null);
@@ -166,7 +166,7 @@ class ListQueryTest {
 
     @Test
     void theColumnsAreTheVisibleFieldsAndNothingElse() {
-        List<String> keys = ListColumns.of(PARCEL).stream().map(ListColumn::key).toList();
+        List<String> keys = ListColumns.of(PARCEL, REGISTRY).stream().map(ListColumn::key).toList();
 
         assertThat(keys).containsExactlyInAnyOrder("id", "accessToken", "courier", "crate", "createdAt", "depot",
                 "fragile", "memo", "notes", "pieces", "reference", "shippedOn", "status", "vault", "weight");
@@ -189,14 +189,89 @@ class ListQueryTest {
     }
 
     @Test
-    void aRelationColumnIsNotSortableAndTheOthersAre() {
+    void aRelationColumnIsSortableExactlyWhenItsTargetHasALabel() {
         for (String relation : List.of("depot", "courier", "crate", "vault")) {
             assertThat(column(relation).type()).isEqualTo(Cell.Type.RELATION);
-            assertThat(column(relation).sortable()).as(relation).isFalse();
         }
+        assertThat(column("depot").sortable()).as("the target's label is its name").isTrue();
+        assertThat(column("courier").sortable()).as("the label is the call sign, never the sensitive badge").isTrue();
+        assertThat(column("crate").sortable()).as("a target with no text attribute shows #id").isFalse();
+        assertThat(column("vault").sortable()).as("a target hidden from the console shows #id").isFalse();
         for (String key : List.of("id", "reference", "notes", "weight", "pieces", "fragile", "status", "shippedOn",
                 "createdAt")) {
             assertThat(column(key).sortable()).as(key).isTrue();
+        }
+    }
+
+    @Test
+    void aRelationIsNotSortableWhenTheConsoleDoesNotKnowItsTarget() {
+        // The same entity, a registry that lacks the targets: nothing to take a label from, so nothing to sort by.
+        AdminEntityRegistry alone = new AdminEntityRegistry(List.of(PARCEL), List.of());
+
+        assertThat(ListColumns.of(PARCEL, alone)).filteredOn(column -> column.type() == Cell.Type.RELATION)
+                .allSatisfy(column -> assertThat(column.sortable()).as(column.key()).isFalse());
+        assertThat(ListQuery.parse(PARCEL, alone, null, "depot", "asc", null, null).sort()).isNull();
+        assertThat(ListQuery.parse(PARCEL, REGISTRY, null, "depot", "asc", null, null).sort()).isEqualTo("depot");
+    }
+
+    @Test
+    void noSensitiveColumnOfAnyEntityIsSortableAndNoParserLetsItsKeyThrough() {
+        int sensitive = 0;
+        for (AdminEntity entity : REGISTRY.all()) {
+            for (ListColumn column : ListColumns.of(entity, REGISTRY)) {
+                boolean isSensitive = entity.visibleField(column.key()).orElseThrow().sensitive();
+                if (isSensitive) {
+                    sensitive++;
+                    assertThat(column.type()).as(entity.urlName() + "." + column.key()).isEqualTo(Cell.Type.MASKED);
+                    assertThat(column.sortable()).as(entity.urlName() + "." + column.key()).isFalse();
+                    assertThat(ListQuery.parse(entity, REGISTRY, null, column.key(), "asc", null, null).sort())
+                            .as(entity.urlName() + "." + column.key()).isNull();
+                }
+            }
+        }
+        assertThat(sensitive).as("the test entities have sensitive fields, so this loop checked something")
+                .isGreaterThanOrEqualTo(4);
+    }
+
+    @Test
+    void aSensitiveAttributeOfARelationTargetNeverBecomesTheLabelSoItNeverOrdersTheList() {
+        // Courier's first text attribute by name is the sensitive badgeNumber; the label must be callSign.
+        assertThat(ListColumns.labelAttributeOf(REGISTRY.find("courier").orElseThrow())).contains("callSign");
+        // Depot has a sensitive apiKey as well as a name; the label is the name.
+        assertThat(ListColumns.labelAttributeOf(REGISTRY.find("depot").orElseThrow())).contains("name");
+        // A target with no text attribute has no label.
+        assertThat(ListColumns.labelAttributeOf(REGISTRY.find("crate").orElseThrow())).isEmpty();
+    }
+
+    // ---- a search that was cut --------------------------------------------------------------------------------
+
+    @Test
+    void aSearchIsReportedAsCutExactlyWhenTextWasLostAtTheLimit() {
+        assertThat(ListQuery.searchWasCut(null)).isFalse();
+        assertThat(ListQuery.searchWasCut("")).isFalse();
+        assertThat(ListQuery.searchWasCut("a".repeat(100))).as("exactly the limit is not cut").isFalse();
+        assertThat(ListQuery.searchWasCut("a".repeat(101))).isTrue();
+        assertThat(ListQuery.searchWasCut("a".repeat(5000))).isTrue();
+        assertThat(ListQuery.searchWasCut(" ".repeat(300) + "abc" + " ".repeat(300)))
+                .as("spaces around the text are trimmed, not cut").isFalse();
+        assertThat(ListQuery.searchWasCut("a".repeat(100) + " b")).as("a real word lost").isTrue();
+        assertThat(ListQuery.searchWasCut("😀".repeat(100))).as("code points, not UTF-16 units").isFalse();
+        assertThat(ListQuery.searchWasCut("😀".repeat(101))).isTrue();
+    }
+
+    @Test
+    void theCutHelperAndTheParserAgreeOnEveryCase() {
+        for (String raw : List.of("", "x", "a".repeat(100), "a".repeat(101), "a".repeat(99) + "\n" + "b".repeat(5),
+                "\t".repeat(200) + "z", "😀".repeat(101), "a".repeat(100) + "    ")) {
+            String parsed = parse(raw, null, null, null, null).search();
+            String cleaned = raw.replaceAll("\\p{Cntrl}", " ").strip();
+            assertThat(parsed.codePointCount(0, parsed.length())).isLessThanOrEqualTo(ListQuery.MAX_SEARCH_LENGTH);
+            if (ListQuery.searchWasCut(raw)) {
+                assertThat(parsed).as("cut: what is left is the start of the text").isNotEqualTo(cleaned)
+                        .isEqualTo(cleaned.substring(0, parsed.length()));
+            } else {
+                assertThat(parsed).as("not cut: nothing was lost").isEqualTo(cleaned);
+            }
         }
     }
 
@@ -214,6 +289,6 @@ class ListQueryTest {
     }
 
     private static ListColumn column(String key) {
-        return ListColumns.of(PARCEL).stream().filter(column -> column.key().equals(key)).findFirst().orElseThrow();
+        return ListColumns.of(PARCEL, REGISTRY).stream().filter(column -> column.key().equals(key)).findFirst().orElseThrow();
     }
 }

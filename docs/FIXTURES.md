@@ -30,6 +30,7 @@ Used with any page through `&chrome=`.
 | `custom-base-path` | `basePath` set to a different console path, with breadcrumbs under it | Every link and asset URL starts with that base path, whether the fixture or the template made it | U0 |
 | `no-user` | `PageChrome.user` is `null` | A page with no signed-in user: no user chip, no sign-out (the error pages) | U1 |
 | `member-active` | the Members entity active, breadcrumbs Dashboard and Members, no flash | The list of a second entity (the masked-column list fixture uses it by default) | U2 |
+| `search-cut` | the Articles entity active, one INFO flash message built by `ListViewFactory.searchCutNotice()` | The notice for a search cut at the limit (the `search-cut` list fixture uses it by default) | U2 |
 
 ## 2. Login (record: `LoginView`)
 
@@ -73,15 +74,21 @@ The preview serves these from a stub endpoint, so the chart can be built without
 
 | Fixture | Fills | Covers | Task |
 |---|---|---|---|
-| `normal` | `ListView` with 6 columns (5 sortable with `sortHref` and `SortState.NONE`, 1 not sortable with no link), 25 rows of 94, page 0 of 4, sizes 10, 25, 50, 100 each with a link and 25 `current`, export and "New record" on (the real backend offers neither yet) | Table, header links, pager range text, row checkboxes, bulk bar when rows are selected. First page: next and last links, no first or previous link | U2 |
+| `normal` | `ListView` with 6 columns (6 sortable with `sortHref` and `SortState.NONE` (the Author relation is sortable since Phase 5, because its target has a label)), 25 rows of 94, page 0 of 4, sizes 10, 25, 50, 100 each with a link and 25 `current`, export and "New record" on (the real backend offers neither yet) | Table, header links, pager range text, row checkboxes, bulk bar when rows are selected. First page: next and last links, no first or previous link | U2 |
 | `empty-no-records` | No rows, `Empty.Reason.NO_RECORDS` | Empty state that explains how to create the first record | U2 |
 | `empty-no-matches` | No rows, `NO_MATCHES`, search and filters active | Empty state with a way to clear search and filters | U2, U3 |
+| `empty-search-scope` | `NO_MATCHES` on a table with a masked column; `hint` names the searched text columns only | The scope sentence, no masked column named (Phase 5) | U2 |
+| `empty-search-nothing-searchable` | `NO_MATCHES` on a table with no text column | The "no text column a search can look in" wording (Phase 5) | U2 |
+| `empty-search-escaped` | `NO_MATCHES` with column labels that look like markup | The labels are printed as text, escaped (SEC-9) | U2 |
+| `search-cut` | A 100-character search, with the chrome variant `search-cut` whose `flash` holds the real cut notice | The INFO notice with the limit, above the content (Phase 5) | U2 |
 | `long-text` | Cells with 300-character values, long words without spaces, long column labels | Truncation, wrapping, `title` hover text | U2 |
 | `many-columns` | 20 columns (the 5 hidden ones belong to column visibility, U8) | Horizontal scroll on a phone, sticky first column, column visibility | U2 |
 | `all-cell-types` | One column per `Cell.Type`: text, number, boolean, enum with each `Tone`, relation with `href`, date, image, file, masked, empty | Cell renderer for every type | U2 |
 | `masked-column` | A column of `MASKED` cells, `sortable` false and `sortHref` `null` | Dots only, no value, no tooltip, no sorting or filter control | U2 |
 | `search-active` | `search` set | Search box shows the term, empty-state wording | U2 |
 | `sorted-asc`, `sorted-desc` | `sort` and `dir` set, that column's `SortState` is `ASCENDING` or `DESCENDING`, its `sortHref` is the toggled direction | Sort indicator, `aria-sort`, header link | U2 |
+| `relation-sort-asc`, `relation-sort-desc` | Sorted by the Author relation: `SortState` of that column is `ASCENDING` or `DESCENDING`, labels in order, equal labels in identifier order | `aria-sort` and the flip link on a relation header (Phase 5, D-60) | U2 |
+| `nulls-last`, `nulls-last-desc` | Sorted by Author with 100 rows per page, ten articles with no author | The empty relation cells are the last ten in both directions (Phase 5, D-60) | U2 |
 | `middle-page` | `page` 1 of 4, so `firstHref`, `prevHref`, `nextHref` and `lastHref` all present | All four pager controls enabled, range text | U2 |
 | `last-page` | `page` is the last page, fewer rows than the size, `firstHref` and `prevHref` present, `nextHref` and `lastHref` `null` | Pager range text, first and previous enabled, next and last disabled | U2 |
 | `single-page` | `total` less than `size`, all four page links `null` | Pager hidden or minimal | U2 |
