@@ -1,6 +1,7 @@
 package io.github.mdmusahub.jpaadmin.metadata;
 
 import io.github.mdmusahub.jpaadmin.annotation.AdminHidden;
+import io.github.mdmusahub.jpaadmin.annotation.AdminResource;
 import io.github.mdmusahub.jpaadmin.annotation.AdminSensitive;
 import jakarta.persistence.metamodel.Attribute;
 import jakarta.persistence.metamodel.EntityType;
@@ -204,7 +205,14 @@ public final class EntityScanner {
                 address = "entity";
             }
             return new AdminEntity(type, entityType.getName(), address, Names.label(type.getSimpleName()),
-                    AdminEntity.DEFAULT_GROUP, AdminEntity.DEFAULT_ICON, idAttribute, reason, fields);
+                    AdminEntity.DEFAULT_GROUP, AdminEntity.DEFAULT_ICON, idAttribute, reason, fields, access());
+        }
+
+        /** What {@code @AdminResource} allows, read once here (ARCH-1); no annotation means full access. */
+        private AdminEntity.Access access() {
+            AdminResource resource = type.getAnnotation(AdminResource.class);
+            return resource == null ? AdminEntity.Access.FULL
+                    : new AdminEntity.Access(resource.readOnly(), resource.deletable());
         }
 
         /** Why the identifier stops the console from managing this entity, or {@code null} when it does not. */

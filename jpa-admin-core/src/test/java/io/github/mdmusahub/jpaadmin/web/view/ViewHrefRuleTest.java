@@ -60,7 +60,9 @@ class ViewHrefRuleTest {
             place("Paging.nextHref", h -> pagingOnTheMiddlePage("/a", "/a", h, "/a")),
             place("Paging.lastHref", h -> pagingOnTheMiddlePage("/a", "/a", "/a", h)),
             place("SizeOption.href", h -> new ListView.Paging.SizeOption(25, true, h)),
-            place("Actions.exportHref", h -> new ListView.Actions(true, true, true, h)),
+            place("Actions.exportHref", h -> new ListView.Actions(true, true, true, h, "/admin/item/bulk-delete")),
+            place("Actions.bulkDeleteHref", h -> new ListView.Actions(true, true, true, "/admin/item/export", h)),
+            place("DetailView.Actions.deleteHref", h -> new DetailView.Actions(true, true, true, h)),
             place("FormView.actionHref", h -> new FormView(FormView.Mode.CREATE, "t", "e", null, h, "/a", List.of(),
                     List.of())),
             place("FormView.cancelHref", h -> new FormView(FormView.Mode.CREATE, "t", "e", null, "/a", h, List.of(),
@@ -208,6 +210,7 @@ class ViewHrefRuleTest {
                 Map.entry("href", 3L), Map.entry("sortHref", 1L), Map.entry("clearAllHref", 1L),
                 Map.entry("removeHref", 1L), Map.entry("firstHref", 1L), Map.entry("prevHref", 1L),
                 Map.entry("nextHref", 1L), Map.entry("lastHref", 1L), Map.entry("exportHref", 1L),
+                Map.entry("bulkDeleteHref", 1L), Map.entry("deleteHref", 1L),
                 Map.entry("actionHref", 1L), Map.entry("cancelHref", 1L), Map.entry("url", 2L),
                 Map.entry("basePath", 1L)));
         assertThat(PLACES).as("one rejection test place per link component").hasSize(

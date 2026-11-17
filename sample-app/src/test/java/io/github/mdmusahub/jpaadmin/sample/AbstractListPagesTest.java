@@ -41,7 +41,8 @@ abstract class AbstractListPagesTest {
     private static final String BULK_SKU_PREFIX = "TEST-BULK-";
     private static final int BULK_PRODUCTS = 30;
     private static final Pattern ROW = Pattern.compile("(?s)<tr>(.*?)</tr>");
-    private static final Pattern CELL = Pattern.compile("(?s)<td\\b[^>]*>(.*?)</td>");
+    // The checkbox column of bulk delete (Phase 7) is not a data cell: its cell and header are skipped.
+    private static final Pattern CELL = Pattern.compile("(?s)<td\\b(?![^>]*select-col)[^>]*>(.*?)</td>");
     private static final Pattern ADDRESS = Pattern.compile("\\b(?:href|src|action)=\"([^\"]*)\"");
 
     @Autowired
@@ -121,7 +122,7 @@ abstract class AbstractListPagesTest {
 
     private static List<String> headers(String html) {
         List<String> labels = new ArrayList<>();
-        Matcher header = Pattern.compile("(?s)<th\\b[^>]*scope=\"col\"[^>]*>(.*?)</th>").matcher(html);
+        Matcher header = Pattern.compile("(?s)<th\\b(?![^>]*select-col)[^>]*scope=\"col\"[^>]*>(.*?)</th>").matcher(html);
         while (header.find()) {
             labels.add(header.group(1).replaceAll("(?s)<[^>]*>", "").replaceAll("\\s+", " ").strip());
         }
@@ -292,14 +293,16 @@ abstract class AbstractListPagesTest {
     // ---- relations and collections ----------------------------------------------------------------------------
 
     @Test
-    void aRelationColumnShowsTheLabelOfTheRelatedRecordAndNoLink() throws Exception {
+    void aRelationColumnShowsTheLabelOfTheRelatedRecordAsALinkToItsDetailPage() throws Exception {
+        // Phase 7 (D-70) removed the "no link yet" limit of D-54; ConsoleRecordLinksTest and RecordPagesTest cover the rules.
         String products = page("/admin/product?q=iphone");
         String orders = page("/admin/order?size=100");
 
         assertThat(column(products, 1)).containsExactly("Electronics");
         assertThat(column(orders, 2)).hasSize(30).allSatisfy(customer -> assertThat(customer).isNotBlank().doesNotStartWith("#"));
         assertThat(column(orders, 2)).contains("Ava Stone", "Ben Carter");
-        assertThat(orders).doesNotContain("class=\"cell-link\"");
+        assertThat(orders).containsPattern("<a class=\"cell-link\" href=\"/admin/customer/[0-9]+\">Ava Stone</a>");
+        assertThat(products).containsPattern("<a class=\"cell-link\" href=\"/admin/category/[0-9]+\">Electronics</a>");
         assertThat(headers(products)).doesNotContain("Tags");
     }
 

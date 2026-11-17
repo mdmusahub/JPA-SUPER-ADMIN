@@ -2,6 +2,7 @@ package io.github.mdmusahub.jpaadmin.preview;
 
 import io.github.mdmusahub.jpaadmin.web.ErrorViews;
 import io.github.mdmusahub.jpaadmin.web.view.DashboardView;
+import io.github.mdmusahub.jpaadmin.web.view.DetailView;
 import io.github.mdmusahub.jpaadmin.web.view.ErrorView;
 import io.github.mdmusahub.jpaadmin.web.view.ListView;
 import io.github.mdmusahub.jpaadmin.web.view.LoginView;
@@ -89,7 +90,13 @@ final class PageFixtures {
 
     /** The list page for {@code state}, with its links under {@code basePath} (the base path of the chrome in use). */
     static Optional<ListView> list(String state, String basePath) {
-        return ListFixtures.list(state, basePath);
+        Optional<ListView> record = RecordFixtures.list(state, basePath);
+        return record.isPresent() ? record : ListFixtures.list(state, basePath);
+    }
+
+    /** The detail page for {@code state} (task U4), with its links under {@code basePath}. */
+    static Optional<DetailView> detail(String state, String basePath) {
+        return RecordFixtures.detail(state, basePath);
     }
 
     /** The dashboard groups that match the default sidebar, with the counts the sidebar shows. */
@@ -128,7 +135,10 @@ final class PageFixtures {
         Map<String, Set<String>> catalog = new LinkedHashMap<>();
         catalog.put("login", LOGIN.keySet());
         catalog.put("dashboard", DASHBOARD.keySet());
-        catalog.put("list", ListFixtures.states());
+        Set<String> listStates = new java.util.LinkedHashSet<>(ListFixtures.states());
+        listStates.addAll(RecordFixtures.listStates());
+        catalog.put("list", listStates);
+        catalog.put("detail", RecordFixtures.detailStates());
         catalog.put("error", ERROR.keySet());
         return catalog;
     }

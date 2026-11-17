@@ -4,6 +4,7 @@ import static io.github.mdmusahub.jpaadmin.preview.ChromeFixtures.ALTERNATE_BASE
 import static io.github.mdmusahub.jpaadmin.preview.ChromeFixtures.BASE;
 
 import io.github.mdmusahub.jpaadmin.web.view.DashboardView;
+import io.github.mdmusahub.jpaadmin.web.view.DetailView;
 import io.github.mdmusahub.jpaadmin.web.view.ErrorView;
 import io.github.mdmusahub.jpaadmin.web.view.ListView;
 import io.github.mdmusahub.jpaadmin.web.view.LoginView;
@@ -63,8 +64,9 @@ class PreviewController {
     @GetMapping("/{page}")
     String page(@PathVariable String page, @RequestParam(defaultValue = "normal") String state,
                 @RequestParam(required = false) String chrome, Model model) {
-        String variant = chrome != null ? chrome : "list".equals(page) ? ListFixtures.preferredChrome(state) : "default";
-        PageChrome pageChrome = ChromeFixtures.find(variant).orElseThrow(() -> new UnknownFixture(
+        String variant = chrome != null ? chrome : "list".equals(page) ? preferredListChrome(state) : "default";
+        PageChrome pageChrome = (chrome == null && "detail".equals(page)
+                ? RecordFixtures.detailChrome(state, BASE) : ChromeFixtures.find(variant)).orElseThrow(() -> new UnknownFixture(
                 "No chrome variant called '" + variant + "'. Valid chrome variants: " + ChromeFixtures.names()));
         model.addAttribute(PageChrome.ATTRIBUTE, pageChrome);
         return switch (page) {
@@ -80,6 +82,11 @@ class PreviewController {
                 model.addAttribute(PageChrome.VIEW_ATTRIBUTE,
                         PageFixtures.list(state, pageChrome.basePath()).orElseThrow(() -> unknown(page, state)));
                 yield ListView.TEMPLATE;
+            }
+            case "detail" -> {
+                model.addAttribute(PageChrome.VIEW_ATTRIBUTE,
+                        PageFixtures.detail(state, pageChrome.basePath()).orElseThrow(() -> unknown(page, state)));
+                yield DetailView.TEMPLATE;
             }
             case "error" -> {
                 model.addAttribute(PageChrome.VIEW_ATTRIBUTE, PageFixtures.error(state).orElseThrow(() -> unknown(page, state)));
@@ -111,6 +118,11 @@ class PreviewController {
     @ExceptionHandler(UnknownFixture.class)
     ResponseEntity<String> notFound(UnknownFixture exception) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).contentType(TEXT).body(exception.getMessage() + "\n");
+    }
+
+    private static String preferredListChrome(String state) {
+        String record = RecordFixtures.preferredListChrome(state);
+        return record != null ? record : ListFixtures.preferredChrome(state);
     }
 
     private static UnknownFixture unknown(String page, String state) {

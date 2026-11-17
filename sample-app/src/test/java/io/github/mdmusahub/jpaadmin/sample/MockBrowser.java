@@ -51,6 +51,15 @@ final class MockBrowser {
         return perform(request);
     }
 
+    /** POST to an address that is already percent-encoded (it may carry a query string); {@code fields} are name, value, name, value ... */
+    MockHttpServletResponse postUri(String encodedAddress, String... fields) throws Exception {
+        MockHttpServletRequestBuilder request = MockMvcRequestBuilders.post(java.net.URI.create(encodedAddress));
+        for (int i = 0; i + 1 < fields.length; i += 2) {
+            request.param(fields[i], fields[i + 1]);
+        }
+        return perform(request);
+    }
+
     MockHttpServletResponse perform(MockHttpServletRequestBuilder request) throws Exception {
         if (session.isInvalid()) {
             session = new MockHttpSession();

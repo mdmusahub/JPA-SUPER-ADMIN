@@ -58,7 +58,7 @@ final class ListFixtures {
             new ListColumn("password", "Password", Cell.Type.MASKED, false, Align.START),
             new ListColumn("joined", "Joined", Cell.Type.DATE, true, Align.START));
 
-    private static final ListView.Actions NO_ACTIONS = new ListView.Actions(false, false, false, null);
+    private static final ListView.Actions NO_ACTIONS = new ListView.Actions(false, false, false, null, null);
 
     record Article(int id, String title, String author, String status, int views, LocalDate published) {
     }
@@ -227,7 +227,7 @@ final class ListFixtures {
     }
 
     private static ListView.Actions actions(String basePath, boolean offered) {
-        return offered ? new ListView.Actions(true, true, false, basePath + "/article/export.csv") : NO_ACTIONS;
+        return offered ? new ListView.Actions(true, true, false, basePath + "/article/export.csv", null) : NO_ACTIONS;
     }
 
     // ---- other shapes -------------------------------------------------------------------------------------------

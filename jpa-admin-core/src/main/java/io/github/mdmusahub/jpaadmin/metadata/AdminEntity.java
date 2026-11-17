@@ -27,9 +27,30 @@ import java.util.regex.Pattern;
  * @param unsupportedReason why the console cannot manage this entity, or {@code null} when it can
  * @param fields            every attribute the scanner found, hidden ones included; {@link #visibleFields()} is what
  *                          the console may show
+ * @param access            what the console may do with the records, from {@code @AdminResource} (SEC-11)
  */
 public record AdminEntity(Class<?> type, String entityName, String urlName, String label, String group, String icon,
-                          String idAttribute, String unsupportedReason, List<AdminField> fields) {
+                          String idAttribute, String unsupportedReason, List<AdminField> fields, Access access) {
+
+    /**
+     * What the console may do with an entity's records. Read once from {@code @AdminResource} at startup and enforced
+     * in the services, not only in the pages (SEC-11).
+     *
+     * <p>Internal, not stable API.
+     *
+     * @param readOnly  whether the console only shows the records (implies no delete)
+     * @param deletable whether records can be deleted; ignored when {@code readOnly}
+     */
+    public record Access(boolean readOnly, boolean deletable) {
+
+        /** No annotation: nothing is forbidden. */
+        public static final Access FULL = new Access(false, true);
+
+        /** Whether records can be deleted. */
+        public boolean canDelete() {
+            return !readOnly && deletable;
+        }
+    }
 
     /** The group an entity belongs to while nothing says otherwise. */
     public static final String DEFAULT_GROUP = "Entities";
@@ -39,8 +60,15 @@ public record AdminEntity(Class<?> type, String entityName, String urlName, Stri
 
     private static final Pattern URL_NAME = Pattern.compile("[a-z0-9]+(?:-[a-z0-9]+)*");
 
+    /** An entity with full access: no {@code @AdminResource} restriction. */
+    public AdminEntity(Class<?> type, String entityName, String urlName, String label, String group, String icon,
+                       String idAttribute, String unsupportedReason, List<AdminField> fields) {
+        this(type, entityName, urlName, label, group, icon, idAttribute, unsupportedReason, fields, Access.FULL);
+    }
+
     public AdminEntity {
         Objects.requireNonNull(type, "type");
+        Objects.requireNonNull(access, "access");
         Objects.requireNonNull(entityName, "entityName");
         Objects.requireNonNull(urlName, "urlName");
         Objects.requireNonNull(label, "label");
@@ -58,6 +86,21 @@ public record AdminEntity(Class<?> type, String entityName, String urlName, Stri
     /** Whether the console can manage this entity. */
     public boolean supported() {
         return unsupportedReason == null;
+    }
+
+    /**
+     * Whether a record of this entity can have an address of its own: it has an identifier and the identifier is not a
+     * sensitive field. A record is addressed by its identifier, so an address (and a checkbox value, and a delete form)
+     * would otherwise print a sensitive value (SEC-1). Such an entity is listed, with the identifier masked, but its
+     * records have no detail page, no link, no checkbox and no delete.
+     */
+    public boolean addressable() {
+        return supported() && idField().map(field -> !field.sensitive()).orElse(false);
+    }
+
+    /** Whether the console may delete this entity's records: addressable, not read-only, deletable (SEC-11). */
+    public boolean canDelete() {
+        return addressable() && access.canDelete();
     }
 
     /** The entity class name, for logs and for the {@code excluded-entities} property. */

@@ -269,7 +269,7 @@ Reproduce the property table from `docs/PLAN.md` section 5, with a sentence per 
 
 ## B5. Using the console (draft outline)
 
-Sign in, sidebar and groups, dashboard and chart, browsing records, readable values, search and sort, filters, saved views, display options, bulk actions, export, viewing a record, creating and editing, validation, uploads, keyboard shortcuts, themes, what is stored in the browser. Add a screenshot for each section.
+Sign in, sidebar and groups, dashboard and chart, browsing records, readable values, search and sort, filters, saved views, display options, bulk actions (delete, Phase 7), export, viewing a record (Phase 7), creating and editing, validation, uploads, keyboard shortcuts, themes, what is stored in the browser. Add a screenshot for each section.
 
 ## B6. Customizing entities (draft outline)
 
@@ -285,12 +285,13 @@ Sign-in and sessions (the console uses Spring Boot's default session cookie sett
 
 ## B9. Annotations reference (draft outline)
 
-Table per annotation: option, type, default, status, description. Implemented in v0.1 (package `io.github.mdmusahub.jpaadmin.annotation`), both optional, both read on the field or its getter:
+Table per annotation: option, type, default, status, description. Implemented in v0.1 (package `io.github.mdmusahub.jpaadmin.annotation`), all optional; `@AdminHidden` and `@AdminSensitive` are read on the field or its getter:
 
 - **`@AdminHidden`** — on an entity class or a field. On a class, the entity is removed from the console completely (no sidebar, no dashboard, not reachable by URL). On a field, the field is never shown, searched, sorted, filtered or exported. It cannot hide an entity's identifier (records are addressed by it); the console logs a warning and keeps the id if it is annotated.
 - **`@AdminSensitive`** — on a field. The value is masked everywhere (SEC-1), whatever the field is called. It adds to `jpa.admin.sensitive-fields`.
+- **`@AdminResource`** (on an entity class, Phase 7, D-68) — options `readOnly` (default `false`; the console only shows the records, no delete and from Phase 8 no create or edit) and `deletable` (default `true`; `false` forbids deleting only; ignored when `readOnly`). Enforced in the service layer, not only by hiding a button (SEC-11). Inherited by subclasses. The other options named in the project plan (display and plural names, group, icon, order, creatable, updatable, exportable, default sort, page size) arrive with the phases that use them.
 
-The other annotations of `docs/PLAN.md` section 6 (`@AdminResource`, `@AdminField`, `@AdminBadge`, `@AdminLookup`, `@AdminUpload`) arrive in later phases.
+The other annotations of `docs/PLAN.md` section 6 (`@AdminField`, `@AdminBadge`, `@AdminLookup`, `@AdminUpload`) arrive in later phases.
 
 ## B10. Endpoints reference (draft outline)
 
@@ -332,6 +333,17 @@ Filter rules (Phase 6, D-62, D-63, D-64):
 - **Cost.** The count and the page use the same conditions (all bound parameters). A relation filter adds one small statement per list page for its choices (identifier and label only, 201 rows at most); a list with two filterable relation columns costs four statements, whatever the number of rows. Nothing else grows with the filters, and no join is added.
 - **Not yet.** Several values for one field (v0.2), filtering on a relation's own fields, "is empty" and "is not empty" filters, and saved views (Phase 12) are not part of Phase 6.
 
+Record rules (Phase 7, D-65 to D-74):
+
+- **The detail page.** `GET {path}/{entity}/{id}`, reached from the first column of a row or from a relation. One statement; a password-like field is dots and is never read; a hidden field is absent; a collection, an embedded value and binary data show their label and "(not shown)"; a long text keeps its line breaks and, past 300 characters, sits behind a summary. The breadcrumb leads back to the list with the search, filters, sort and page the visitor came from.
+- **Which ids work.** The id in the address is turned into the identifier's type: `Long`, `Integer`, `Short`, `Byte`, `BigInteger`, `UUID` or `String`. A number must be written in its plain form (`7`, not `007` or `+7`); a UUID in the usual 8-4-4-4-12 form; a text id is at most 255 characters with no control character, no `/` or `\`, and is not `.` or `..`. Any text that is not an id gives the same console 404 as an id with no record, as does a hidden or unknown entity or an entity whose identifier is a sensitive field.
+- **Relation links.** A relation cell links to the related record when the related entity is in the console, and shows `#id` with no link when it is hidden or unsupported. An empty relation is an empty cell.
+- **Permissions.** `@AdminResource(readOnly = true)` makes an entity show-only; `@AdminResource(deletable = false)` forbids deleting only. The service enforces both: a forged request answers 403 and never reaches the database. An entity whose identifier is a sensitive field is listed with the identifier masked but has no detail page, link, checkbox or delete.
+- **Delete.** `POST {path}/{entity}/{id}/delete` with the CSRF token, after a question that needs no script. The delete runs in one transaction through the persistence provider, so the host's own mapping (cascades, `@PreRemove`) applies. A record that other records still depend on is kept and the page says so in plain words, with no SQL, table name or stack trace. A `GET` to a delete address changes nothing (405).
+- **Bulk delete.** `POST {path}/{entity}/bulk-delete` with the ids in the `ids` parameter, **at most 100 per request** (the largest page; a request with more is refused and nothing is deleted). All or nothing: if one record cannot be deleted, none is. Ids that are not ids, or have no record, are skipped and counted ("Deleted 2 records. 1 selected record was skipped ..."); the same id twice counts once. The header checkbox selects the rows of the current page only, and the selection is cleared whenever a page is shown (a new page, search, filter or sort). Selecting every row that matches a filter is not part of v0.1.
+- **After a delete** the visitor returns to the same search, filters, sort and page size, on the first page when something was deleted, on the same page when nothing was; a page past the end becomes the last page. The message is shown once.
+- **Duplicate.** The route `{path}/{entity}/new?copyFrom={id}` checks its source (unknown, malformed and hidden sources are the console's 404; a read-only entity is 403). A copy never takes the identifier or the version, a sensitive field, a hidden field, a collection, an embedded value or binary data; a relation is copied only when its target is in the console. The create form, and with it the visible "Duplicate" link, arrive in Phase 8.
+
 Known limits and the phase that addresses each (re-scope, D-60). This list adds to the limits above; none of them is removed.
 
 - **A relation column costs one `LEFT JOIN` per relation column** (two statements per page whatever the number of columns, but each relation column adds a join to the page query). An entity with many relation columns on a large table can be slow. A column hidden by a saved view will stop being queried (Phase 12). A cost bound is measured and documented, or the strategy changed, in Phase 14.
@@ -342,10 +354,15 @@ Known limits and the phase that addresses each (re-scope, D-60). This list adds 
 - **A search says what it covers only when it finds nothing** (Phase 5). A search that finds rows does not list its columns.
 - **A relation's label is not searched**, although it can be sorted (Phase 5). Finding records by a relation's label is the relation filter (Phase 6): choose the record from the dropdown. A relation shown as `#id` cannot be sorted. The order of labels is the database's text order (case and accents follow its collation), proven on H2 only until Phase 14.
 - **Filters are limited to what is listed under "Filter rules" above** (Phase 6): one value per field (multi-value filters are v0.2), the identifier cannot be filtered, a text filter is a "contains" like the search (a full scan on a large table, see the search limit above), and a relation filter costs one small extra statement per filterable relation on every list page.
-- **A relation cell is not a link.** It becomes one when the detail page exists, in Phase 7. Row checkboxes and bulk delete come then too.
+- **A relation cell is a link only when its target is in the console** (Phase 7, D-70). A relation to a hidden or unsupported entity shows `#id` with no link.
 - **There is no "New record" and no export on the list.** They arrive with Phase 8 and Phase 11.
 - **The page size is fixed at 25 by default** and `jpa.admin.page-size` does not exist yet; the plural, the badge tones and the relation label are rules of the console, not choices of the host. The property and the annotations that replace the rules arrive in Phase 13.
 - **An image cell has no picture in the preview** until the uploader exists (Phase 9).
+- **Detail and delete limits (Phase 7).** An identifier of a type other than the seven listed (a `char`, a date, a floating-point number) gives no detail page and no delete. A `String` identifier that holds a `/` (or is `.` or `..`) cannot be written into an address, so its row has no link and the record cannot be opened or deleted in the console; an identifier with an encoded slash, a NUL byte or `..` in an address is refused by Spring Security's HTTP firewall with a plain 400, before the console is asked. A composite identifier is still unsupported. Editing and creating records are Phase 8, so the detail page shows no "Edit record" and no "Duplicate record" yet.
+- **A delete reads the whole row.** The console deletes through the persistence provider so that the host's mapping applies, and Hibernate loads the record it removes. The console itself never logs a value (its log line holds the entity's address and the kind of failure), but with Hibernate's `org.hibernate.orm.jdbc.extract` logger at TRACE a sensitive column of the record being deleted is in Hibernate's own log. Do not enable that logger in production.
+- **The cap of 100 records per bulk delete is not configurable** in v0.1, and one failing record rolls back the whole batch (by design). The messages say how many were deleted; they do not say which record blocked the batch.
+- **The bulk bar and the header checkbox need script;** without script the row checkboxes, the question and the submit button still work, and the header checkbox is not shown. The automated real-browser test of these behaviours is a Phase 14 item; Phase 7 relies on tests of the markup and the script's text and on a manual browser pass.
+- **A detail page for a very wide entity** prints every visible field; there is no field selection or hiding of columns until Phase 12.
 
 Roadmap: v0.2 rate limiting, S3 storage provider and multi-value filters, v0.3 audit log, v0.4 multiple admins with roles, v0.5 inline child rows, v0.6 galleries and thumbnails, v1.0 stable API, `@Embedded` and composite keys. A Spring Boot 3.5 compatibility build can be reconsidered if users ask.
 

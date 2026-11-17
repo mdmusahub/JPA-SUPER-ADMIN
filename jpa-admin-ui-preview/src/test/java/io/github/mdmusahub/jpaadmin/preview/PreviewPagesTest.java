@@ -52,6 +52,9 @@ class PreviewPagesTest {
         for (Map.Entry<String, Set<String>> page : PageFixtures.catalog().entrySet()) {
             for (String state : page.getValue()) {
                 for (String chrome : ChromeFixtures.names()) {
+                    if (RecordFixtures.messages().containsKey(chrome) || chrome.equals("article-detail")) {
+                        continue; // task U4's variants belong to their fixtures: PreviewRecordPagesTest renders them on four pages
+                    }
                     all.add(Arguments.of(page.getKey(), state, chrome));
                 }
             }
@@ -76,10 +79,13 @@ class PreviewPagesTest {
         assertThat(PageFixtures.catalog().get("list")).contains("normal", "middle-page", "last-page", "empty-no-records",
                 "empty-no-matches", "sorted-asc", "sorted-desc", "masked-column", "long-text", "many-columns");
         assertThat(PageFixtures.catalog()).doesNotContainKey("entity");
+        assertThat(PageFixtures.catalog().get("detail")).contains("normal", "empty-fields", "long-text", "relations",
+                "masked-field", "with-images", "all-cell-types", "read-only", "delete-blocked");
         assertThat(PageFixtures.catalog().get("error")).contains("not-found", "forbidden", "server-error", "bad-request", "long-hint");
         assertThat(ChromeFixtures.names()).containsExactly("default", "empty-sidebar", "no-active-entity", "deep-breadcrumbs",
                 "flash-all-levels", "theme-dark", "theme-light", "theme-system", "custom-base-path", "long-sidebar",
-                "no-user", "search-cut", "filters-ignored", "member-active");
+                "no-user", "search-cut", "filters-ignored", "article-detail", "delete-done", "delete-blocked", "bulk-done",
+                "bulk-partial", "bulk-over-cap", "bulk-blocked", "bulk-nothing-selected", "duplicate-later", "member-active");
     }
 
     // ---- sign-in page -----------------------------------------------------------------------------------------------

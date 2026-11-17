@@ -34,7 +34,8 @@ abstract class AbstractFilterPagesTest {
 
     private static final Pattern COUNT = Pattern.compile("list-count\">([\\d,]+) records?<");
     private static final Pattern ROW = Pattern.compile("(?s)<tr>(.*?)</tr>");
-    private static final Pattern CELL = Pattern.compile("(?s)<td\\b[^>]*>(.*?)</td>");
+    // The checkbox column of bulk delete (Phase 7) is not a data cell: its cell is skipped.
+    private static final Pattern CELL = Pattern.compile("(?s)<td\\b(?![^>]*select-col)[^>]*>(.*?)</td>");
     private static final Pattern ADDRESS = Pattern.compile("\\b(?:href|src|action)=\"([^\"]*)\"");
     private static final String UNKNOWN_FILTER = "1 filter in the address does not match any filter of this table and was ignored.";
 

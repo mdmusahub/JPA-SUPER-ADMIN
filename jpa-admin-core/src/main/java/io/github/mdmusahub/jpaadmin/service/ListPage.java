@@ -27,11 +27,22 @@ import java.util.Objects;
  * @param controls the filter controls on offer, in column order
  * @param notes    what the service found out about the filters (a relation choice that does not exist, a relation
  *                 filter that cannot be offered)
+ * @param relationIds for each row, for each column, the identifier (as text) of the record a relation cell points at,
+ *                 or {@code null}; empty when the page carries none (the pages of the preview that show no link). Used only
+ *                 to build links: the factory links a cell only when its column names a target that is in the console
  */
 public record ListPage(List<ListColumn> columns, List<ListView.Row> rows, long total, ListQuery query,
-                       List<String> searched, List<FilterControl> controls, List<FilterNote> notes) {
+                       List<String> searched, List<FilterControl> controls, List<FilterNote> notes,
+                       List<List<String>> relationIds) {
+
+    /** A page with no relation ids: its relation cells carry no link. */
+    public ListPage(List<ListColumn> columns, List<ListView.Row> rows, long total, ListQuery query,
+                    List<String> searched, List<FilterControl> controls, List<FilterNote> notes) {
+        this(columns, rows, total, query, searched, controls, notes, List.of());
+    }
 
     public ListPage {
+        relationIds = copyOfIds(Objects.requireNonNull(relationIds, "relationIds"));
         columns = List.copyOf(Objects.requireNonNull(columns, "columns"));
         rows = List.copyOf(Objects.requireNonNull(rows, "rows"));
         Objects.requireNonNull(query, "query");
@@ -46,6 +57,25 @@ public record ListPage(List<ListColumn> columns, List<ListView.Row> rows, long t
                 throw new IllegalArgumentException("each row needs exactly one cell per column");
             }
         }
+        if (!relationIds.isEmpty()) {
+            if (relationIds.size() != rows.size()) {
+                throw new IllegalArgumentException("relationIds needs one entry per row, or none at all");
+            }
+            for (List<String> ids : relationIds) {
+                if (ids.size() != columns.size()) {
+                    throw new IllegalArgumentException("each relationIds entry needs one value per column");
+                }
+            }
+        }
+    }
+
+    /** An immutable copy that allows {@code null} values, which {@code List.copyOf} refuses. */
+    private static List<List<String>> copyOfIds(List<List<String>> ids) {
+        List<List<String>> copy = new java.util.ArrayList<>(ids.size());
+        for (List<String> row : ids) {
+            copy.add(java.util.Collections.unmodifiableList(new java.util.ArrayList<>(Objects.requireNonNull(row, "row"))));
+        }
+        return java.util.Collections.unmodifiableList(copy);
     }
 
     /** A page with no filter controls and no notes. */

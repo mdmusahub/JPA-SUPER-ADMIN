@@ -100,7 +100,7 @@ class ConsoleListsThisHostsEntitiesTest {
         Matcher row = Pattern.compile("(?s)<tr>(.*?)</tr>").matcher(body.group(1));
         while (row.find()) {
             List<String> cells = new ArrayList<>();
-            Matcher cell = Pattern.compile("(?s)<td\\b[^>]*>(.*?)</td>").matcher(row.group(1));
+            Matcher cell = Pattern.compile("(?s)<td\\b(?![^>]*select-col)[^>]*>(.*?)</td>").matcher(row.group(1));
             while (cell.find()) {
                 cells.add(cell.group(1).replaceAll("(?s)<[^>]*>", "").strip());
             }

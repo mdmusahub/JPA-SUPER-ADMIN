@@ -300,12 +300,20 @@ public record ListView(EntityInfo entity, List<Column> columns, List<Row> rows, 
      * @param canBulkDelete whether row selection and bulk delete are offered
      * @param exportHref    CSV export link carrying the current search, filters, sort and visible columns; present
      *                      exactly when {@code canExport} is true
+     * @param bulkDeleteHref the address the bulk-delete form posts to: the bulk-delete route plus the list state (search,
+     *                      filters, sort, page, size) in its query, so the redirect after the delete can return to the same
+     *                      list; present exactly when {@code canBulkDelete} is true (D-65)
      */
-    public record Actions(boolean canCreate, boolean canExport, boolean canBulkDelete, String exportHref) {
+    public record Actions(boolean canCreate, boolean canExport, boolean canBulkDelete, String exportHref,
+                          String bulkDeleteHref) {
         public Actions {
             Hrefs.optional("exportHref", exportHref);
+            Hrefs.optional("bulkDeleteHref", bulkDeleteHref);
             if (canExport != (exportHref != null)) {
                 throw new IllegalArgumentException("exportHref is required exactly when export is offered");
+            }
+            if (canBulkDelete != (bulkDeleteHref != null)) {
+                throw new IllegalArgumentException("bulkDeleteHref is required exactly when bulk delete is offered");
             }
         }
     }

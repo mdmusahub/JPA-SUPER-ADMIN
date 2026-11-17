@@ -5,6 +5,7 @@ import io.github.mdmusahub.jpaadmin.web.view.PageChrome.Breadcrumb;
 import io.github.mdmusahub.jpaadmin.web.view.PageChrome.FlashMessage;
 import jakarta.servlet.http.HttpServletRequest;
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -52,7 +53,21 @@ public final class ConsoleChromeFactory {
     public PageChrome chrome(HttpServletRequest request, List<Breadcrumb> breadcrumbs, String activeEntity,
                              List<FlashMessage> flash) {
         return new PageChrome(settings.title(), basePath.value(), PageChrome.Theme.SYSTEM, navigation.sidebar(),
-                activeEntity, breadcrumbs, flash, signedInUser(request), csrfTokens.forRequest(request));
+                activeEntity, breadcrumbs, withPending(request, flash), signedInUser(request),
+                csrfTokens.forRequest(request));
+    }
+
+    /**
+     * The messages a redirect left for this visitor (see {@link ConsoleFlash}), shown once, before this page's own.
+     */
+    private static List<FlashMessage> withPending(HttpServletRequest request, List<FlashMessage> flash) {
+        List<FlashMessage> pending = ConsoleFlash.take(request);
+        if (pending.isEmpty()) {
+            return flash;
+        }
+        List<FlashMessage> all = new ArrayList<>(pending);
+        all.addAll(flash);
+        return all;
     }
 
     /**
