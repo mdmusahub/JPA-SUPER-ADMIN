@@ -76,6 +76,9 @@ final class ChromeFixtures {
         VARIANTS.put("search-cut", () -> chrome(BASE, Theme.SYSTEM, navigation(), "article",
                 List.of(new Breadcrumb("Dashboard", BASE), new Breadcrumb("Articles", null)),
                 List.of(ListViewFactory.searchCutNotice())));
+        // A list whose address carried filters the console ignored: the notices are the real ones, built by the real factory.
+        VARIANTS.put("filters-ignored", () -> chrome(BASE, Theme.SYSTEM, navigation(), "article",
+                List.of(new Breadcrumb("Dashboard", BASE), new Breadcrumb("Articles", null)), FilterFixtures.ignoredNotices()));
         // The list of another entity: "Members" is the active item, as the masked-column list fixture needs.
         VARIANTS.put("member-active", () -> chrome(BASE, Theme.SYSTEM, navigation(), "member",
                 List.of(new Breadcrumb("Dashboard", BASE), new Breadcrumb("Members", null)), List.of()));

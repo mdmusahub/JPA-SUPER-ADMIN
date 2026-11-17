@@ -10,7 +10,7 @@ A **fixture** is a named, fake instance of a view-model record. The preview app 
 - **Fake data only:** no real names, no real secrets. Masked values are never given a value, even in a fixture (SEC-1).
 - **Generic names:** fixtures use invented entities such as Article, Member and Invoice, never entity names from `sample-app` (ARCH-12).
 - **Links:** every link in a fixture is a local path under the chrome's base path (`docs/UI_PLAN.md` section 3, "Links"). Fixtures are built through the real record constructors, so a link that breaks the rule cannot be written. A fixture never contains an external link. Templates print the links the fixture gives them and never build sort, page, page-size, export or form links themselves.
-- **Status:** each fixture below belongs to the UI task that first needs it (U0 to U9, `docs/UI_PLAN.md` section 7). A fixture is part of "done" for that task. After Phase 4 the list fixtures of task U2 exist; those of U3 (filters) and U8 (export, saved views) do not yet.
+- **Status:** each fixture below belongs to the UI task that first needs it (U0 to U9, `docs/UI_PLAN.md` section 7). A fixture is part of "done" for that task. After Phase 4 the list fixtures of task U2 exist; those of U3 (filters) exist since Phase 6; those of U8 (export, saved views) do not yet.
 
 Fixture names are lower-case with hyphens. A fixture listed under "Covers" proves that the template handles that state.
 
@@ -31,6 +31,7 @@ Used with any page through `&chrome=`.
 | `no-user` | `PageChrome.user` is `null` | A page with no signed-in user: no user chip, no sign-out (the error pages) | U1 |
 | `member-active` | the Members entity active, breadcrumbs Dashboard and Members, no flash | The list of a second entity (the masked-column list fixture uses it by default) | U2 |
 | `search-cut` | the Articles entity active, one INFO flash message built by `ListViewFactory.searchCutNotice()` | The notice for a search cut at the limit (the `search-cut` list fixture uses it by default) | U2 |
+| `filters-ignored` | the Articles entity active, `flash` holds the notices built by `ListViewFactory.filterNotices(...)` from real `FilterNote`s: four WARNING notes and one INFO note | The notices for ignored and cut filters, above the content (the `filter-ignored` list fixture uses it by default) | U3 |
 
 ## 2. Login (record: `LoginView`)
 
@@ -93,9 +94,19 @@ The preview serves these from a stub endpoint, so the chart can be built without
 | `last-page` | `page` is the last page, fewer rows than the size, `firstHref` and `prevHref` present, `nextHref` and `lastHref` `null` | Pager range text, first and previous enabled, next and last disabled | U2 |
 | `single-page` | `total` less than `size`, all four page links `null` | Pager hidden or minimal | U2 |
 | `page-size-50` | `size` 50, the 50 option `current`, every option with a link | Page-size control shows the current size and links the others | U2 |
-| `filters-open` | `Filters.definitions` of every `Kind` (text, enum, boolean, relation, number range, date range), none active | Filter panel inputs for each kind | U3 |
-| `filters-active` | Several active `Chip` entries and `clearAllHref` | Removable chips, clear all, filter button count | U3 |
-| `relation-many-options` | A relation filter with 200 options | Long select, keyboard use | U3 |
+| `filters-open` | `Filters.definitions` of every `Kind` (text, enum, boolean, relation, number range, date range), none active, no chips, `clearAllHref` `null` (delivered, task U3) | The closed panel (a `details` element), one labelled control for each kind inside the list's own GET form, "Any" first in every select, "Apply filters" | U3 |
+| `filters-active` | Six active filters, one of each kind, six `Chip` entries and a `clearAllHref` (delivered, task U3) | One chip per filter with a remove link that has an accessible name, "Clear all filters", the count on the "Filters" button, every control showing its value | U3 |
+| `relation-many-options` | A relation filter with 200 options, the first four with long, unicode and markup labels (delivered, task U3) | One long select (201 options with "Any"), labels escaped, keyboard use | U3 |
+| `filter-text`, `filter-enum`, `filter-boolean`, `filter-relation` | One active filter of that kind (delivered, task U3) | The control shows its value (`value`, or the `selected` option), one chip, the remove link is the plain address | U3 |
+| `filter-number-range`, `filter-number-min-only`, `filter-date-range` | A number range with both bounds, a number range with only a minimum, a date range (delivered, task U3) | Both bounds filled, or one; the chip says "1000 to 5000", "at least 8000", "2026-09-01 to 2026-10-15" | U3 |
+| `filter-combined` | A search, a sort by views descending, a page size of 10 and three filters (enum, number range, date range) (delivered, task U3) | Each chip's remove link drops only its filter and keeps the search, the sort and the size, and has no page; "Clear all filters" keeps the other three | U3 |
+| `filter-middle-page` | One filter, page 2 of 10 rows, sorted by title (delivered, task U3) | Next, previous, sort and page-size links all carry the filter; only the page links carry a page | U3 |
+| `filter-ignored` | One valid filter, with the chrome variant `filters-ignored` whose `flash` holds the real notices for ignored filters (delivered, task U3) | WARNING notices (role alert) for what was ignored and why, an INFO notice (role status) for a value that was cut, no value repeated | U3 |
+| `filter-no-matches`, `filter-no-matches-with-search` | Filters that match nothing, without and with a search (delivered, task U3) | "No articles match the filters", or "match your search and filters"; "Clear all filters" and, with a search, "Clear search and filters" | U3 |
+| `filter-relation-dropdown` | A relation filter with 40 choices, one selected, labels with markup, unicode and a very long name (delivered, task U3) | The select lists every choice, labels are escaped, nothing is run | U3 |
+| `filter-chips-escaped` | A text filter whose value is markup, quotes and unicode (delivered, task U3) | The value is escaped in the control, the chip and the remove link's `aria-label` | U3 |
+| `filter-sensitive-absent` | Members with a masked password column and filters for name, email and joined only (delivered, task U3) | The masked column has no filter and the word "password" is not in the panel | U3 |
+| `filter-hidden-entity-absent` | A table with a relation column to an entity that is hidden from the console (shown as `#id`) and a masked column; the panel has title and author only (delivered, task U3) | No control for the hidden relation or the masked column, and nothing of the hidden entity is listed | U3 |
 | `read-only` | `Actions` with create, export and bulk delete all false, `exportHref` `null` | No "New record", no export, no checkboxes | U2 |
 | `export-enabled` | `Actions.canExport` true and `exportHref` carrying the current search, filters, sort and visible columns | Export button links to `exportHref`, plus its disabled and busy states | U8 |
 | `export-disabled` | `canExport` false and `exportHref` `null`, create and bulk delete on | No export button while the other actions stay | U8 |

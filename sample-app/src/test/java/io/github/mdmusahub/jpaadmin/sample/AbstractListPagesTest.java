@@ -468,7 +468,7 @@ abstract class AbstractListPagesTest {
     }
 
     @Test
-    void aListPageCostsTwoStatementsWhateverTheRowsAndLoadsNoEntityAndNoCollection() throws Exception {
+    void aListPageCostsTwoStatementsPlusOnePerRelationFilterWhateverTheRowsAndLoadsNoEntityAndNoCollection() throws Exception {
         Statistics statistics = statistics();
         for (String path : List.of("/admin/order?size=100", "/admin/product?size=100", "/admin/customer?size=100",
                 "/admin/product?q=bulk%20item&sort=price&dir=desc&page=1&size=10",
@@ -480,8 +480,10 @@ abstract class AbstractListPagesTest {
 
             page(path);
 
-            assertThat(statistics.getPrepareStatementCount()).as(path + ": a count and a page, nothing per row (ARCH-6)")
-                    .isEqualTo(2);
+            // A count and a page, nothing per row (ARCH-6), plus (Phase 6, D-63) one small statement for the choices of
+            // each relation filter: products have one (category), orders one (customer), customers none.
+            assertThat(statistics.getPrepareStatementCount()).as(path + ": a count and a page, and one per relation filter")
+                    .isEqualTo(path.startsWith("/admin/customer") ? 2 : 3);
             assertThat(statistics.getEntityLoadCount()).as(path + ": no entity is ever loaded (ARCH-3)").isZero();
             assertThat(statistics.getCollectionLoadCount()).as(path + ": no collection is ever read (ARCH-4)").isZero();
         }
