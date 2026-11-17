@@ -192,12 +192,36 @@ class ViewInvariantsTest {
 
     @Test
     void exportLinkIsPresentExactlyWhenExportIsOffered() {
-        assertThatCode(() -> new ListView.Actions(true, true, true, "/admin/item/export")).doesNotThrowAnyException();
-        assertThatCode(() -> new ListView.Actions(true, false, true, null)).doesNotThrowAnyException();
-        assertThatThrownBy(() -> new ListView.Actions(true, true, true, null))
+        assertThatCode(() -> new ListView.Actions(true, true, true, "/admin/item/export", "/admin/item/bulk-delete"))
+                .doesNotThrowAnyException();
+        assertThatCode(() -> new ListView.Actions(true, false, true, null, "/admin/item/bulk-delete"))
+                .doesNotThrowAnyException();
+        assertThatThrownBy(() -> new ListView.Actions(true, true, true, null, "/admin/item/bulk-delete"))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("exportHref");
-        assertThatThrownBy(() -> new ListView.Actions(true, false, true, "/admin/item/export"))
+        assertThatThrownBy(() -> new ListView.Actions(true, false, true, "/admin/item/export", "/admin/item/bulk-delete"))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("exportHref");
+    }
+
+    @Test
+    void bulkDeleteLinkIsPresentExactlyWhenBulkDeleteIsOffered() {
+        assertThatCode(() -> new ListView.Actions(false, false, true, null, "/admin/item/bulk-delete?q=a"))
+                .doesNotThrowAnyException();
+        assertThatCode(() -> new ListView.Actions(false, false, false, null, null)).doesNotThrowAnyException();
+        assertThatThrownBy(() -> new ListView.Actions(false, false, true, null, null))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("bulkDeleteHref");
+        assertThatThrownBy(() -> new ListView.Actions(false, false, false, null, "/admin/item/bulk-delete"))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("bulkDeleteHref");
+    }
+
+    @Test
+    void deleteLinkOfTheDetailPageIsPresentExactlyWhenDeleteIsOffered() {
+        assertThatCode(() -> new DetailView.Actions(true, true, true, "/admin/item/1/delete?page=2"))
+                .doesNotThrowAnyException();
+        assertThatCode(() -> new DetailView.Actions(true, true, false, null)).doesNotThrowAnyException();
+        assertThatThrownBy(() -> new DetailView.Actions(true, true, true, null))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("deleteHref");
+        assertThatThrownBy(() -> new DetailView.Actions(true, true, false, "/admin/item/1/delete"))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("deleteHref");
     }
 
     @Test

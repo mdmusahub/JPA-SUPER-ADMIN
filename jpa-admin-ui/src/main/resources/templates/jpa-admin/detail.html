@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en"
+      th:replace="~{jpa-admin/layout :: layout(${view.title}, ~{::main}, true)}">
+<!--/*
+  One record's detail page (task U4): the title, the actions, the labelled values, and the delete form. It reads only
+  chrome and view (a DetailView). It builds no link that carries state (D-28, D-65): the way back to the list is the
+  breadcrumb (it keeps the list state the page was opened with), the delete form posts to view.actions.deleteHref, and a
+  relation value is a link that the backend gave its cell. "Edit" and "Duplicate" are fixed routes with the id as a path
+  variable or a link parameter, which Thymeleaf percent-encodes; they appear only when view.actions says so.
+
+  Every value is printed with th:text, so it is escaped (SEC-9). A masked value is dots only, with "Hidden value" for a
+  screen reader. A collection, an embedded value or binary data shows its label and "(not shown)". A long text keeps its
+  line breaks, wraps long words, and past 300 characters sits in a details element whose summary is the start of it.
+
+  Deleting works without script: "Delete record" is a details element whose panel is a plain POST form with the question
+  and the submit button (UI-5), and the CSRF token. Script is not needed and not used.
+*/-->
+<body>
+<main id="main" class="content" tabindex="-1">
+  <header class="list-header">
+    <div class="list-title">
+      <p class="muted detail-kicker" th:text="${view.entityLabel} + ' #' + ${view.id}">Article #1</p>
+      <h1 class="page-title" th:text="${view.title}">Record title</h1>
+    </div>
+    <div class="list-actions" th:if="${view.actions.canEdit or view.actions.canDuplicate}">
+      <a class="btn" th:if="${view.actions.canEdit}"
+         th:href="@{${chrome.basePath} + '/' + ${chrome.activeEntity} + '/{id}/edit'(id=${view.id})}">Edit record</a>
+      <a class="btn" th:if="${view.actions.canDuplicate}"
+         th:href="@{${chrome.basePath} + '/' + ${chrome.activeEntity} + '/new'(copyFrom=${view.id})}">Duplicate record</a>
+    </div>
+  </header>
+
+  <section class="card detail-card" aria-label="Details">
+    <dl class="detail-grid">
+      <div class="detail-field" th:each="field : ${view.fields}">
+        <dt th:text="${field.label}">Label</dt>
+        <dd class="detail-value">
+          <th:block th:if="${field.cell.type.name() == 'TEXT' and field.cell.display.length() > 300}">
+            <details class="detail-more">
+              <summary th:text="${#strings.abbreviate(field.cell.display, 200)}">Start of a long text</summary>
+              <div class="detail-long" th:text="${field.cell.display}">The whole text</div>
+            </details>
+          </th:block>
+          <th:block th:unless="${field.cell.type.name() == 'TEXT' and field.cell.display.length() > 300}">
+            <th:block th:replace="~{jpa-admin/fragments/cell :: cell(${field.cell})}"></th:block>
+          </th:block>
+        </dd>
+      </div>
+    </dl>
+  </section>
+
+  <section class="card detail-images" th:if="${!view.images.isEmpty()}" aria-label="Images">
+    <ul class="image-strip">
+      <li th:each="image : ${view.images}">
+        <a th:href="@{${image.url}}"><img class="detail-thumb" th:src="@{${image.url}}" th:alt="${image.label}"></a>
+      </li>
+    </ul>
+  </section>
+
+  <section class="card danger-zone" th:if="${view.actions.canDelete}" aria-labelledby="delete-heading">
+    <h2 id="delete-heading" class="danger-title">Delete this record</h2>
+    <details class="confirm">
+      <summary class="btn btn-danger">Delete record</summary>
+      <form class="confirm-panel" method="post" th:action="@{${view.actions.deleteHref}}">
+        <input type="hidden" th:name="${chrome.csrf.parameterName}" th:value="${chrome.csrf.token}">
+        <p>
+          This permanently deletes <strong th:text="${view.title}">the record</strong>. It cannot be undone, and it is
+          refused if other records still depend on it.
+        </p>
+        <button type="submit" class="btn btn-danger">Yes, delete record</button>
+      </form>
+    </details>
+  </section>
+</main>
+</body>
+</html>

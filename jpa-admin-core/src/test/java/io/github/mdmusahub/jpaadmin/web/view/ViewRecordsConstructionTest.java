@@ -65,7 +65,7 @@ class ViewRecordsConstructionTest {
         assertThat(Samples.paging().prevHref()).isNull();
         assertThat(Samples.paging().nextHref()).isNull();
         assertThat(Samples.paging().lastHref()).isNull();
-        assertThat(new ListView.Actions(true, false, true, null).exportHref()).isNull();
+        assertThat(new ListView.Actions(true, false, true, null, "/admin/item/bulk-delete").exportHref()).isNull();
         assertThat(new ListView.Filters(List.of(), List.of(), null).clearAllHref()).isNull();
         assertThat(Samples.createForm().recordId()).isNull();
     }

@@ -10,7 +10,7 @@ A **fixture** is a named, fake instance of a view-model record. The preview app 
 - **Fake data only:** no real names, no real secrets. Masked values are never given a value, even in a fixture (SEC-1).
 - **Generic names:** fixtures use invented entities such as Article, Member and Invoice, never entity names from `sample-app` (ARCH-12).
 - **Links:** every link in a fixture is a local path under the chrome's base path (`docs/UI_PLAN.md` section 3, "Links"). Fixtures are built through the real record constructors, so a link that breaks the rule cannot be written. A fixture never contains an external link. Templates print the links the fixture gives them and never build sort, page, page-size, export or form links themselves.
-- **Status:** each fixture below belongs to the UI task that first needs it (U0 to U9, `docs/UI_PLAN.md` section 7). A fixture is part of "done" for that task. After Phase 4 the list fixtures of task U2 exist; those of U3 (filters) exist since Phase 6; those of U8 (export, saved views) do not yet.
+- **Status:** each fixture below belongs to the UI task that first needs it (U0 to U9, `docs/UI_PLAN.md` section 7). A fixture is part of "done" for that task. After Phase 4 the list fixtures of task U2 exist; those of U3 (filters) exist since Phase 6; those of U4 (detail, row links, checkboxes, the pages after a delete) exist since Phase 7; those of U8 (export, saved views) do not yet.
 
 Fixture names are lower-case with hyphens. A fixture listed under "Covers" proves that the template handles that state.
 
@@ -32,6 +32,8 @@ Used with any page through `&chrome=`.
 | `member-active` | the Members entity active, breadcrumbs Dashboard and Members, no flash | The list of a second entity (the masked-column list fixture uses it by default) | U2 |
 | `search-cut` | the Articles entity active, one INFO flash message built by `ListViewFactory.searchCutNotice()` | The notice for a search cut at the limit (the `search-cut` list fixture uses it by default) | U2 |
 | `filters-ignored` | the Articles entity active, `flash` holds the notices built by `ListViewFactory.filterNotices(...)` from real `FilterNote`s: four WARNING notes and one INFO note | The notices for ignored and cut filters, above the content (the `filter-ignored` list fixture uses it by default) | U3 |
+| `article-detail` | the Articles entity active, breadcrumbs Dashboard, Articles (a link), "Guide on onboarding 7" (delivered, task U4) | The shell of a detail page (the `detail` fixtures use a chrome built from their own record and list state by default) | U4 |
+| `delete-done`, `delete-blocked`, `bulk-done`, `bulk-partial`, `bulk-over-cap`, `bulk-blocked`, `bulk-nothing-selected`, `duplicate-later` | the Articles entity active, `flash` holds one message built by the real `DeleteMessages` (SUCCESS, ERROR, SUCCESS, WARNING, ERROR, ERROR, WARNING, INFO); the two on a record page carry the record's breadcrumbs (delivered, task U4) | The messages after a delete, shown once above the content: role `status` for success and information, role `alert` for a refusal or a warning; no SQL, table name or stack trace | U4 |
 
 ## 2. Login (record: `LoginView`)
 
@@ -107,25 +109,42 @@ The preview serves these from a stub endpoint, so the chart can be built without
 | `filter-chips-escaped` | A text filter whose value is markup, quotes and unicode (delivered, task U3) | The value is escaped in the control, the chip and the remove link's `aria-label` | U3 |
 | `filter-sensitive-absent` | Members with a masked password column and filters for name, email and joined only (delivered, task U3) | The masked column has no filter and the word "password" is not in the panel | U3 |
 | `filter-hidden-entity-absent` | A table with a relation column to an entity that is hidden from the console (shown as `#id`) and a masked column; the panel has title and author only (delivered, task U3) | No control for the hidden relation or the masked column, and nothing of the hidden entity is listed | U3 |
-| `read-only` | `Actions` with create, export and bulk delete all false, `exportHref` `null` | No "New record", no export, no checkboxes | U2 |
+| `read-only` | `Actions` with create, export and bulk delete all false, `exportHref` and `bulkDeleteHref` `null` | No "New record", no export, no checkboxes | U2 |
 | `export-enabled` | `Actions.canExport` true and `exportHref` carrying the current search, filters, sort and visible columns | Export button links to `exportHref`, plus its disabled and busy states | U8 |
 | `export-disabled` | `canExport` false and `exportHref` `null`, create and bulk delete on | No export button while the other actions stay | U8 |
 | `page-size-10` | page 2 of pages of 10, the 10 option `current` | Page-size control, range "21-30 of 94" | U2 |
 | `relation-cells` | Relation cells with and without an `href`, and an empty relation | Link or text, "No value" | U2 |
 | `unicode` | Titles in Turkish, Russian, Japanese, Greek and Arabic, an emoji with a combining mark, and a title that is markup | Text is shown as text and escaped | U2 |
 | `saved-views` | `ListView` with search, sort and filters set, plus page size 50 and hidden columns; every link keeps that state | Saved views menu applies and restores this exact state from the URL | U8 |
+| `bulk-delete` | 25 articles of 94 built by the real factory with bulk delete offered: the identifier cell and the author link, a checkbox column, the bulk bar, `bulkDeleteHref` (delivered, task U4) | A first column of checkboxes (name `ids`, a label per row such as "Select Article 1"), a header checkbox for this page (script only), a POST form with the CSRF token around the table and the bar, the GET search form closed before it, the bar with "Delete selected" and "Yes, delete selected" | U4 |
+| `bulk-delete-state` | search `guide`, sorted by title, page 2, size 10, bulk delete offered (delivered, task U4) | The bulk form's address carries `q`, `sort`, `dir`, `page` and `size`, built by `ListLinks`, so the answer returns to this list | U4 |
+| `row-links` | 8 articles, no bulk delete, size 10: every identifier a link, six authors links to members, a reviewer whose entity is hidden (text `#n`), two missing authors (delivered, task U4) | The row link carries `?size=10`; a relation to a hidden entity and an empty relation have no link; no checkbox column | U4 |
+| `bulk-read-only` | the same rows with no bulk delete (delivered, task U4) | A read-only entity: row links, no checkbox, no bar, no form, no "Delete selected" | U4 |
+| `bulk-escaped` | four rows whose identifiers are markup, quotes and `&` (delivered, task U4) | The checkbox label, its value and the title are escaped; an identifier that cannot be an address segment has no link | U4 |
+| `bulk-last-page` | page 4 of 4 with bulk delete offered (delivered, task U4) | 19 checkboxes on a partial last page | U4 |
+| `delete-done`, `bulk-done`, `bulk-partial`, `bulk-over-cap`, `bulk-blocked`, `bulk-nothing-selected` | the `bulk-delete` list with the chrome variant of the same name (delivered, task U4) | The list after a delete, with the real message above it: success, warning, the refusal over the cap of 100, a rolled-back batch, no selection | U4 |
 
 ## 6. Detail (records: `DetailView`, `Cell`)
 
+Delivered with task U4 (Phase 7). Every state is built by the real `DetailViewFactory` from a fake `DetailRecord`, with a chrome built from the record and the list state (`/admin-preview/detail?state=...`).
+
 | Fixture | Fills | Covers | Task |
 |---|---|---|---|
-| `normal` | `DetailView` with 8 fields, all actions | Detail grid, Edit, Duplicate and Delete buttons, confirm dialog on delete | U4 |
-| `all-cell-types` | One field per `Cell.Type` | Cell renderer in the detail grid | U4 |
-| `with-images` | 3 `Image` entries | Image strip, alt text, broken-image fallback | U4, U6 |
-| `masked-field` | A field with a `MASKED` cell | Dots only | U4 |
-| `long-text` | A 2,000-character value and a long word | Wrapping, "show more" | U4 |
-| `read-only` | `Actions` all false | No action buttons | U4 |
-| `delete-blocked` | `normal` page with an error flash from a blocked delete (via the `flash-all-levels` chrome) | Friendly foreign-key message shown after a failed delete | U4 |
+| `normal` | `DetailView` with 8 fields, Edit, Duplicate and Delete offered | Detail grid, Edit and Duplicate links with the id as a path variable and a link parameter, the delete `details` question with a POST form, the CSRF token, "Yes, delete record" | U4 |
+| `real-actions` | the same record with only Delete offered (what the real console offers in Phase 7) | No Edit and no Duplicate link | U4 |
+| `read-only` | `Actions` all false | No action, no delete card, no form, no token | U4 |
+| `empty-fields` | every field but the id empty, no label | A dash with "No value" for a screen reader; the title falls back to "Article #12" | U4 |
+| `long-text` | a body of more than 300 characters with line breaks and a very long word, a medium text, a very long label | The summary of 200 characters ending in "...", the whole text in `detail-long` with `pre-wrap`, a medium text printed in the grid with its line break | U4 |
+| `relations` | a member link, a label-less target (`#4`, still a link), a hidden target (`#9`, no link), an empty relation, a label that is markup | Links only where the cell has an `href`; the label escaped | U4 |
+| `masked-field` | two `MASKED` cells | Dots only, "Hidden value" for a screen reader, no value anywhere | U4 |
+| `with-images` | three `Image` entries, an image cell and a file cell | Image strip under the base path, escaped alternative text, a missing picture's alt text | U4, U6 |
+| `all-cell-types` | one field per `Cell.Type` | Cell renderer in the detail grid | U4 |
+| `collection-not-shown` | three fields that say "(not shown)" | A collection, an embedded value and binary data show their label only | U4 |
+| `no-label` | `label` null | Title "Article #7" | U4 |
+| `escaped` | title, labels and values that are markup, quotes, unicode | Everything printed as text | U4 |
+| `with-list-state` | the page opened with search, sort, page and size | The breadcrumb for the list and the delete form's address carry `q`, `sort`, `dir`, `page`, `size`, encoded | U4 |
+| `delete-blocked` | the page with the chrome variant `delete-blocked` (the real `DeleteMessages.inUse` text) | The friendly message after a refused delete, no SQL | U4 |
+| `duplicate-later` | the page with the chrome variant `duplicate-later` | The notice of the duplicate route | U4 |
 
 ## 7. Form (records: `FormView`, `FormView.Field`, `FormView.Option`)
 
@@ -173,7 +192,7 @@ These reuse the fixtures above and are part of the acceptance checklist in `docs
 | Check | Fixtures used |
 |---|---|
 | Phone width, drawer sidebar | `long-sidebar` with `list/many-columns` |
-| Keyboard only, Escape closes dialogs | `detail/normal` (delete dialog), `list/normal` (bulk bar) |
+| Keyboard only, Escape closes dialogs | `detail/normal` (the delete question), `list/bulk-delete` (the bulk bar) |
 | `localStorage` unavailable | `list/saved-views`, `chrome/theme-system` |
 | No sensitive value in HTML | `list/masked-column`, `detail/masked-field`, `form/masked-input` |
 | No external requests | every page |

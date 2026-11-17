@@ -6,6 +6,7 @@ import io.github.mdmusahub.jpaadmin.service.FilterNote;
 import io.github.mdmusahub.jpaadmin.service.ListColumn;
 import io.github.mdmusahub.jpaadmin.service.ListPage;
 import io.github.mdmusahub.jpaadmin.service.ListQuery;
+import io.github.mdmusahub.jpaadmin.web.view.Cell;
 import io.github.mdmusahub.jpaadmin.web.view.ListView;
 import io.github.mdmusahub.jpaadmin.web.view.PageChrome;
 import java.util.ArrayList;
@@ -47,14 +48,61 @@ public final class ListViewFactory {
      */
     public static ListView build(String basePath, String urlName, ListView.EntityInfo entity, ListPage page,
                                  ListView.Actions actions) {
+        return build(basePath, urlName, entity, page, actions, false);
+    }
+
+    /**
+     * As {@link #build(String, String, ListView.EntityInfo, ListPage, ListView.Actions)}, and when {@code bulkDelete} is
+     * true also offers bulk delete: the {@code actions} you pass must not offer it yet, and the factory adds the flag
+     * together with the address the form posts to, which carries the list state of this page (D-65).
+     *
+     * <p>Every row's identifier cell links to the record's detail page, carrying the same list state, and a relation cell
+     * links to the related record's detail page exactly when its column names a target that is in the console and the
+     * relation is set (D-54, D-70). The links are built here, not in the query service, which does not know the base
+     * path; a cell whose id cannot be written into an address has no link.
+     */
+    public static ListView build(String basePath, String urlName, ListView.EntityInfo entity, ListPage page,
+                                 ListView.Actions actions, boolean bulkDelete) {
         Objects.requireNonNull(basePath, "basePath");
         Objects.requireNonNull(entity, "entity");
         Objects.requireNonNull(page, "page");
         Objects.requireNonNull(actions, "actions");
         ListLinks links = new ListLinks(basePath, urlName);
         ListQuery query = page.query();
-        return new ListView(entity, columns(page, query, links), page.rows(), query.search(), query.sort(),
-                query.dir(), filters(page, query, links), paging(page, query, links), actions, empty(page, entity));
+        ListView.Actions offered = bulkDelete && !actions.canBulkDelete()
+                ? new ListView.Actions(actions.canCreate(), actions.canExport(), true, actions.exportHref(),
+                        links.bulkDelete(query))
+                : actions;
+        return new ListView(entity, columns(page, query, links), linked(basePath, page, links, query), query.search(),
+                query.sort(), query.dir(), filters(page, query, links), paging(page, query, links), offered,
+                empty(page, entity));
+    }
+
+    /** The rows with their links: the identifier cell and the relation cells (see {@code build}). */
+    private static List<ListView.Row> linked(String basePath, ListPage page, ListLinks links, ListQuery query) {
+        List<ListView.Row> rows = new ArrayList<>(page.rows().size());
+        for (int n = 0; n < page.rows().size(); n++) {
+            ListView.Row row = page.rows().get(n);
+            List<Cell> cells = new ArrayList<>(row.cells());
+            for (int i = 0; i < cells.size(); i++) {
+                ListColumn column = page.columns().get(i);
+                Cell cell = cells.get(i);
+                String href = null;
+                if (column.identifier() && cell.type() != Cell.Type.MASKED && cell.type() != Cell.Type.EMPTY) {
+                    href = links.detail(row.id(), query);
+                } else if (column.targetEntity() != null && cell.type() == Cell.Type.RELATION
+                        && n < page.relationIds().size() && page.relationIds().get(n).get(i) != null) {
+                    // The link carries no list state: it leaves this entity's list for another entity's record.
+                    href = new ListLinks(basePath, column.targetEntity()).detail(page.relationIds().get(n).get(i),
+                            ListQuery.defaults());
+                }
+                if (href != null) {
+                    cells.set(i, new Cell(cell.type(), cell.display(), cell.tone(), href, cell.title()));
+                }
+            }
+            rows.add(new ListView.Row(row.id(), cells));
+        }
+        return rows;
     }
 
     private static ListView.Filters filters(ListPage page, ListQuery query, ListLinks links) {

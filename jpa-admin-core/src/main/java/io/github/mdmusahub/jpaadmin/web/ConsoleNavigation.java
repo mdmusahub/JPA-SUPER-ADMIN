@@ -75,7 +75,7 @@ public final class ConsoleNavigation {
             OptionalLong count = counted.getOrDefault(entity.urlName(), OptionalLong.empty());
             groups.computeIfAbsent(entity.group(), group -> new ArrayList<>())
                     .add(new DashboardView.EntityCard(entity.urlName(), entity.label(), entity.icon(),
-                            number(count), permissions()));
+                            number(count), permissions(entity)));
             if (count.isPresent()) {
                 // An entity whose count could not be read is left out instead of being counted as zero.
                 total += count.getAsLong();
@@ -100,10 +100,11 @@ public final class ConsoleNavigation {
     }
 
     /**
-     * What the console offers for an entity today. Creating, changing, deleting and exporting arrive in Phases 7
-     * to 11, so nothing is offered yet and no page shows a button that would lead nowhere (SEC-11).
+     * What the console offers for an entity today: deleting, when {@code @AdminResource} allows it (the flag is also
+     * enforced in the service, SEC-11). Creating, changing and exporting arrive in Phases 8 to 11, so they are not offered
+     * yet and no page shows a button that would lead nowhere.
      */
-    private static DashboardView.Permissions permissions() {
-        return new DashboardView.Permissions(false, false, false, false);
+    private static DashboardView.Permissions permissions(AdminEntity entity) {
+        return new DashboardView.Permissions(false, false, entity.canDelete(), false);
     }
 }

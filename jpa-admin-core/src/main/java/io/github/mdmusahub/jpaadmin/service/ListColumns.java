@@ -73,7 +73,21 @@ final class ListColumns {
                 && registry.find(field.targetEntity()).flatMap(ListColumns::labelAttributeOf).isPresent();
     }
 
+    /**
+     * The column of one field. A relation column also names the target entity (exactly when the target is in the
+     * console: a hidden or unsupported target has {@code null}, so its cells never link, D-54), and the identifier column
+     * says so (its cells link to the record's detail page).
+     */
     private static ListColumn column(AdminField field, AdminEntityRegistry registry) {
+        ListColumn base = baseColumn(field, registry);
+        if (base == null) {
+            return null;
+        }
+        return new ListColumn(base.key(), base.label(), base.type(), base.sortable(), base.align(),
+                base.type() == Cell.Type.RELATION ? field.targetEntity() : null, field.id());
+    }
+
+    private static ListColumn baseColumn(AdminField field, AdminEntityRegistry registry) {
         String label = field.id() ? "ID" : field.label();
         if (field.kind() == AdminField.Kind.TO_MANY || field.kind() == AdminField.Kind.EMBEDDED) {
             return null;
