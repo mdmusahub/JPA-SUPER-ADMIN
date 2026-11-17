@@ -47,6 +47,7 @@
     <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Crate</class>
     <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Vault</class>
     <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Stamp</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Ledger</class>
     <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Dimensions</class>
     <exclude-unlisted-classes>true</exclude-unlisted-classes>
     <properties>

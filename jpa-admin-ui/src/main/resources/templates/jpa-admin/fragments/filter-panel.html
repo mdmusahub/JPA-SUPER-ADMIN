@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<body>
+<!--/*
+  The filter panel of the list page (task U3): one labelled control for each definition in view.filters.definitions,
+  inside the list's own GET form (see list.html), so it works without JavaScript and the whole state is in the address.
+  It is a details element: the summary opens and closes it from the keyboard and with the mouse, with no script.
+
+  The backend decides which fields can be filtered; a sensitive or hidden field has no definition, so it has no control
+  and nothing here can name one. The template reads only the definition (key, label, kind, options, value, from, to) and
+  prints every value with th:text or th:value (escaped, SEC-9). Nothing here builds a link.
+
+  Names of the controls: filter.<key> for text, enum, boolean and relation; filter.<key>.min and .max for a number range;
+  filter.<key>.from and .to for a date range. A control left empty is "not set": the server ignores it without a message,
+  and filters.js leaves it out of the address when scripts are on.
+
+  A select always starts with "Any". A relation select lists the labels of the target's records (the backend limits it to
+  200 and offers no select at all for a larger target, so a list is never cut short without saying so).
+*/-->
+<th:block th:fragment="panel">
+  <details class="filter-panel" th:if="${!view.filters.definitions.isEmpty()}">
+    <summary class="btn filter-summary">
+      <span>Filters</span>
+      <span class="filter-count" th:if="${!view.filters.chips.isEmpty()}"
+            th:text="${view.filters.chips.size()}"
+            th:attr="aria-label=${view.filters.chips.size()} + ' active'">2</span>
+    </summary>
+
+    <div class="filter-grid">
+      <th:block th:each="def : ${view.filters.definitions}" th:switch="${def.kind.name()}">
+
+        <div class="filter-field" th:case="'TEXT'">
+          <label class="filter-label" th:for="${'filter-' + def.key}" th:text="${def.label}">Name</label>
+          <input class="input" type="text" maxlength="100" autocomplete="off"
+                 th:id="${'filter-' + def.key}" th:name="${'filter.' + def.key}" th:value="${def.value}">
+        </div>
+
+        <div class="filter-field" th:case="'ENUM'">
+          <label class="filter-label" th:for="${'filter-' + def.key}" th:text="${def.label}">Status</label>
+          <select class="input" th:id="${'filter-' + def.key}" th:name="${'filter.' + def.key}">
+            <option value="">Any</option>
+            <option th:each="option : ${def.options}" th:value="${option.value}" th:text="${option.label}"
+                    th:selected="${option.value == def.value}">Published</option>
+          </select>
+        </div>
+
+        <div class="filter-field" th:case="'BOOLEAN'">
+          <label class="filter-label" th:for="${'filter-' + def.key}" th:text="${def.label}">Featured</label>
+          <select class="input" th:id="${'filter-' + def.key}" th:name="${'filter.' + def.key}">
+            <option value="">Any</option>
+            <option th:each="option : ${def.options}" th:value="${option.value}" th:text="${option.label}"
+                    th:selected="${option.value == def.value}">Yes</option>
+          </select>
+        </div>
+
+        <div class="filter-field" th:case="'RELATION'">
+          <label class="filter-label" th:for="${'filter-' + def.key}" th:text="${def.label}">Owner</label>
+          <select class="input" th:id="${'filter-' + def.key}" th:name="${'filter.' + def.key}">
+            <option value="">Any</option>
+            <option th:each="option : ${def.options}" th:value="${option.value}" th:text="${option.label}"
+                    th:selected="${option.value == def.value}">Books</option>
+          </select>
+        </div>
+
+        <fieldset class="filter-field filter-range" th:case="'NUMBER_RANGE'">
+          <legend class="filter-label" th:text="${def.label}">Price</legend>
+          <div class="filter-pair">
+            <div class="filter-bound">
+              <label class="filter-bound-label" th:for="${'filter-' + def.key + '-min'}">Min<span class="visually-hidden" th:text="${' (' + def.label + ')'}"> (Label)</span></label>
+              <input class="input" type="number" step="any" inputmode="decimal"
+                     th:id="${'filter-' + def.key + '-min'}" th:name="${'filter.' + def.key + '.min'}" th:value="${def.from}">
+            </div>
+            <div class="filter-bound">
+              <label class="filter-bound-label" th:for="${'filter-' + def.key + '-max'}">Max<span class="visually-hidden" th:text="${' (' + def.label + ')'}"> (Label)</span></label>
+              <input class="input" type="number" step="any" inputmode="decimal"
+                     th:id="${'filter-' + def.key + '-max'}" th:name="${'filter.' + def.key + '.max'}" th:value="${def.to}">
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="filter-field filter-range" th:case="'DATE_RANGE'">
+          <legend class="filter-label" th:text="${def.label}">Created at</legend>
+          <div class="filter-pair">
+            <div class="filter-bound">
+              <label class="filter-bound-label" th:for="${'filter-' + def.key + '-from'}">From<span class="visually-hidden" th:text="${' (' + def.label + ')'}"> (Label)</span></label>
+              <input class="input" type="date"
+                     th:id="${'filter-' + def.key + '-from'}" th:name="${'filter.' + def.key + '.from'}" th:value="${def.from}">
+            </div>
+            <div class="filter-bound">
+              <label class="filter-bound-label" th:for="${'filter-' + def.key + '-to'}">To<span class="visually-hidden" th:text="${' (' + def.label + ')'}"> (Label)</span></label>
+              <input class="input" type="date"
+                     th:id="${'filter-' + def.key + '-to'}" th:name="${'filter.' + def.key + '.to'}" th:value="${def.to}">
+            </div>
+          </div>
+        </fieldset>
+
+      </th:block>
+    </div>
+
+    <div class="filter-actions">
+      <button type="submit" class="btn btn-primary">Apply filters</button>
+      <a class="btn btn-quiet" th:if="${view.filters.clearAllHref != null}"
+         th:href="@{${view.filters.clearAllHref}}">Clear all filters</a>
+    </div>
+  </details>
+</th:block>
+</body>
+</html>
