@@ -68,7 +68,7 @@ final class ListColumns {
         return texts.stream().map(AdminField::name).findFirst();
     }
 
-    private static boolean targetHasLabel(AdminField field, AdminEntityRegistry registry) {
+    static boolean targetHasLabel(AdminField field, AdminEntityRegistry registry) {
         return field.targetEntity() != null
                 && registry.find(field.targetEntity()).flatMap(ListColumns::labelAttributeOf).isPresent();
     }

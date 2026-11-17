@@ -3,6 +3,7 @@ package io.github.mdmusahub.jpaadmin.testsupport;
 import io.github.mdmusahub.jpaadmin.testsupport.listmodel.Courier;
 import io.github.mdmusahub.jpaadmin.testsupport.listmodel.Crate;
 import io.github.mdmusahub.jpaadmin.testsupport.listmodel.Depot;
+import io.github.mdmusahub.jpaadmin.testsupport.listmodel.Ledger;
 import io.github.mdmusahub.jpaadmin.testsupport.listmodel.Parcel;
 import io.github.mdmusahub.jpaadmin.testsupport.listmodel.ParcelItem;
 import io.github.mdmusahub.jpaadmin.testsupport.listmodel.Stamp;
@@ -53,7 +54,7 @@ public final class ListTestPersistence {
     public static void empty() {
         inTransaction(em -> {
             for (Class<?> type : new Class<?>[] {ParcelItem.class, Parcel.class, Depot.class, Courier.class,
-                    Crate.class, Vault.class, Stamp.class}) {
+                    Crate.class, Vault.class, Stamp.class, Ledger.class}) {
                 em.createQuery("delete from " + type.getSimpleName()).executeUpdate();
             }
         });

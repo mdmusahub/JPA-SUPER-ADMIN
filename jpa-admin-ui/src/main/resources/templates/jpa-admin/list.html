@@ -6,10 +6,16 @@
   empty state. It reads only chrome and view (a ListView), and it prints the links the record gives it: it builds none
   of the sort, page, page-size or export links itself (D-28).
 
-  Search is a plain GET form, sort and paging are plain links, so the page works without JavaScript and the state
-  (search, sort, page, size) is always in the address: a reload or Back shows the same page (UI-10). The form keeps the
-  current sort and page size in hidden fields and starts again at the first page, which is the only page that is
-  always there for a new search.
+  Search and the filters are ONE plain GET form, sort and paging are plain links, so the page works without JavaScript
+  and the state (search, filters, sort, page, size) is always in the address: a reload or Back shows the same page
+  (UI-10). The form keeps the current sort and page size in hidden fields and starts again at the first page, which is
+  the only page that is always there for a new search or a new filter. Pressing Enter in the search box also sends the
+  filter controls, so a search never drops the filters. The panel is a details element, so it opens and closes without
+  scripts; filters.js only leaves empty controls out of the address.
+
+  The active filters are chips (view.filters.chips) with a remove link and a clear-all link, both built by the backend
+  (D-28); the template prints them. The names of the controls are derived from the key and the kind: filter.key for a
+  single value, filter.key.min and .max for a number range, filter.key.from and .to for a date range.
 
   Actions that do not exist yet are simply not in the record: nothing here is a disabled button. "New record" and the
   export button appear only when view.actions says so.
@@ -32,8 +38,9 @@
     </div>
   </header>
 
-  <form class="list-toolbar" method="get" role="search"
+  <form class="list-toolbar" method="get" role="search" data-filter-form
         th:action="@{${chrome.basePath} + '/' + ${chrome.activeEntity}}">
+    <div class="toolbar-row">
     <div class="search-field">
       <label class="visually-hidden" for="list-search"
              th:text="'Search ' + ${#strings.toLowerCase(view.entity.plural)}">Search articles</label>
@@ -46,8 +53,13 @@
     <input type="hidden" name="size" th:value="${view.paging.size}">
     <button type="submit" class="btn">Search</button>
     <a class="btn btn-quiet" th:if="${!view.search.isEmpty()}"
-       th:href="@{${chrome.basePath} + '/' + ${chrome.activeEntity}}">Clear search</a>
+       th:href="@{${chrome.basePath} + '/' + ${chrome.activeEntity}}"
+       th:text="${view.filters.chips.isEmpty()} ? 'Clear search' : 'Clear search and filters'">Clear search</a>
+    </div>
+    <th:block th:replace="~{jpa-admin/fragments/filter-panel :: panel}"></th:block>
   </form>
+
+  <th:block th:replace="~{jpa-admin/fragments/filter-chips :: chips}"></th:block>
 
   <section class="card table-card" th:if="${!view.rows.isEmpty()}">
     <th:block th:replace="~{jpa-admin/fragments/table :: table}"></th:block>
@@ -59,8 +71,11 @@
     <h2 th:if="${view.empty.reason.name() == 'NO_MATCHES'}">No matching records</h2>
     <h2 th:if="${view.empty.reason.name() != 'NO_MATCHES'}">No records yet</h2>
     <p th:text="${view.empty.hint}">What to do next.</p>
-    <a class="btn" th:if="${view.empty.reason.name() == 'NO_MATCHES'}"
-       th:href="@{${chrome.basePath} + '/' + ${chrome.activeEntity}}">Clear search</a>
+    <a class="btn" th:if="${view.empty.reason.name() == 'NO_MATCHES' and view.filters.clearAllHref != null}"
+       th:href="@{${view.filters.clearAllHref}}">Clear all filters</a>
+    <a class="btn" th:if="${view.empty.reason.name() == 'NO_MATCHES' and !view.search.isEmpty()}"
+       th:href="@{${chrome.basePath} + '/' + ${chrome.activeEntity}}"
+       th:text="${view.filters.chips.isEmpty()} ? 'Clear search' : 'Clear search and filters'">Clear search</a>
     <a class="btn btn-primary" th:if="${view.empty.reason.name() == 'NO_RECORDS' and view.actions.canCreate}"
        th:href="@{${chrome.basePath} + '/' + ${chrome.activeEntity} + '/new'}">Create the first one</a>
   </section>

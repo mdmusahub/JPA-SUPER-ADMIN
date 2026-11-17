@@ -592,11 +592,16 @@ html[data-theme-choice="dark"] [data-theme-toggle] .icon-moon {
 }
 
 .list-toolbar {
+  display: grid;
+  gap: var(--s3);
+  margin-bottom: var(--s4);
+}
+
+.toolbar-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--s2);
-  margin-bottom: var(--s4);
 }
 
 .search-field {
@@ -636,6 +641,186 @@ html[data-theme-choice="dark"] [data-theme-toggle] .icon-moon {
 
 .search-input::placeholder {
   color: var(--muted);
+}
+
+/* ---- list page: filters (task U3) ----------------------------------------------------------------------------- */
+
+/*
+ * The filter panel is a details element inside the search form. Its summary looks like a button (the .btn class), with
+ * a small count of the active filters. The controls sit in a grid that wraps by itself and stacks on a phone.
+ */
+.filter-panel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+}
+
+.filter-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  margin: var(--s2);
+  cursor: pointer;
+  list-style: none;
+}
+
+.filter-summary::-webkit-details-marker {
+  display: none;
+}
+
+.filter-summary::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-2px);
+}
+
+.filter-panel[open] > .filter-summary::after {
+  transform: rotate(225deg);
+}
+
+.filter-count {
+  min-width: 20px;
+  padding: 0 var(--s1);
+  border-radius: 999px;
+  background: var(--accent-tint);
+  color: var(--accent-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 20px;
+  text-align: center;
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: var(--s4);
+  padding: var(--s2) var(--s4) var(--s4);
+}
+
+.filter-field {
+  display: grid;
+  align-content: start;
+  gap: var(--s1);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.filter-label {
+  padding: 0;
+  font-weight: 500;
+}
+
+.filter-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s2);
+}
+
+.filter-bound {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.filter-bound-label {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.filter-panel .input:focus-visible,
+.filter-summary:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  padding: var(--s3) var(--s4);
+  border-top: 1px solid var(--line);
+}
+
+/* Active filters: one chip each, with a remove link, and "Clear all filters" at the end. */
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+  margin-bottom: var(--s4);
+}
+
+.chip-list {
+  display: contents;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  max-width: 100%;
+  padding: 2px 2px 2px var(--s3);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--accent-tint);
+  color: var(--ink);
+}
+
+.chip-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.chip-label {
+  color: var(--muted);
+}
+
+.chip-value {
+  font-weight: 600;
+}
+
+.chip-remove {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: var(--muted);
+}
+
+.chip-remove:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.chip-remove:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.chip-remove .icon {
+  width: 16px;
+  height: 16px;
+}
+
+@media (max-width: 599px) {
+  .filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-actions .btn {
+    flex: 1 1 100%;
+  }
 }
 
 /* ---- list page: the table ----------------------------------------------------------------------------------- */

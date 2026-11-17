@@ -455,7 +455,11 @@ abstract class AbstractSortProofTest {
         }
         String customers = page("/admin/customer?q=zzzz-nothing-has-this");
         assertThat(customers).as("the sensitive Password column is not named in any message").doesNotContain("Password");
-        assertThat(page("/admin/product?q=zzzz")).as("numbers, enums and relations are not searched, so not named")
+        // Since Phase 6 the page also holds the filter panel, whose controls are named after the number, enum and relation
+        // columns on purpose. The rule is about the sentence that says what the search looked in, so it is read there.
+        String empty = page("/admin/product?q=zzzz");
+        String message = empty.substring(empty.indexOf("class=\"card empty-state\""), empty.indexOf("</section>", empty.indexOf("class=\"card empty-state\"")));
+        assertThat(message).as("numbers, enums and relations are not searched, so not named")
                 .doesNotContain("Price", "Stock", "Status", "Category,", "Featured");
     }
 

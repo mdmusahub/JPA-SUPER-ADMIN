@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<body>
+<!--/*
+  The active filters of the list page (task U3): one chip for each entry in view.filters.chips, each with a link that
+  removes only that filter, and a "Clear all filters" link. Both links come from the backend, which keeps the search, the
+  sort and the page size and starts again at the first page (D-28): the template prints them and builds nothing.
+
+  Every chip text is printed with th:text (escaped). The remove link is an icon, so it has an aria-label that says what it
+  removes. Nothing here needs JavaScript. Nothing is shown when no filter is active.
+*/-->
+<div th:fragment="chips" class="filter-chips" th:if="${!view.filters.chips.isEmpty()}" role="group" aria-label="Active filters">
+  <ul class="chip-list">
+    <li class="chip" th:each="chip : ${view.filters.chips}">
+      <span class="chip-text"><span class="chip-label" th:text="${chip.label} + ':'">Status:</span>
+        <span class="chip-value" th:text="${chip.display}">Published</span></span>
+      <a class="chip-remove" th:href="@{${chip.removeHref}}"
+         th:attr="aria-label='Remove filter ' + ${chip.label} + ': ' + ${chip.display}">
+        <th:block th:replace="~{jpa-admin/fragments/icons :: close}"></th:block>
+      </a>
+    </li>
+  </ul>
+  <a class="btn btn-quiet" th:if="${view.filters.clearAllHref != null}" th:href="@{${view.filters.clearAllHref}}">Clear all filters</a>
+</div>
+</body>
+</html>

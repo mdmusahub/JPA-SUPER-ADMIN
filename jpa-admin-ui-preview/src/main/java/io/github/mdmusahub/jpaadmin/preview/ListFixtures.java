@@ -1,5 +1,6 @@
 package io.github.mdmusahub.jpaadmin.preview;
 
+import io.github.mdmusahub.jpaadmin.service.ActiveFilter;
 import io.github.mdmusahub.jpaadmin.service.ListColumn;
 import io.github.mdmusahub.jpaadmin.service.ListPage;
 import io.github.mdmusahub.jpaadmin.service.ListQuery;
@@ -7,6 +8,7 @@ import io.github.mdmusahub.jpaadmin.web.ListViewFactory;
 import io.github.mdmusahub.jpaadmin.web.view.Cell;
 import io.github.mdmusahub.jpaadmin.web.view.ListView;
 import io.github.mdmusahub.jpaadmin.web.view.ListView.Column.Align;
+import io.github.mdmusahub.jpaadmin.web.view.ListView.Filters.Definition.Kind;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -29,14 +31,14 @@ import java.util.function.Function;
  */
 final class ListFixtures {
 
-    private static final ListView.EntityInfo ARTICLES = new ListView.EntityInfo("Article", "Articles", "file");
-    private static final ListView.EntityInfo MEMBERS = new ListView.EntityInfo("Member", "Members", "users");
+    static final ListView.EntityInfo ARTICLES = new ListView.EntityInfo("Article", "Articles", "file");
+    static final ListView.EntityInfo MEMBERS = new ListView.EntityInfo("Member", "Members", "users");
 
     /** 94 articles: pages of 25 are 25, 25, 25 and 19, so the last page is partial. */
     private static final int ARTICLE_COUNT = 94;
 
-    private static final String[] AUTHORS = {"Ava Stone", "Ben Carter", "Chloe Reed", "Dan Moore", "Eva Lane", "Finn Hale"};
-    private static final String[] STATUSES = {"Published", "Draft", "Archived", "In review"};
+    static final String[] AUTHORS = {"Ava Stone", "Ben Carter", "Chloe Reed", "Dan Moore", "Eva Lane", "Finn Hale"};
+    static final String[] STATUSES = {"Published", "Draft", "Archived", "In review"};
     private static final String[] WORDS = {"Guide", "Notes", "Review", "Report", "Update", "Tutorial", "Summary", "Plan"};
     private static final String[] TOPICS = {"onboarding", "billing", "search", "security", "releases", "reporting",
             "accessibility", "backups", "themes", "exports", "imports", "permissions"};
@@ -49,7 +51,7 @@ final class ListFixtures {
             new ListColumn("views", "Views", Cell.Type.NUMBER, true, Align.END),
             new ListColumn("published", "Published", Cell.Type.DATE, true, Align.START));
 
-    private static final List<ListColumn> MEMBER_COLUMNS = List.of(
+    static final List<ListColumn> MEMBER_COLUMNS = List.of(
             new ListColumn("id", "ID", Cell.Type.NUMBER, true, Align.END),
             new ListColumn("name", "Name", Cell.Type.TEXT, true, Align.START),
             new ListColumn("email", "Email", Cell.Type.TEXT, true, Align.START),
@@ -58,7 +60,7 @@ final class ListFixtures {
 
     private static final ListView.Actions NO_ACTIONS = new ListView.Actions(false, false, false, null);
 
-    private record Article(int id, String title, String author, String status, int views, LocalDate published) {
+    record Article(int id, String title, String author, String status, int views, LocalDate published) {
     }
 
     private record Fixture(String preferredChrome, Function<String, ListView> build) {
@@ -94,6 +96,41 @@ final class ListFixtures {
         FIXTURES.put("unicode", fixture("default", ListFixtures::unicode));
         FIXTURES.put("many-columns", fixture("default", ListFixtures::manyColumns));
         FIXTURES.put("all-cell-types", fixture("default", ListFixtures::allCellTypes));
+        // Task U3, the filters. Each is built by the real factory, so chips and links are the real ones.
+        FIXTURES.put("filters-open", fixture("default", base -> FilterFixtures.articles(base, "", null, null, 0, 25, List.of())));
+        FIXTURES.put("filter-text", fixture("default", base -> FilterFixtures.articles(base, "", null, null, 0, 25,
+                List.of(ActiveFilter.of("title", Kind.TEXT, "guide")))));
+        FIXTURES.put("filter-enum", fixture("default", base -> FilterFixtures.articles(base, "", null, null, 0, 25,
+                List.of(ActiveFilter.of("status", Kind.ENUM, "IN_REVIEW")))));
+        FIXTURES.put("filter-boolean", fixture("default", base -> FilterFixtures.articles(base, "", null, null, 0, 25,
+                List.of(ActiveFilter.of("featured", Kind.BOOLEAN, "true")))));
+        FIXTURES.put("filter-relation", fixture("default", base -> FilterFixtures.articles(base, "", null, null, 0, 25,
+                List.of(ActiveFilter.of("author", Kind.RELATION, "3")))));
+        FIXTURES.put("filter-number-range", fixture("default", base -> FilterFixtures.articles(base, "", null, null, 0, 25,
+                List.of(ActiveFilter.range("views", Kind.NUMBER_RANGE, "1000", "5000")))));
+        FIXTURES.put("filter-number-min-only", fixture("default", base -> FilterFixtures.articles(base, "", null, null, 0, 25,
+                List.of(ActiveFilter.range("views", Kind.NUMBER_RANGE, "8000", null)))));
+        FIXTURES.put("filter-date-range", fixture("default", base -> FilterFixtures.articles(base, "", null, null, 0, 25,
+                List.of(ActiveFilter.range("published", Kind.DATE_RANGE, "2026-09-01", "2026-10-15")))));
+        FIXTURES.put("filter-combined", fixture("default", base -> FilterFixtures.articles(base, "report", "views", "desc", 0, 10,
+                List.of(ActiveFilter.of("status", Kind.ENUM, "PUBLISHED"), ActiveFilter.range("views", Kind.NUMBER_RANGE, "100", null),
+                        ActiveFilter.range("published", Kind.DATE_RANGE, "2026-01-01", "2026-10-31")))));
+        FIXTURES.put("filter-middle-page", fixture("default", base -> FilterFixtures.articles(base, "", "title", "asc", 1, 10,
+                List.of(ActiveFilter.of("status", Kind.ENUM, "PUBLISHED")))));
+        FIXTURES.put("filters-active", fixture("default", base -> FilterFixtures.articles(base, "", null, null, 0, 25,
+                FilterFixtures.everyKind())));
+        FIXTURES.put("filter-ignored", fixture("filters-ignored", base -> FilterFixtures.articles(base, "", null, null, 0, 25,
+                List.of(ActiveFilter.of("status", Kind.ENUM, "PUBLISHED")))));
+        FIXTURES.put("filter-no-matches", fixture("default", base -> FilterFixtures.articles(base, "", null, null, 0, 25,
+                List.of(ActiveFilter.of("status", Kind.ENUM, "DRAFT"), ActiveFilter.range("views", Kind.NUMBER_RANGE, "8999", null)))));
+        FIXTURES.put("filter-no-matches-with-search", fixture("default", base -> FilterFixtures.articles(base, "zzz", null, null, 0, 25,
+                List.of(ActiveFilter.of("status", Kind.ENUM, "DRAFT")))));
+        FIXTURES.put("filter-relation-dropdown", fixture("default", FilterFixtures::relationDropdown));
+        FIXTURES.put("relation-many-options", fixture("default", base -> FilterFixtures.relationDropdown(base, 200)));
+        FIXTURES.put("filter-chips-escaped", fixture("default", base -> FilterFixtures.articles(base, "", null, null, 0, 25,
+                List.of(ActiveFilter.of("title", Kind.TEXT, "<script>alert(1)</script> & \"quotes\" 東京")))));
+        FIXTURES.put("filter-sensitive-absent", fixture("member-active", FilterFixtures::sensitiveAbsent));
+        FIXTURES.put("filter-hidden-entity-absent", fixture("default", FilterFixtures::hiddenEntityAbsent));
     }
 
     private ListFixtures() {
@@ -121,7 +158,7 @@ final class ListFixtures {
 
     // ---- articles: the fake data set, searched, sorted and paged like the console would ----------------------------
 
-    private static List<Article> allArticles(boolean unassigned) {
+    static List<Article> allArticles(boolean unassigned) {
         List<Article> articles = new ArrayList<>();
         for (int i = 1; i <= ARTICLE_COUNT; i++) {
             articles.add(new Article(i, WORDS[i % WORDS.length] + " on " + TOPICS[(i * 5) % TOPICS.length] + " " + i,
@@ -342,15 +379,15 @@ final class ListFixtures {
         return ListViewFactory.build(basePath, urlName, info, new ListPage(columns, rows, total, query, searched), actions);
     }
 
-    private static Cell number(String text) {
+    static Cell number(String text) {
         return new Cell(Cell.Type.NUMBER, text, Cell.Tone.NONE, null, null);
     }
 
-    private static Cell relation(String label, String href) {
+    static Cell relation(String label, String href) {
         return new Cell(Cell.Type.RELATION, label, Cell.Tone.NONE, href, null);
     }
 
-    private static Cell status(String status) {
+    static Cell status(String status) {
         Cell.Tone tone = switch (status) {
             case "Published" -> Cell.Tone.GREEN;
             case "Draft" -> Cell.Tone.AMBER;
