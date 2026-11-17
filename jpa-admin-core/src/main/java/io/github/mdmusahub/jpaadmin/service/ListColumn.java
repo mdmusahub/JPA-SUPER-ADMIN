@@ -9,7 +9,8 @@ import java.util.Objects;
  * text, what kind of cell it holds, whether the header can sort the list, and the text alignment.
  *
  * <p>A column with the type {@link Cell.Type#MASKED} belongs to a sensitive field: it is shown, but its value is
- * never read from the database (SEC-1) and it can be neither sorted nor searched.
+ * never read from the database (SEC-1) and it can be neither sorted nor searched. A {@link Cell.Type#RELATION} column
+ * is sortable only when its target has a label: it is then ordered by that label (D-60).
  *
  * <p>Internal, not stable API. Public because the controller turns it into a {@link ListView.Column}.
  *
@@ -26,8 +27,8 @@ public record ListColumn(String key, String label, Cell.Type type, boolean sorta
         Objects.requireNonNull(label, "label");
         Objects.requireNonNull(type, "type");
         Objects.requireNonNull(align, "align");
-        if (sortable && (type == Cell.Type.MASKED || type == Cell.Type.RELATION)) {
-            throw new IllegalArgumentException("a masked or relation column cannot be sorted");
+        if (sortable && type == Cell.Type.MASKED) {
+            throw new IllegalArgumentException("a masked column cannot be sorted");
         }
     }
 }

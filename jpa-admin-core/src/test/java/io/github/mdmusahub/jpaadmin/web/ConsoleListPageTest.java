@@ -184,7 +184,7 @@ class ConsoleListPageTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"nosuch", "accessToken", "memo", "depot", "items", "' or 1=1 --", "", "reference desc", "<script>"})
+    @ValueSource(strings = {"nosuch", "accessToken", "memo", "crate", "vault", "items", "' or 1=1 --", "", "reference desc", "<script>"})
     void aBadSortKeyIsIgnoredWithoutAnError(String key) {
         ListView view = viewOf(open("parcel", null, key, "desc", null, null));
 
@@ -324,6 +324,90 @@ class ConsoleListPageTest {
             assertThat(row.cells().get(depot).display()).isEqualTo("Central depot");
             assertThat(row.cells().get(depot).href()).isNull();
         });
+    }
+
+    // ---- Phase 5: relation sort, the search scope and the cut notice (D-60) -----------------------------------
+
+    @Test
+    void aRelationWithALabelIsSortableAndTheViewSaysWhichWayItIsSorted() {
+        ListView view = viewOf(open("parcel", null, "depot", "desc", null, null));
+        ListView.Column depot = view.columns().get(indexOf(view, "depot"));
+
+        assertThat(view.sort()).isEqualTo("depot");
+        assertThat(depot.sortable()).isTrue();
+        assertThat(depot.sortState()).isEqualTo(ListView.Column.SortState.DESCENDING);
+        assertThat(depot.sortHref()).as("the link flips the direction").isEqualTo("/admin/parcel?sort=depot&dir=asc");
+        assertThat(view.columns()).filteredOn(column -> column.sortState() != ListView.Column.SortState.NONE).hasSize(1);
+        assertThat(view.rows()).hasSize(25);
+    }
+
+    @Test
+    void aRelationWithoutALabelOrWithAHiddenTargetHasNoSortLinkAndItsKeyIsIgnored() {
+        ListView view = viewOf(open("parcel"));
+
+        for (String key : List.of("crate", "vault")) {
+            ListView.Column column = view.columns().get(indexOf(view, key));
+            assertThat(column.sortable()).as(key).isFalse();
+            assertThat(column.sortHref()).as(key).isNull();
+            assertThat(viewOf(open("parcel", null, key, "asc", null, null)).sort()).as(key).isNull();
+        }
+    }
+
+    @Test
+    void aSensitiveColumnIsNeverSortableOnTheViewEither() {
+        ListView view = viewOf(open("parcel", null, "accessToken", "asc", null, null));
+
+        assertThat(view.sort()).isNull();
+        for (String key : List.of("accessToken", "memo")) {
+            ListView.Column column = view.columns().get(indexOf(view, key));
+            assertThat(column.sortable()).as(key).isFalse();
+            assertThat(column.sortHref()).as(key).isNull();
+        }
+    }
+
+    @Test
+    void aNoMatchSearchNamesTheSearchedColumnsAndNeverASensitiveOrHiddenOne() {
+        ListView view = viewOf(open("parcel", "no parcel has this text", null, null, null, null));
+
+        assertThat(view.empty().reason()).isEqualTo(ListView.Empty.Reason.NO_MATCHES);
+        assertThat(view.empty().hint()).contains("The search looked in these text columns: Notes, Reference.");
+        assertThat(view.empty().hint()).doesNotContain("Access token", "Memo", "Internal code", "Depot", "Weight",
+                "Picture", "Dimensions");
+    }
+
+    @Test
+    void aSearchThatFindsRowsAddsNoScopeMessage() {
+        ListView view = viewOf(open("parcel", "REF-1", null, null, null, null));
+
+        assertThat(view.rows()).isNotEmpty();
+        assertThat(view.empty().hint()).isEmpty();
+    }
+
+    @Test
+    void aSearchOfExactlyTheLimitIsNotCutAndRaisesNoNotice() {
+        for (String q : new String[] {null, "", "REF", "a".repeat(100), " ".repeat(500) + "REF"}) {
+            assertThat(chromeOf(open("parcel", q, null, null, null, null)).flash()).as("q=" + q).isEmpty();
+        }
+    }
+
+    @Test
+    void aSearchLongerThanTheLimitIsCutAndThePageSaysSoWithTheLimit() {
+        ModelAndView result = open("parcel", "a".repeat(101), null, null, null, null);
+        List<PageChrome.FlashMessage> flash = chromeOf(result).flash();
+
+        assertThat(flash).hasSize(1);
+        assertThat(flash.get(0).level()).isEqualTo(PageChrome.FlashMessage.Level.INFO);
+        assertThat(flash.get(0).text()).isEqualTo("Your search was longer than 100 characters, so only the first 100 were used.");
+        assertThat(viewOf(result).search()).as("what was searched is the cut text").isEqualTo("a".repeat(100));
+        assertThat(flash.get(0).text()).as("the notice repeats nothing that was typed").doesNotContain("aaa");
+    }
+
+    @Test
+    void aCutSearchRaisesTheNoticeWhateverItFinds() {
+        ModelAndView result = open("parcel", "REF-1" + " ".repeat(5) + "x".repeat(100), null, null, null, null);
+
+        assertThat(chromeOf(result).flash()).hasSize(1);
+        assertThat(viewOf(result).empty().reason()).isEqualTo(ListView.Empty.Reason.NO_MATCHES);
     }
 
     private static int indexOf(ListView view, String key) {

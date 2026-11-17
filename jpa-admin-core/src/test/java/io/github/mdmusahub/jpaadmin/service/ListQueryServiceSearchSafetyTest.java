@@ -17,7 +17,7 @@ class ListQueryServiceSearchSafetyTest extends SearchSafetyContract {
     protected long matches(String text) {
         try (var entityManager = ListTestPersistence.entityManager()) {
             return ListQueryService.over(entityManager, REGISTRY)
-                    .list(PARCEL, ListQuery.parse(PARCEL, text, null, null, null, null)).total();
+                    .list(PARCEL, ListQuery.parse(PARCEL, REGISTRY, text, null, null, null, null)).total();
         }
     }
 }

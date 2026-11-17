@@ -146,7 +146,7 @@ class ListQueryServiceTest {
     }
 
     private ListPage list(String q, String sort, String dir, String page, String size) {
-        return list(ListQuery.parse(PARCEL, q, sort, dir, page, size));
+        return list(ListQuery.parse(PARCEL, REGISTRY, q, sort, dir, page, size));
     }
 
     private static List<Long> ids(ListPage page) {
@@ -234,7 +234,7 @@ class ListQueryServiceTest {
     @Test
     void anEntityWithNoRecordsHasAnEmptyFirstPageAndATotalOfZero() {
         ListPage page = service.list(REGISTRY.find("stamp").orElseThrow(),
-                ListQuery.parse(REGISTRY.find("stamp").orElseThrow(), null, null, null, "7", "10"));
+                ListQuery.parse(REGISTRY.find("stamp").orElseThrow(), REGISTRY, null, null, null, "7", "10"));
 
         assertThat(page.total()).isZero();
         assertThat(page.rows()).isEmpty();
@@ -255,7 +255,7 @@ class ListQueryServiceTest {
         ListPage page = service.list(stamps, ListQuery.defaults());
 
         assertThat(page.rows()).singleElement().satisfies(row -> assertThat(row.id()).isEqualTo("A-1/x y"));
-        assertThat(service.list(stamps, ListQuery.parse(stamps, "a-1", null, null, null, null)).total())
+        assertThat(service.list(stamps, ListQuery.parse(stamps, REGISTRY, "a-1", null, null, null, null)).total())
                 .as("a text identifier is searchable").isEqualTo(1);
     }
 
@@ -507,8 +507,8 @@ class ListQueryServiceTest {
         });
         AdminEntity crates = REGISTRY.find("crate").orElseThrow();
 
-        assertThat(service.list(crates, ListQuery.parse(crates, "7", null, null, null, null)).total()).isZero();
-        assertThat(service.list(crates, ListQuery.parse(crates, null, null, null, null, null)).total()).isPositive();
+        assertThat(service.list(crates, ListQuery.parse(crates, REGISTRY, "7", null, null, null, null)).total()).isZero();
+        assertThat(service.list(crates, ListQuery.parse(crates, REGISTRY, null, null, null, null, null)).total()).isPositive();
     }
 
     @Test
@@ -647,13 +647,15 @@ class ListQueryServiceTest {
         String page = RecordingStatementInspector.selects().get(1).toLowerCase(Locale.ROOT);
 
         // Hibernate writes the order as positions in the select list; position 1 is the identifier.
+        // The null rule (D-60) is nulls last. Hibernate writes it into the statement where the database's own default
+        // differs (ascending on H2) and leaves it out where the default already is the rule (descending on H2).
         assertThat(page).contains("order by " + selectPosition(page, ".pieces") + " desc,1 ");
         RecordingStatementInspector.clear();
 
         list(null, "pieces", "asc", null, null);
         assertThat(RecordingStatementInspector.selects().get(1).toLowerCase(Locale.ROOT))
                 .contains("order by " + selectPosition(RecordingStatementInspector.selects().get(1).toLowerCase(Locale.ROOT),
-                        ".pieces") + ",1 ");
+                        ".pieces") + " asc nulls last,1 ");
         RecordingStatementInspector.clear();
 
         list(null, null, null, null, null);
@@ -674,7 +676,7 @@ class ListQueryServiceTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"nosuch", "accessToken", "memo", "internalCode", "depot", "items", "picture", "dimensions",
+    @ValueSource(strings = {"nosuch", "accessToken", "memo", "internalCode", "crate", "vault", "items", "picture", "dimensions",
             "reference;drop table parcel", "' or 1=1 --"})
     void anUnsortableKeyIsIgnoredAndTheListIsInIdentifierOrder(String key) {
         ListPage page = list(null, key, "desc", null, "100");
@@ -684,7 +686,7 @@ class ListQueryServiceTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"accessToken", "memo", "internalCode", "depot", "items", "picture", "nosuch"})
+    @ValueSource(strings = {"accessToken", "memo", "internalCode", "crate", "vault", "items", "picture", "nosuch"})
     void theServiceDropsAnUnsortableKeyEvenWhenTheQueryWasNotBuiltByTheParser(String key) {
         // The record can be constructed directly; the service must not trust it (SEC-2).
         ListPage page = list(new ListQuery("", key, "asc", 0, 100));
@@ -708,6 +710,234 @@ class ListQueryServiceTest {
         assertThat(page.total()).isEqualTo(9);
         assertThat(page.rows().stream().map(row -> cell(page, row, "weight").display()).map(BigDecimal::new))
                 .isSortedAccordingTo(Comparator.reverseOrder());
+    }
+
+    // ---- relation sort and missing values (D-60) --------------------------------------------------------------
+
+    /** Three more parcels with nothing filled in, so every nullable column has missing values. */
+    private void addParcelsWithMissingValues() {
+        ListTestPersistence.inTransaction(em -> {
+            for (int i = 0; i < 3; i++) {
+                Parcel bare = new Parcel();
+                bare.setAccessToken(SECRET_WORD + "-bare-" + i);
+                em.persist(bare);
+                seeded.add(bare);
+            }
+        });
+        // Fresh entity manager: the first one may have cached the table.
+        entityManager.close();
+        entityManager = ListTestPersistence.entityManager();
+        service = ListQueryService.over(entityManager, REGISTRY);
+        RecordingStatementInspector.clear();
+    }
+
+    /** Ascending or descending by {@code key}, missing values last either way, then the identifier ascending. */
+    private static <T extends Comparable<T>> Comparator<Parcel> nullsLast(java.util.function.Function<Parcel, T> key,
+                                                                          boolean descending) {
+        Comparator<T> order = descending ? Comparator.<T>naturalOrder().reversed() : Comparator.<T>naturalOrder();
+        return Comparator.comparing(key, Comparator.nullsLast(order)).thenComparing(Parcel::getId);
+    }
+
+    private static String depotName(Parcel parcel) {
+        return parcel.getDepot() == null ? null : parcel.getDepot().getName();
+    }
+
+    private static String courierLabel(Parcel parcel) {
+        return parcel.getCourier() == null ? null : parcel.getCourier().getCallSign();
+    }
+
+    @Test
+    void aRelationIsSortedByItsTargetsLabelBothWaysWithTheIdentifierAsTieBreaker() {
+        for (boolean descending : new boolean[] {false, true}) {
+            String dir = descending ? "desc" : "asc";
+            assertThat(sortedIds("depot", dir)).as("depot " + dir)
+                    .isEqualTo(expected(nullsLast(ListQueryServiceTest::depotName, descending)));
+        }
+        // The two depots are "North hub" (even parcels) and "South hub" (odd ones): the order is by label, and the
+        // identifier of the depot (which is the other way round here: North is created first) would give another order.
+        List<Long> ascending = sortedIds("depot", "asc");
+        assertThat(ascending.subList(0, 3)).containsExactly(idOfParcel(2), idOfParcel(4), idOfParcel(6));
+        List<Long> descending = sortedIds("depot", "desc");
+        assertThat(descending.subList(0, 3)).containsExactly(idOfParcel(1), idOfParcel(3), idOfParcel(5));
+    }
+
+    @Test
+    void aRelationIsOrderedByLabelNotByTheTargetsIdentifier() {
+        // Make the label order differ from the identifier order: the depot created last gets the alphabetically first name.
+        ListTestPersistence.inTransaction(em -> {
+            Depot aardvark = depot(em, "Aardvark hub", "Ayr");
+            Parcel odd = new Parcel();
+            odd.setReference("ODD-ONE");
+            odd.setDepot(aardvark);
+            odd.setAccessToken("x");
+            em.persist(odd);
+            seeded.add(odd);
+        });
+
+        ListPage ascending = list(null, "depot", "asc", null, "10");
+        ListPage descending = list(null, "depot", "desc", null, "10");
+
+        assertThat(ids(ascending).get(0)).as("Aardvark hub sorts first although its depot was created last")
+                .isEqualTo(seeded.get(seeded.size() - 1).getId());
+        assertThat(ids(descending).get(0)).as("South hub sorts last, so first when descending")
+                .isEqualTo(idOfParcel(1));
+        assertThat(cell(ascending, ascending.rows().get(0), "depot").display()).isEqualTo("Aardvark hub");
+    }
+
+    @Test
+    void aRelationWithMissingTargetsSortsThemLastInBothDirections() {
+        for (boolean descending : new boolean[] {false, true}) {
+            String dir = descending ? "desc" : "asc";
+            List<Long> ids = sortedIds("courier", dir);
+            assertThat(ids).as("courier " + dir).isEqualTo(expected(nullsLast(ListQueryServiceTest::courierLabel, descending)));
+            // 27 parcels have the courier "Falcon" (the even ones), 28 have none: those 28 come last, in identifier order.
+            assertThat(ids.subList(0, 27)).as(dir + ": the ones that have a courier come first")
+                    .allSatisfy(id -> assertThat(seeded.stream().filter(p -> p.getId().equals(id)).findFirst().orElseThrow()
+                            .getCourier()).isNotNull());
+            assertThat(ids.subList(27, 55)).as(dir + ": the missing ones are last").isSorted();
+        }
+    }
+
+    @Test
+    void missingValuesAreLastInBothDirectionsForEveryNullableColumn() {
+        addParcelsWithMissingValues();
+        record Case(String key, Comparator<Parcel> ascending, Comparator<Parcel> descending) {
+        }
+        List<Case> cases = List.of(
+                new Case("reference", nullsLast(Parcel::getReference, false), nullsLast(Parcel::getReference, true)),
+                new Case("weight", nullsLast(Parcel::getWeight, false), nullsLast(Parcel::getWeight, true)),
+                new Case("status", nullsLast(parcel -> parcel.getStatus() == null ? null : parcel.getStatus().name(), false),
+                        nullsLast(parcel -> parcel.getStatus() == null ? null : parcel.getStatus().name(), true)),
+                new Case("shippedOn", nullsLast(Parcel::getShippedOn, false), nullsLast(Parcel::getShippedOn, true)),
+                new Case("createdAt", nullsLast(Parcel::getCreatedAt, false), nullsLast(Parcel::getCreatedAt, true)),
+                new Case("depot", nullsLast(ListQueryServiceTest::depotName, false),
+                        nullsLast(ListQueryServiceTest::depotName, true)),
+                new Case("courier", nullsLast(ListQueryServiceTest::courierLabel, false),
+                        nullsLast(ListQueryServiceTest::courierLabel, true)));
+
+        for (Case sort : cases) {
+            for (String dir : List.of("asc", "desc")) {
+                List<Long> actual = new ArrayList<>();
+                for (int page = 0; page < 6; page++) {
+                    actual.addAll(ids(list(null, sort.key(), dir, String.valueOf(page), "10")));
+                }
+                assertThat(actual).as(sort.key() + " " + dir).hasSize(PARCELS + 3)
+                        .isEqualTo(expected(dir.equals("asc") ? sort.ascending() : sort.descending()));
+                List<Long> bare = seeded.subList(PARCELS, PARCELS + 3).stream().map(Parcel::getId).toList();
+                assertThat(actual.subList(actual.size() - 3, actual.size()))
+                        .as(sort.key() + " " + dir + ": the three records with no value are the last three, in identifier order")
+                        .isEqualTo(bare);
+            }
+        }
+    }
+
+    @Test
+    void theNullRuleReachesTheSqlForEveryColumnAndNothingSaysNullsFirst() {
+        for (String key : List.of("reference", "weight", "status", "shippedOn", "depot", "courier")) {
+            for (String dir : List.of("asc", "desc")) {
+                RecordingStatementInspector.clear();
+                list(null, key, dir, null, null);
+                String page = RecordingStatementInspector.selects().get(1).toLowerCase(Locale.ROOT);
+                String orderBy = page.substring(page.indexOf(" order by "));
+
+                // On H2 a descending order already puts nulls last, so Hibernate adds the clause for ascending only;
+                // on PostgreSQL it is the other way round. The data tests above prove the effect in both directions.
+                assertThat(orderBy).as(key + " " + dir).contains(dir.equals("asc") ? " nulls last,1 " : " desc,1 ");
+                assertThat(orderBy).as(key + " " + dir + ": nothing says nulls first").doesNotContain("nulls first");
+            }
+        }
+    }
+
+    @Test
+    void sortingByARelationAddsNoJoinAndNoStatement() {
+        list(null, null, null, null, null);
+        String plain = RecordingStatementInspector.selects().get(1).toLowerCase(Locale.ROOT);
+        int joins = countOf(plain, " left join ");
+        assertThat(joins).as("one join per relation column, as in Phase 4").isEqualTo(4);
+        RecordingStatementInspector.clear();
+
+        for (String key : List.of("depot", "courier")) {
+            for (String dir : List.of("asc", "desc")) {
+                RecordingStatementInspector.clear();
+                list("pkg", key, dir, "1", "10");
+
+                assertThat(RecordingStatementInspector.statements()).as(key + " " + dir + ": a count and a page")
+                        .hasSize(2);
+                assertThat(countOf(RecordingStatementInspector.selects().get(1).toLowerCase(Locale.ROOT), " left join "))
+                        .as(key + " " + dir + ": the sort reuses the join the column already has").isEqualTo(joins);
+                assertThat(RecordingStatementInspector.selects().get(0).toLowerCase(Locale.ROOT))
+                        .as("the count has no join at all").doesNotContain(" join ");
+            }
+        }
+    }
+
+    @Test
+    void theRelationSortOrdersByTheLabelColumnAndNeverTouchesASensitiveColumnOfTheTarget() {
+        list(null, "depot", "desc", null, null);
+        String depot = RecordingStatementInspector.selects().get(1).toLowerCase(Locale.ROOT);
+        assertThat(depot).contains("order by " + selectPosition(depot, ".name") + " desc,1 ");
+        RecordingStatementInspector.clear();
+
+        list(null, "courier", "asc", null, null);
+        String courier = RecordingStatementInspector.selects().get(1).toLowerCase(Locale.ROOT);
+        assertThat(courier).contains("order by " + selectPosition(courier, ".callsign") + " asc nulls last,1 ");
+
+        String sql = String.join("\n", RecordingStatementInspector.statements()).toLowerCase(Locale.ROOT)
+                + depot;
+        assertThat(sql).doesNotContain("api_key", "badge_number", "access_token", "memo");
+        assertThat(sql).as("not ordered by a foreign key column").doesNotContain("order by depot_id", "order by courier_id");
+    }
+
+    @Test
+    void aRelationSortCombinesWithASearchAndOnlySortsTheMatches() {
+        ListPage page = list("PKG-00", "depot", "desc", null, null);
+
+        assertThat(page.total()).isEqualTo(9);
+        assertThat(page.rows().stream().map(row -> cell(page, row, "depot").display()).toList())
+                .isSortedAccordingTo(Comparator.reverseOrder());
+        assertThat(page.query().sort()).isEqualTo("depot");
+    }
+
+    @Test
+    void aSortByARelationKeepsWorkingWhenTheSessionIsCleared() {
+        // The rows are display values; nothing lazy is read after the transaction ends.
+        ListPage page = list(null, "courier", "asc", null, "100");
+        entityManager.clear();
+
+        assertThat(page.rows()).hasSize(PARCELS);
+        assertThat(cell(page, page.rows().get(0), "courier").display()).isEqualTo("Falcon");
+        assertThat(cell(page, page.rows().get(PARCELS - 1), "courier").display()).isEmpty();
+    }
+
+    private static int countOf(String text, String needle) {
+        int count = 0;
+        for (int at = text.indexOf(needle); at >= 0; at = text.indexOf(needle, at + needle.length())) {
+            count++;
+        }
+        return count;
+    }
+
+    // ---- what a search covers (D-60 item 4) -------------------------------------------------------------------
+
+    @Test
+    void thePageNamesTheColumnsTheSearchLooksInAndOnlyTheVisibleNonSensitiveTextOnes() {
+        List<String> searched = list(null, null, null, null, null).searched();
+
+        // Parcel's text columns: notes, reference. Not the sensitive accessToken and memo, not the hidden internalCode,
+        // not numbers, dates, enums, booleans or relations.
+        assertThat(searched).containsExactly("Notes", "Reference");
+        assertThat(String.valueOf(searched)).doesNotContain("Access token", "Memo", "Internal code", "Depot", "Id");
+    }
+
+    @Test
+    void anEntityWithATextIdentifierSearchesItsIdentifierColumnToo() {
+        assertThat(service.list(REGISTRY.find("stamp").orElseThrow(), ListQuery.defaults()).searched())
+                .containsExactly("ID", "Caption");
+    }
+
+    @Test
+    void anEntityWithNothingSearchableNamesNothing() {
+        assertThat(service.list(REGISTRY.find("crate").orElseThrow(), ListQuery.defaults()).searched()).isEmpty();
     }
 
     // ---- misc -------------------------------------------------------------------------------------------------

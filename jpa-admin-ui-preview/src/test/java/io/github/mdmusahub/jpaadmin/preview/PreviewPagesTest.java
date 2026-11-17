@@ -79,7 +79,7 @@ class PreviewPagesTest {
         assertThat(PageFixtures.catalog().get("error")).contains("not-found", "forbidden", "server-error", "bad-request", "long-hint");
         assertThat(ChromeFixtures.names()).containsExactly("default", "empty-sidebar", "no-active-entity", "deep-breadcrumbs",
                 "flash-all-levels", "theme-dark", "theme-light", "theme-system", "custom-base-path", "long-sidebar",
-                "no-user", "member-active");
+                "no-user", "search-cut", "member-active");
     }
 
     // ---- sign-in page -----------------------------------------------------------------------------------------------
