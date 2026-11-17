@@ -143,6 +143,11 @@ final class HeadlessChrome implements AutoCloseable {
         return value.find() ? value.group(1).replace("\\\"", "\"").replace("\\\\", "\\") : "";
     }
 
+    /** Sends any DevTools command and returns the whole answer (for the few things a script cannot read). */
+    String command(String method, String paramsJson) throws Exception {
+        return send(method, paramsJson);
+    }
+
     private void waitForLoad() throws Exception {
         if (!loaded.await(WAIT.toSeconds(), TimeUnit.SECONDS)) {
             throw new IllegalStateException("The page did not finish loading within " + WAIT.toSeconds() + " seconds.");

@@ -1095,6 +1095,40 @@ a.icon-button {
   width: 1px;
 }
 
+/*
+ * Fitting the table into its box on a desktop screen. The width of text depends on the platform's font (a Linux machine
+ * draws the same words wider than Windows does), so the table must not depend on one font: below 1366px the cells are a
+ * little tighter, and from 900px up the table is allowed to be narrower than its natural width, which makes the text and
+ * relation columns wrap instead of making the box scroll sideways. A text column never gets narrower than 10 characters,
+ * so a table with very many columns still scrolls inside its own box rather than squeezing every word onto several lines.
+ * Below 900px (a phone or a small tablet) the base rule stays: the table keeps its natural width and scrolls in its box.
+ */
+@media (max-width: 1365px) {
+  .data-table th,
+  .data-table td {
+    padding-right: var(--s3);
+    padding-left: var(--s3);
+  }
+
+  .data-table .select-col {
+    padding-right: var(--s2);
+    padding-left: var(--s2);
+  }
+}
+
+@media (min-width: 900px) {
+  .data-table {
+    min-width: 0;
+  }
+
+  .data-table td.col-text,
+  .data-table td.col-relation {
+    min-width: 10ch;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
 .select-box {
   width: 18px;
   height: 18px;
