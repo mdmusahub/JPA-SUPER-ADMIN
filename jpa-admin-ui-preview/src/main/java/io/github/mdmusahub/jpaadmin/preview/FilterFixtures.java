@@ -110,7 +110,7 @@ final class FilterFixtures {
         }
         ListQuery query = new ListQuery(search, sort, dir, shown, size, filters);
         return ListViewFactory.build(basePath, "article", ListFixtures.ARTICLES, new ListPage(COLUMNS, rows, matching.size(),
-                query, List.of("Title"), controls, List.of()), new ListView.Actions(false, false, false, null));
+                query, List.of("Title"), controls, List.of()), new ListView.Actions(false, false, false, null, null));
     }
 
     private static boolean featured(ListFixtures.Article article) {
@@ -194,7 +194,7 @@ final class FilterFixtures {
         List<FilterControl> controls = List.of(new FilterControl("title", "Title", Kind.TEXT, List.of()),
                 new FilterControl("author", "Author", Kind.RELATION, authors()));
         return ListViewFactory.build(basePath, "article", ListFixtures.ARTICLES, new ListPage(columns, rows, rows.size(),
-                ListQuery.defaults(), List.of("Title"), controls, List.of()), new ListView.Actions(false, false, false, null));
+                ListQuery.defaults(), List.of("Title"), controls, List.of()), new ListView.Actions(false, false, false, null, null));
     }
 
     /** Members: a masked password column and no password filter; name and email are text filters, joined a date range. */
@@ -212,7 +212,7 @@ final class FilterFixtures {
         ListQuery query = new ListQuery("", null, null, 0, 25, List.of(ActiveFilter.range("joined", Kind.DATE_RANGE,
                 "2026-01-01", "2026-06-30")));
         return ListViewFactory.build(basePath, "member", ListFixtures.MEMBERS, new ListPage(ListFixtures.MEMBER_COLUMNS, rows,
-                rows.size(), query, List.of("Name", "Email"), controls, List.of()), new ListView.Actions(false, false, false, null));
+                rows.size(), query, List.of("Name", "Email"), controls, List.of()), new ListView.Actions(false, false, false, null, null));
     }
 
     /** The notices the console raises for a request full of bad filters: built by the real factory from real notes. */

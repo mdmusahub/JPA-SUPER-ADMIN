@@ -80,6 +80,17 @@ final class ChromeFixtures {
         VARIANTS.put("filters-ignored", () -> chrome(BASE, Theme.SYSTEM, navigation(), "article",
                 List.of(new Breadcrumb("Dashboard", BASE), new Breadcrumb("Articles", null)), FilterFixtures.ignoredNotices()));
         // The list of another entity: "Members" is the active item, as the masked-column list fixture needs.
+        // Task U4: the shell around a detail page, and the pages that follow a delete. The messages are the real ones.
+        VARIANTS.put("article-detail", () -> chrome(BASE, Theme.SYSTEM, navigation(), "article", List.of(
+                new Breadcrumb("Dashboard", BASE), new Breadcrumb("Articles", BASE + "/article"),
+                new Breadcrumb("Guide on onboarding 7", null)), List.of()));
+        for (Map.Entry<String, List<FlashMessage>> message : RecordFixtures.messages().entrySet()) {
+            boolean onDetail = message.getKey().equals("delete-blocked") || message.getKey().equals("duplicate-later");
+            VARIANTS.put(message.getKey(), () -> chrome(BASE, Theme.SYSTEM, navigation(), "article", onDetail
+                    ? List.of(new Breadcrumb("Dashboard", BASE), new Breadcrumb("Articles", BASE + "/article"),
+                            new Breadcrumb("Guide on onboarding 7", null))
+                    : List.of(new Breadcrumb("Dashboard", BASE), new Breadcrumb("Articles", null)), message.getValue()));
+        }
         VARIANTS.put("member-active", () -> chrome(BASE, Theme.SYSTEM, navigation(), "member",
                 List.of(new Breadcrumb("Dashboard", BASE), new Breadcrumb("Members", null)), List.of()));
     }
@@ -95,6 +106,11 @@ final class ChromeFixtures {
 
     static Set<String> names() {
         return VARIANTS.keySet();
+    }
+
+    /** The default shell with breadcrumbs and messages that a fixture supplies (a detail page's trail depends on its record). */
+    static PageChrome custom(String basePath, String activeEntity, List<Breadcrumb> breadcrumbs, List<FlashMessage> flash) {
+        return chrome(basePath, Theme.SYSTEM, navigation(), activeEntity, breadcrumbs, flash);
     }
 
     private static PageChrome chrome(String basePath, Theme theme, List<NavGroup> nav, String activeEntity,

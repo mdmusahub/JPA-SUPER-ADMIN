@@ -144,4 +144,13 @@ class HtmlRulesTest {
         assertThat(HtmlRules.renderedViolations(GOOD_PAGE + "<p th:text=\"x\">")).anyMatch(p -> p.contains("unprocessed template syntax"));
         assertThat(HtmlRules.renderedViolations(GOOD_PAGE.replace(" lang=\"en\"", ""))).anyMatch(p -> p.contains("lang"));
     }
+
+    @Test
+    void catchesAFormInsideAnotherForm() {
+        assertThat(HtmlRules.renderedViolations(GOOD_PAGE + "<form method=\"get\"><input type=\"hidden\" name=\"a\"><form method=\"post\"></form></form>"))
+                .anyMatch(p -> p.contains("inside another"));
+        assertThat(HtmlRules.renderedViolations(GOOD_PAGE + "<form method=\"get\"></form><form method=\"post\"></form>")).isEmpty();
+        assertThat(HtmlRules.renderedViolations(GOOD_PAGE + "<FORM method=\"get\"><FORM method=\"post\"></FORM></FORM>"))
+                .anyMatch(p -> p.contains("inside another"));
+    }
 }

@@ -1060,3 +1060,238 @@ a.icon-button {
     gap: var(--s2) var(--s4);
   }
 }
+
+/* ---- list page: row checkboxes and the bulk bar (task U4) -------------------------------------------------------- */
+
+.bulk-form {
+  margin: 0;
+}
+
+/*
+ * The checkbox column is a fixed, narrow column. It must not use a percentage width: a cell that needs 34px and asks for
+ * "1%" forces the table to be 34 / 0.01 = 3400px wide, and with "min-width: max-content" on the table that made every list
+ * page scroll sideways inside its box, with the ID column stretched over hundreds of pixels (found in a browser, Phase 7).
+ */
+.data-table .select-col {
+  width: 44px;
+  min-width: 44px;
+  max-width: 44px;
+  padding-right: var(--s3);
+  padding-left: var(--s3);
+  text-align: center;
+}
+
+/*
+ * Compact values (numbers, yes/no, dates, badges, dots) take only the room their content needs, and the text and relation
+ * columns share what is left. A fixed 1px width is the standard shrink-to-fit request in an automatic table layout: the
+ * column cannot get narrower than its content (the cells do not wrap) and is not given any of the extra width.
+ */
+.data-table .col-number,
+.data-table .col-boolean,
+.data-table .col-date,
+.data-table .col-enum,
+.data-table .col-masked,
+.data-table .col-empty {
+  width: 1px;
+}
+
+/*
+ * Fitting the table into its box on a desktop screen. The width of text depends on the platform's font (a Linux machine
+ * draws the same words wider than Windows does), so the table must not depend on one font: below 1366px the cells are a
+ * little tighter, and from 900px up the table is allowed to be narrower than its natural width, which makes the text and
+ * relation columns wrap instead of making the box scroll sideways. A text column never gets narrower than 10 characters,
+ * so a table with very many columns still scrolls inside its own box rather than squeezing every word onto several lines.
+ * Below 900px (a phone or a small tablet) the base rule stays: the table keeps its natural width and scrolls in its box.
+ */
+@media (max-width: 1365px) {
+  .data-table th,
+  .data-table td {
+    padding-right: var(--s3);
+    padding-left: var(--s3);
+  }
+
+  .data-table .select-col {
+    padding-right: var(--s2);
+    padding-left: var(--s2);
+  }
+}
+
+@media (min-width: 900px) {
+  .data-table {
+    min-width: 0;
+  }
+
+  .data-table td.col-text,
+  .data-table td.col-relation {
+    min-width: 10ch;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+.select-box {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent-strong);
+  cursor: pointer;
+}
+
+/* Without script the bar is a plain row under the table. */
+.bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  border-top: 1px solid var(--line);
+  background: var(--panel-alt);
+}
+
+.bulk-status {
+  margin: 0;
+  font-weight: 500;
+}
+
+/*
+ * With script the bar floats at the bottom of the screen and is there only while something is selected. It is fixed, so
+ * the table card's clipping does not cut it, and it stays inside the screen on a phone.
+ */
+.js .bulk-bar {
+  position: fixed;
+  bottom: var(--s4);
+  left: 50%;
+  z-index: 20;
+  width: min(36rem, calc(100% - 2 * var(--s4)));
+  transform: translateX(-50%);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.js .bulk-bar[data-empty] {
+  display: none;
+}
+
+/*
+ * While the floating bar is shown (bulk.js sets data-bulk-active on the page) the content keeps room under it, so the last
+ * row and the pager can be scrolled clear of the bar. Nothing is reserved while nothing is selected.
+ */
+.js[data-bulk-active] .content {
+  padding-bottom: 7rem;
+}
+
+/* The question opens upward from the bar, so it never runs off the bottom of the screen. */
+.js .bulk-bar .confirm {
+  position: relative;
+}
+
+.js .bulk-bar .confirm-up .confirm-panel {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + var(--s2));
+  width: min(24rem, calc(100vw - 4 * var(--s4)));
+  margin-top: 0;
+  box-shadow: var(--shadow);
+}
+
+/* ---- detail page (task U4) ---------------------------------------------------------------------------------- */
+
+.detail-kicker {
+  margin: 0 0 var(--s1);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.detail-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.detail-grid {
+  margin: 0;
+}
+
+.detail-field {
+  display: grid;
+  grid-template-columns: minmax(8rem, 14rem) minmax(0, 1fr);
+  gap: var(--s4);
+  padding: var(--s3) var(--s5);
+  border-top: 1px solid var(--line);
+}
+
+.detail-field:first-child {
+  border-top: 0;
+}
+
+.detail-grid dt {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.detail-grid dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* In the detail grid a text keeps its line breaks and has the whole width, unlike a cell of the table. */
+.detail-value .cell-text {
+  display: block;
+  max-width: none;
+  white-space: pre-wrap;
+}
+
+.detail-more > summary {
+  cursor: pointer;
+  white-space: normal;
+}
+
+.detail-long {
+  margin-top: var(--s2);
+  white-space: pre-wrap;
+}
+
+.detail-images {
+  margin-top: var(--s4);
+}
+
+.image-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.detail-thumb {
+  display: block;
+  max-width: 10rem;
+  max-height: 8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  object-fit: cover;
+}
+
+.danger-zone {
+  margin-top: var(--s5);
+  border-color: var(--red-line);
+}
+
+.danger-title {
+  margin: 0 0 var(--s3);
+  font-size: var(--text-lg);
+}
+
+@media (max-width: 599px) {
+  .detail-field {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s1);
+    padding: var(--s3) var(--s4);
+  }
+}

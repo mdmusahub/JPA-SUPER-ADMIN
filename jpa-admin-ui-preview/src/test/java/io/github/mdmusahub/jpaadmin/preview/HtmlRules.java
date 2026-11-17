@@ -24,6 +24,7 @@ final class HtmlRules {
     private static final Pattern EVENT_HANDLER = Pattern.compile("(?i)\\son[a-z]+\\s*=\\s*[\"']");
     private static final Pattern EXTERNAL_URL = Pattern.compile("(?i)https?://");
     private static final Pattern PROTOCOL_RELATIVE = Pattern.compile("(?i)\\b(?:src|href|action)\\s*=\\s*[\"']//");
+    private static final Pattern FORM_TAG = Pattern.compile("(?i)<(/?)form\\b");
     private static final Pattern BUTTON = Pattern.compile("(?is)<button\\b([^>]*)>(.*?)</button>");
     private static final Pattern INPUT = Pattern.compile("(?is)<input\\b([^>]*)>");
     private static final Pattern LABEL_FOR = Pattern.compile("(?is)<label\\b[^>]*\\sfor\\s*=\\s*\"([^\"]+)\"");
@@ -156,7 +157,27 @@ final class HtmlRules {
         }
         unlabelledButtons(html, problems);
         unlabelledInputs(html, problems);
+        nestedForms(html, problems);
         return problems;
+    }
+
+    /**
+     * A form inside another form is invalid HTML and would let one form carry the other's controls: a bulk-delete POST would
+     * send the filter controls, or a filter request would send the row ids. The list page keeps its two forms apart (task U4).
+     */
+    private static void nestedForms(String html, List<String> problems) {
+        int depth = 0;
+        Matcher tags = FORM_TAG.matcher(html);
+        while (tags.find()) {
+            if (tags.group(1).isEmpty()) {
+                if (depth > 0) {
+                    problems.add("a <form> is inside another <form>");
+                }
+                depth++;
+            } else if (depth > 0) {
+                depth--;
+            }
+        }
     }
 
     /** theme.js must be present once, in the head, before the first stylesheet, and blocking (UI-13). */

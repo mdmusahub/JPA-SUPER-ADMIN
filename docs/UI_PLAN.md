@@ -51,9 +51,9 @@ Defined once, at the contract freeze (section 8). All fields are display-ready s
 | `LoginView` | Login | `title`, `error`, `logoutNotice` |
 | `DashboardView` | Dashboard | `stats` (total records, entities, groups, largest table), `groups` (entities with count and permissions), `chartAvailable` |
 | `ChartSeries` (JSON) | Chart endpoint | `range`, `days` (date, count per entity), `entities` |
-| `ListView` | List | `entity` (label, plural, icon), `columns` (key, label, type, sortable, sort link, sort state, align, visible, filterable), `rows` (id, cells), `search`, `sort`, `dir`, `filters` (definitions plus active chips, each with its link), `paging` (page, size, total, first, previous, next and last links, sizes each with a link), `actions` (can create, export, bulk delete, export link), `empty` (reason, hint) |
+| `ListView` | List | `entity` (label, plural, icon), `columns` (key, label, type, sortable, sort link, sort state, align, visible, filterable), `rows` (id, cells), `search`, `sort`, `dir`, `filters` (definitions plus active chips, each with its link), `paging` (page, size, total, first, previous, next and last links, sizes each with a link), `actions` (can create, export, bulk delete, export link, bulk-delete link), `empty` (reason, hint) |
 | `Cell` | List, detail | `type` (text, number, boolean, enum, relation, date, image, file, masked, empty), `display`, `tone`, `href`, `title` (hover text) |
-| `DetailView` | Detail | `title`, `entityLabel`, `id`, `fields` (label, cell), `images`, `actions` (edit, duplicate, delete) |
+| `DetailView` | Detail | `title`, `entityLabel`, `id`, `fields` (label, cell), `images`, `actions` (can edit, can duplicate, can delete, delete link) |
 | `FormView` | Create, edit | `mode`, `title`, `entityLabel`, `recordId` (`null` on create), `actionHref`, `cancelHref`, `fields` (key, label, input type, value, required, help text, options, error), `formErrors`, `uploadTicket` per upload field |
 | `UploadResult` (JSON) | Upload endpoint | `url`, `name`, `size`, `error` |
 | `ErrorView` | Error pages | `status`, `heading`, `hint` |
@@ -86,10 +86,12 @@ Conventions the records enforce or assume:
 - A row has exactly one cell per column, hidden columns included. `ListView.Empty.Reason` is `NONE` exactly when there are rows. `sort` and `dir` are both set or both `null`; `dir` is `asc` or `desc`.
 - A `MASKED` cell holds only `Cell.MASK`, with no tone, href or title. A `MASKED` form field has no value. An `UPLOAD` field has a ticket and no other field type has one.
 - `Cell` conventions: an `IMAGE` cell has the image URL in `href` and the file name in `display`; a `FILE` cell has the download URL in `href`; a `RELATION` cell links to the related record in `href`.
-- The backend builds the links and the template only prints them (D-28, see "Links" below). The template still builds the few fixed entity routes from `chrome.basePath`, `chrome.activeEntity` and the row or record id: the dashboard link, "New record", the links from a row or record to its detail, edit, duplicate and delete routes, bulk delete and logout. Every form posts the CSRF token from `chrome.csrf`. These routes stay template-built for now and are revisited in Phase 7 (D-29).
+- The backend builds the links and the template only prints them (D-28, see "Links" below). Since Phase 7 (D-74) the backend builds every link that carries state: the way back to the list, the row link and the relation link to a detail page, the delete address and the bulk-delete address. The template still builds the few fixed routes that carry none, from `chrome.basePath` and `chrome.activeEntity` (the dashboard link, "New record", logout, and "Edit" and "Duplicate" with the id as a Thymeleaf path variable or link parameter, which the engine percent-encodes). Every form posts the CSRF token from `chrome.csrf`. A test searches every template for a hand-built query string.
 - A column's `sortState` matches `ListView.sort` and `dir`: the column whose key is `sort` is `ASCENDING` or `DESCENDING`, every other column is `NONE`. `sortHref` is present exactly when the column is sortable. Template: `aria-sort` and the arrow come from `sortState`, the header links to `sortHref`.
 - Paging links: `firstHref` and `prevHref` are present exactly when `page > 0`; `nextHref` and `lastHref` exactly when there is a later page (`page + 1 < totalPages()`). Exactly the `SizeOption` whose size equals `size` has `current` true.
 - `Actions.exportHref` is present exactly when `canExport` is true. It carries the current search, filters, sort and visible columns.
+- `Actions.bulkDeleteHref` is present exactly when `canBulkDelete` is true, and `DetailView.Actions.deleteHref` exactly when `canDelete` is true (D-65). Each is the delete route plus the list state in its query; the controller re-reads that state with the list parser, so the redirect after a delete returns to the same list and is never taken from a request.
+- A `RELATION` cell links to the related record when its column names a target in the console (a hidden target has no link, D-54, D-70). The identifier cell of a row links to the record. A `TEXT` or `NUMBER` cell with an `href` is such a link.
 - `FormView.recordId` is present exactly in `EDIT` mode. The duplicate flow is a `CREATE` form that is pre-filled, so it has no `recordId`.
 - The login page also receives a `PageChrome`, with an empty sidebar and `user` `null`, for the base path, theme and CSRF token.
 - A record count (`PageChrome.NavItem.count`, `DashboardView.EntityCard.count`) is a `Long`: a number, or `null` when the console could not read it, in which case the page prints "unavailable" and the entity is left out of `DashboardView.Stats.totalRecords` and `largestTable` (D-44). `PageChrome.user` is the signed-in username or `null`; it holds no credential (SEC-1).
@@ -126,7 +128,8 @@ The backend builds every link the page prints; templates only print them. Every 
 | `ListView.Column` | `sortHref` (present exactly when sortable) |
 | `ListView.Filters` | `clearAllHref` (optional), `Chip.removeHref` |
 | `ListView.Paging` | `firstHref`, `prevHref`, `nextHref`, `lastHref` (optional, see conventions), `SizeOption.href` |
-| `ListView.Actions` | `exportHref` (present exactly when export is offered) |
+| `ListView.Actions` | `exportHref` (present exactly when export is offered), `bulkDeleteHref` (present exactly when bulk delete is offered) |
+| `DetailView.Actions` | `deleteHref` (present exactly when delete is offered) |
 | `FormView` | `actionHref`, `cancelHref` |
 | `DetailView.Image` | `url` |
 | `UploadResult` | `url` (success only) |
@@ -189,7 +192,7 @@ UI tasks use the prefix **U**. A UI task is "done" when it works in the preview 
 | U1 | Sidebar with groups and counts, dashboard cards (no chart yet) | 3 Discovery | Phase 3 |
 | U2 | List table, cell renderer, search box, sortable headers, pager, empty state | 4 List (search and sort were built with the list, D-50); Phase 5 (D-60) refined it with no template or stylesheet change | Phase 4 (connected: the real list page works in the sample app) |
 | U3 | Filter panel, chips, clear all (the filter links and the `Filters` data come with it from the backend, moved out of Phase 4, D-60). **Delivered 2026-11-17, see "U3 status" below** | 6 Filters | Phase 6 |
-| U4 | Detail page, confirm dialog, bulk bar, duplicate and delete flows, row checkboxes in the list, and relation cells as links (D-54) | 7 Detail and delete | Phase 7 |
+| U4 | Detail page, confirm dialog, bulk bar, duplicate and delete flows, row checkboxes in the list, and relation cells as links (D-54). **Delivered 2026-11-17, see "U4 status" below** | 7 Detail and delete | Phase 7 |
 | U5 | Form page, all field inputs, validation display, unsaved-changes guard | 8 Create and edit | Phase 8 |
 | U6 | Uploader component, previews, progress, errors, image cells | 9 Uploads | Phase 9 |
 | U7 | Dashboard chart with range switch | 10 Charts | Phase 10 |
@@ -237,6 +240,20 @@ The search box and the filter panel are **one GET form** (`data-filter-form`), s
 `filters.js` (about 30 lines, loaded with `defer`) only leaves empty controls out of the address when the form is submitted and switches them back on when the page is shown again; the page works without it, because the server ignores blank values silently. Styles are in `pages.css` (section "list page: filters"): tokens only, so both themes follow; the controls wrap in a grid and stack at 599px and below; chips wrap; a remove target is 28px with a visible focus ring; no animation. No inline script, style or handler, no `th:utext`.
 
 New preview fixtures (list states, built by the real factory, see `docs/FIXTURES.md` section 5): `filters-open`, `filters-active`, `relation-many-options`, `filter-text`, `filter-enum`, `filter-boolean`, `filter-relation`, `filter-number-range`, `filter-number-min-only`, `filter-date-range`, `filter-combined`, `filter-middle-page`, `filter-ignored` (with the chrome variant `filters-ignored`), `filter-no-matches`, `filter-no-matches-with-search`, `filter-relation-dropdown`, `filter-chips-escaped`, `filter-sensitive-absent`, `filter-hidden-entity-absent`. A manual browser pass (light and dark, phone width, keyboard only) is listed in `docs/logs/phase-6-report.md`; the automated real-browser test stays a Phase 14 item.
+
+### U4 status (2026-11-17, Phase 7)
+
+Delivered and connected in the sample app (D-65 to D-74). **One contract change, asked first and approved (D-65):** `ListView.Actions.bulkDeleteHref` and `DetailView.Actions.deleteHref`, each present exactly when its flag is true. Every other record is unchanged.
+
+**The detail page** (`detail.html`, `GET {path}/{entity}/{id}`) is a heading (the record's label, with "Entity #id" above it), the actions, a card with a labelled grid of every visible field, an image strip when the record has images, and a "Delete this record" card. Every value goes through the cell fragment (`th:text`, escaped): a masked value is dots with "Hidden value" for a screen reader, a missing value is a dash with "No value", a collection, an embedded value or binary data shows "(not shown)", a relation is a link when its cell has an `href`. A long text keeps its line breaks and wraps long words; past 300 characters it sits behind a `details` element whose summary is the start of it. "Edit record" and "Duplicate record" are printed only when `view.actions` says so (the real console says neither until Phase 8, D-73); the delete control is printed when `canDelete`. The way back to the list is the breadcrumb, which keeps the list state the page was opened with.
+
+**Deleting needs no script** (UI-5): "Delete record" is a `details` element whose panel holds the question and a plain POST form (the CSRF token, `view.actions.deleteHref`) with "Yes, delete record". The same pattern is the bulk bar's "Delete selected". After the POST the console redirects (303) to the list, with a message above the content (`chrome.flash`, role `status` for success and `alert` for a refusal), or back to the record when the database refused.
+
+**Row checkboxes and the bulk bar** (`fragments/table.html`, `fragments/bulk-bar.html`, `list.html`, `bulk.js`): when `Actions.canBulkDelete` is true the table has a first column of checkboxes (name `ids`, the value is the row id, each with a visually hidden label such as "Select Article 12", escaped) and a header checkbox that selects only this page (it says so in its label and is shown only with script). The table and the bar are inside a POST form of their own with the CSRF token; the search and filter form stays a separate GET form that closes before it; no form is inside another. Without script the bar is a row under the table and the confirmation is the `details` panel; with script (`bulk.js`, about 70 lines, loaded with `defer`, stores nothing) the bar is fixed at the bottom of the screen while something is selected and shows the count, Escape closes the question, and the selection is cleared whenever the page is shown (Back and the browser's cache included). The first column of a row (the identifier) and every set relation cell are links, built by the backend.
+
+Styles are in `components.css` (the danger button, script-only and no-script-only helpers, the confirmation) and `pages.css` (checkbox column, bar, detail grid): tokens only, so both themes follow; the grid and the bar stack at 599px and below; no animation; no inline script, style or handler, no `th:utext`.
+
+New preview fixtures (built by the real factories, see `docs/FIXTURES.md` sections 5 and 6): the page `detail` with 15 states and 12 new `list` states, and 9 new chrome variants for the pages that follow a delete. A manual browser pass (light and dark, phone width, keyboard only, script off) is listed in `docs/logs/phase-7-report.md`; the automated real-browser test stays a Phase 14 item.
 
 ## 8. Sync points
 

@@ -20,8 +20,6 @@ import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Selection;
-import jakarta.persistence.metamodel.EntityType;
-import jakarta.persistence.metamodel.SingularAttribute;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -124,9 +122,11 @@ public class ListQueryService {
         long total = count(builder, entity, plan, checked, filtering.specs());
         int lastPage = total == 0 ? 0 : (int) Math.min((total - 1) / checked.size(), Integer.MAX_VALUE);
         ListQuery effective = checked.withPage(Math.min(checked.page(), lastPage));
-        List<ListView.Row> rows = total == 0 ? List.of() : rows(builder, entity, plan, effective, filtering.specs());
+        List<List<String>> relationIds = new ArrayList<>();
+        List<ListView.Row> rows = total == 0 ? List.of()
+                : rows(builder, entity, plan, effective, filtering.specs(), relationIds);
         return new ListPage(plan.listColumns(), rows, total, effective, plan.searchedLabels(), filtering.controls(),
-                filtering.notes());
+                filtering.notes(), relationIds);
     }
 
     /**
@@ -167,8 +167,13 @@ public class ListQueryService {
         return total == null ? 0 : total;
     }
 
+    /**
+     * @param relationIds filled with one entry per row: for each column the identifier of the related record as text, or
+     *                    {@code null} when the column is not a relation or the relation is empty. The target's
+     *                    identifier is already one of the selections, so a link costs no extra statement (D-54).
+     */
     private List<ListView.Row> rows(CriteriaBuilder builder, AdminEntity entity, Plan plan, ListQuery query,
-                                    List<FilterPredicates.Spec> specs) {
+                                    List<FilterPredicates.Spec> specs, List<List<String>> relationIds) {
         CriteriaQuery<Tuple> select = builder.createTupleQuery();
         Root<?> root = select.from(entity.type());
 
@@ -218,10 +223,15 @@ public class ListQueryService {
         List<ListView.Row> rows = new ArrayList<>();
         for (Tuple tuple : typed.getResultList()) {
             List<Cell> cells = new ArrayList<>(plan.columns().size());
+            List<String> targets = new ArrayList<>(plan.columns().size());
             for (int i = 0; i < plan.columns().size(); i++) {
-                cells.add(cell(plan.columns().get(i), tuple, valueAt[i], labelAt[i]));
+                PlannedColumn column = plan.columns().get(i);
+                cells.add(cell(column, tuple, valueAt[i], labelAt[i]));
+                Object target = column.relation() != null && valueAt[i] >= 0 ? tuple.get(valueAt[i]) : null;
+                targets.add(target == null ? null : CellFormatter.id(target));
             }
             rows.add(new ListView.Row(CellFormatter.id(tuple.get(0)), cells));
+            relationIds.add(targets);
         }
         return rows;
     }
@@ -407,11 +417,12 @@ public class ListQueryService {
         for (ListColumn listed : listColumns) {
             ListColumn column = listed;
             AdminField field = entity.visibleField(column.key()).orElseThrow();
-            Relation relation = column.type() == Cell.Type.RELATION ? relationOf(field) : null;
+            Relation relation = column.type() == Cell.Type.RELATION ? Relation.of(entityManager, registry, field) : null;
             if (column.type() == Cell.Type.RELATION && column.sortable()
                     && (relation == null || relation.labelAttribute() == null)) {
                 // The metadata said the target has a label but the query cannot join to it: not sortable, never guessed.
-                column = new ListColumn(column.key(), column.label(), column.type(), false, column.align());
+                column = new ListColumn(column.key(), column.label(), column.type(), false, column.align(),
+                        column.targetEntity(), column.identifier());
             }
             columns.add(new PlannedColumn(column, field, relation));
             if (column.type() == Cell.Type.TEXT && field.kind() == AdminField.Kind.TEXT
@@ -430,7 +441,7 @@ public class ListQueryService {
         for (FilterField field : ListFilters.fields(entity, registry)) {
             Relation relation = null;
             if (field.kind() == ListView.Filters.Definition.Kind.RELATION) {
-                relation = relationOf(entity.visibleField(field.key()).orElseThrow());
+                relation = Relation.of(entityManager, registry, entity.visibleField(field.key()).orElseThrow());
                 if (relation == null || relation.labelAttribute() == null) {
                     continue; // nothing to list the choices from: no filter, never a guess
                 }
@@ -438,36 +449,6 @@ public class ListQueryService {
             plans.add(new FilterPlan(field, relation));
         }
         return List.copyOf(plans);
-    }
-
-    /**
-     * The identifier and the label of a to-one relation's target. {@code null} when the target has no single
-     * identifier attribute to read; the cell is then empty rather than wrong.
-     */
-    private Relation relationOf(AdminField field) {
-        EntityType<?> target;
-        try {
-            target = entityManager.getMetamodel().entity(field.javaType());
-        } catch (IllegalArgumentException notAnEntity) {
-            return null;
-        }
-        if (!target.hasSingleIdAttribute()) {
-            return null;
-        }
-        String idAttribute = null;
-        for (SingularAttribute<?, ?> attribute : target.getSingularAttributes()) {
-            if (attribute.isId()) {
-                idAttribute = attribute.getName();
-            }
-        }
-        if (idAttribute == null) {
-            return null;
-        }
-        String label = registry.find(field.targetEntity()).flatMap(ListColumns::labelAttributeOf).orElse(null);
-        return new Relation(idAttribute, label, target.getJavaType());
-    }
-
-    private record Relation(String idAttribute, String labelAttribute, Class<?> targetType) {
     }
 
     private record FilterPlan(FilterField field, Relation relation) {

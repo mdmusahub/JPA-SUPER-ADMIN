@@ -10,6 +10,15 @@
   aria-sort attribute through the stylesheet, so the screen reader and the eye get the same state. A column that
   cannot be sorted is plain text. A column with visible = false is skipped, in the header and in every row.
 
+  When view.actions.canBulkDelete is true the first column holds a checkbox for each row (name "ids", value the row id)
+  and the header holds a "select this page" checkbox. The table is then inside the bulk form of list.html (a POST form
+  of its own, never inside the GET form of the search and filters). The header checkbox is a script feature (it does
+  nothing without bulk.js), so it is shown only when the "js" class is on the page; the row checkboxes and the bar's
+  submit button work without any script. Each checkbox has a label that names its row (visually hidden, escaped).
+
+  Every header and cell has a class col-<type> (col-number, col-text, ...). The stylesheet lets the compact types take only the
+  room their content needs and the text and relation columns share the rest; the template sets no width itself.
+
   Every cell goes through the cell fragment, which decides how each cell type looks. The table builds no link.
 */-->
 <div th:fragment="table" class="table-scroll" tabindex="0" role="region"
@@ -19,8 +28,16 @@
              th:text="${view.entity.plural} + ', page ' + ${view.paging.page + 1} + ' of ' + ${view.paging.totalPages()}">Articles</caption>
     <thead>
       <tr>
+        <th th:if="${view.actions.canBulkDelete}" scope="col" class="select-col">
+          <span class="js-only">
+            <input type="checkbox" id="select-all" class="select-box" data-select-all>
+            <label class="visually-hidden" for="select-all"
+                   th:text="'Select all ' + ${#strings.toLowerCase(view.entity.plural)} + ' on this page'">Select all articles on this page</label>
+          </span>
+          <span class="visually-hidden no-js-only">Select</span>
+        </th>
         <th th:each="col : ${view.columns}" th:if="${col.visible}" scope="col"
-            th:classappend="${col.align.name() == 'END'} ? 'align-end'"
+            th:class="'col-' + ${#strings.toLowerCase(col.type.name())} + (${col.align.name() == 'END'} ? ' align-end' : '')"
             th:attr="aria-sort=${col.sortState.name() == 'ASCENDING'} ? 'ascending' : (${col.sortState.name() == 'DESCENDING'} ? 'descending' : (${col.sortable} ? 'none' : null))">
           <a class="sort-link" th:if="${col.sortable}" th:href="@{${col.sortHref}}">
             <span th:text="${col.label}">Title</span>
@@ -31,10 +48,16 @@
       </tr>
     </thead>
     <tbody>
-      <tr th:each="row : ${view.rows}">
+      <tr th:each="row, rowStat : ${view.rows}">
+        <td th:if="${view.actions.canBulkDelete}" class="select-col">
+          <input type="checkbox" name="ids" class="select-box" data-select-row
+                 th:id="'select-row-' + ${rowStat.index}" th:value="${row.id}">
+          <label class="visually-hidden" th:for="'select-row-' + ${rowStat.index}"
+                 th:text="'Select ' + ${view.entity.label} + ' ' + ${row.id}">Select Article 1</label>
+        </td>
         <th:block th:each="cell, i : ${row.cells}">
           <td th:if="${view.columns[i.index].visible}"
-              th:classappend="${view.columns[i.index].align.name() == 'END'} ? 'align-end'">
+              th:class="'col-' + ${#strings.toLowerCase(view.columns[i.index].type.name())} + (${view.columns[i.index].align.name() == 'END'} ? ' align-end' : '')">
             <th:block th:replace="~{jpa-admin/fragments/cell :: cell(${cell})}"></th:block>
           </td>
         </th:block>
