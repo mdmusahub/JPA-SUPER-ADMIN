@@ -42,6 +42,9 @@ class ListLayoutBrowserTest {
     /** While the bulk bar is shown the page keeps room for it, so the limit is larger. */
     static final int BAR_ROOM = 160;
 
+    /** {@code null} is the page's own font stack; the others are forced to test the layout against wider and narrower text. */
+    private static final List<String> FONTS = java.util.Arrays.asList(null, "Verdana", "Tahoma", "Arial");
+
     private static final List<String> ENTITIES = List.of("tag", "category", "customer", "order", "product");
 
     private static final String MEASURE = """
@@ -81,6 +84,23 @@ class ListLayoutBrowserTest {
     @LocalServerPort
     private int port;
 
+    /** The fonts the browser really draws the table text with, and the font-family the page asked for. */
+    private static String fonts(HeadlessChrome chrome) throws Exception {
+        chrome.command("DOM.enable", "{}");
+        chrome.command("CSS.enable", "{}");
+        String root = chrome.command("DOM.getDocument", "{\"depth\":0}");
+        String rootId = root.replaceAll("(?s).*\"nodeId\":(\\d+).*", "$1");
+        String cell = chrome.command("DOM.querySelector", "{\"nodeId\":" + rootId + ",\"selector\":\".data-table tbody td:nth-child(5)\"}");
+        String cellId = cell.replaceAll("(?s).*\"nodeId\":(\\d+).*", "$1");
+        String platform = chrome.command("CSS.getPlatformFontsForNode", "{\"nodeId\":" + cellId + "}");
+        java.util.regex.Matcher family = java.util.regex.Pattern.compile("\"familyName\":\"([^\"]+)\"").matcher(platform);
+        List<String> names = new ArrayList<>();
+        while (family.find()) {
+            names.add(family.group(1));
+        }
+        return "requested=" + chrome.evaluate("getComputedStyle(document.body).fontFamily") + " drawn=" + names;
+    }
+
     private static Map<String, String> parse(String text) {
         Map<String, String> values = new LinkedHashMap<>();
         for (String pair : text.split(";")) {
@@ -107,20 +127,33 @@ class ListLayoutBrowserTest {
             chrome.runAndWaitForLoad("document.querySelector('#username').value = '" + MockBrowser.USER
                     + "'; document.querySelector('#password').value = '" + MockBrowser.PASSWORD
                     + "'; document.querySelector('form').submit(); 'ok'");
-            for (boolean dark : new boolean[] {true, false}) {
+            // The machine's own font first (both schemes), then a wide, a medium and a narrow font forced on the page, because the
+            // widths of text differ from one platform to the next and CI is not this machine.
+            // The console's policy (rightly) refuses an inline style; the test turns it off for itself to force a font.
+            chrome.command("Page.setBypassCSP", "{\"enabled\":true}");
+            for (String font : FONTS) {
+            for (boolean dark : font == null ? new boolean[] {true, false} : new boolean[] {true}) {
                 for (int[] screen : new int[][] {{1280, 900}, {390, 844}}) {
                     chrome.setViewport(screen[0], screen[1], dark);
                     for (String entity : ENTITIES) {
                         chrome.open(base + "/" + entity);
-                        String where = entity + " @" + screen[0] + (dark ? " dark" : " light");
+                        if (font != null) {
+                            chrome.evaluate("(function () { var s = document.createElement('style'); s.textContent = 'body { --font: \"" + font
+                                    + "\", sans-serif; }'; document.head.appendChild(s); return 'ok'; })()");
+                        }
+                        String where = entity + " @" + screen[0] + (dark ? " dark" : " light") + (font == null ? "" : " font " + font);
                         Map<String, String> m = parse(chrome.evaluate(MEASURE));
                         System.out.println("LAYOUT " + where + " " + m);
+                        if (entity.equals("product")) {
+                            System.out.println("LAYOUT fonts " + where + " " + fonts(chrome));
+                        }
                         check(where, screen[0], m, problems);
                         Map<String, String> s = parse(chrome.evaluate(SELECT_ONE));
                         System.out.println("LAYOUT " + where + " one row selected " + s);
                         checkSelected(where, s, problems);
                     }
                 }
+            }
             }
         }
 
