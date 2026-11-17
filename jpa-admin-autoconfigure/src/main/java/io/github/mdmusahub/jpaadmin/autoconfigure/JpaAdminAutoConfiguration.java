@@ -3,6 +3,8 @@ package io.github.mdmusahub.jpaadmin.autoconfigure;
 import io.github.mdmusahub.jpaadmin.metadata.AdminEntityRegistry;
 import io.github.mdmusahub.jpaadmin.metadata.EntityScanner;
 import io.github.mdmusahub.jpaadmin.service.CountService;
+import io.github.mdmusahub.jpaadmin.service.DeleteService;
+import io.github.mdmusahub.jpaadmin.service.DetailQueryService;
 import io.github.mdmusahub.jpaadmin.service.ListQueryService;
 import io.github.mdmusahub.jpaadmin.web.BasePath;
 import io.github.mdmusahub.jpaadmin.web.ConsoleChromeFactory;
@@ -14,6 +16,7 @@ import io.github.mdmusahub.jpaadmin.web.ConsoleViewFactory;
 import io.github.mdmusahub.jpaadmin.web.ConsoleViews;
 import io.github.mdmusahub.jpaadmin.web.CsrfTokens;
 import io.github.mdmusahub.jpaadmin.web.EntityController;
+import io.github.mdmusahub.jpaadmin.web.RecordController;
 import io.github.mdmusahub.jpaadmin.web.ThemeController;
 import jakarta.persistence.EntityManagerFactory;
 import java.time.Clock;
@@ -179,6 +182,37 @@ public class JpaAdminAutoConfiguration {
     }
 
     /**
+     * The detail page's query service. Same entity manager as the list: Spring's shared, transaction-aware one, so the
+     * service's {@code @Transactional(readOnly = true)} is a real read-only transaction (ARCH-5). Without a factory it finds
+     * nothing, so every record is the console's 404.
+     */
+    @Bean
+    @ConditionalOnBean(type = ENTITY_MANAGER_FACTORY)
+    @ConditionalOnMissingBean
+    DetailQueryService jpaAdminDetailQueryService(ObjectProvider<EntityManagerFactory> factories,
+                                                  ObjectProvider<AdminEntityRegistry> registries) {
+        EntityManagerFactory factory = consoleEntityManagerFactory(factories);
+        return factory == null ? DetailQueryService.unavailable()
+                : DetailQueryService.over(SharedEntityManagerCreator.createSharedEntityManager(factory),
+                        registries.getIfAvailable(AdminEntityRegistry::empty));
+    }
+
+    /**
+     * The only writer: delete and bulk delete. {@code @Transactional} (not read-only), so a foreign key failure rolls the
+     * whole batch back (ARCH-5). The flags of {@code @AdminResource} are checked inside the service (SEC-11).
+     */
+    @Bean
+    @ConditionalOnBean(type = ENTITY_MANAGER_FACTORY)
+    @ConditionalOnMissingBean
+    DeleteService jpaAdminDeleteService(ObjectProvider<EntityManagerFactory> factories,
+                                        ObjectProvider<AdminEntityRegistry> registries) {
+        EntityManagerFactory factory = consoleEntityManagerFactory(factories);
+        return factory == null ? DeleteService.unavailable()
+                : DeleteService.over(SharedEntityManagerCreator.createSharedEntityManager(factory),
+                        registries.getIfAvailable(AdminEntityRegistry::empty));
+    }
+
+    /**
      * The sidebar and the dashboard. Without JPA, or without an entity manager factory, the console still works:
      * it then has no entities, and the pages say so.
      */
@@ -229,6 +263,21 @@ public class JpaAdminAutoConfiguration {
                                               BasePath basePath) {
         return new EntityController(chromeFactory, views, navigation,
                 lists.getIfAvailable(ListQueryService::unavailable), basePath);
+    }
+
+    /**
+     * One record's routes at {@code {path}/{entity}/{id}}: the detail page, delete, bulk delete and the checks of duplicate.
+     * Without an entity manager factory the services find nothing, so every record is the console's 404.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    RecordController jpaAdminRecordController(ConsoleChromeFactory chromeFactory, ConsoleViews views,
+                                              ConsoleNavigation navigation, ObjectProvider<ListQueryService> lists,
+                                              ObjectProvider<DetailQueryService> details,
+                                              ObjectProvider<DeleteService> deletes, BasePath basePath) {
+        return new RecordController(chromeFactory, views, navigation, lists.getIfAvailable(ListQueryService::unavailable),
+                details.getIfAvailable(DetailQueryService::unavailable),
+                deletes.getIfAvailable(DeleteService::unavailable), basePath);
     }
 
     /** {@code {path}/theme.css}: the accent colour as one CSS variable (SEC-15). */

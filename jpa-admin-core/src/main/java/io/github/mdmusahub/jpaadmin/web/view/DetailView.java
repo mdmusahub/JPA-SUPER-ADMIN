@@ -68,7 +68,16 @@ public record DetailView(String title, String entityLabel, String id, List<Field
      * @param canEdit      whether "Edit" is offered
      * @param canDuplicate whether "Duplicate" is offered
      * @param canDelete    whether "Delete" is offered
+     * @param deleteHref   the address the delete form posts to: the delete route of this record plus the list state the page
+     *                     was opened with, so the redirect after the delete can return to the same list; present exactly
+     *                     when {@code canDelete} is true (D-65)
      */
-    public record Actions(boolean canEdit, boolean canDuplicate, boolean canDelete) {
+    public record Actions(boolean canEdit, boolean canDuplicate, boolean canDelete, String deleteHref) {
+        public Actions {
+            Hrefs.optional("deleteHref", deleteHref);
+            if (canDelete != (deleteHref != null)) {
+                throw new IllegalArgumentException("deleteHref is required exactly when delete is offered");
+            }
+        }
     }
 }

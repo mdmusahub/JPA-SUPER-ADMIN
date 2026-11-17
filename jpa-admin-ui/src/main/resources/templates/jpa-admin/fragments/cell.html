@@ -2,11 +2,12 @@
 <html>
 <body>
 <!--/*
-  One cell of a table, by its type. The value is always printed with th:text, so it is escaped (SEC-9): a stored value
-  such as <script> shows as text. Nothing here builds a link: a cell that is a link carries its own href.
+  One cell of a table or of the detail grid, by its type. The value is always printed with th:text, so it is escaped
+  (SEC-9): a stored value such as <script> shows as text. Nothing here builds a link: a cell that is a link carries its
+  own href, built by the backend (D-28, D-65). A text or number cell with an href is the identifier cell of a row.
 
     TEXT      plain text; title is the full text when the display was cut
-    NUMBER    right aligned through the column
+    NUMBER    right aligned through the column; a link when the cell has an href (the identifier column links to the record)
     BOOLEAN   a check or a cross with the word, so colour is never the only signal
     ENUM      a badge; the tone decides the colour (grey for NONE and GREY)
     RELATION  the related record's label, a link when the record has an href
@@ -19,7 +20,10 @@
 <th:block th:fragment="cell(cell)" th:switch="${cell.type.name()}">
   <span th:case="'MASKED'" class="cell-masked"><span aria-hidden="true" th:text="${cell.display}">••••••••</span><span class="visually-hidden">Hidden value</span></span>
   <span th:case="'EMPTY'" class="cell-empty"><span aria-hidden="true">–</span><span class="visually-hidden">No value</span></span>
-  <span th:case="'NUMBER'" class="cell-number" th:text="${cell.display}">1,199</span>
+  <th:block th:case="'NUMBER'">
+    <a th:if="${cell.href != null}" class="cell-link cell-number" th:href="@{${cell.href}}" th:text="${cell.display}">1,199</a>
+    <span th:if="${cell.href == null}" class="cell-number" th:text="${cell.display}">1,199</span>
+  </th:block>
   <span th:case="'BOOLEAN'" class="cell-bool" th:classappend="${cell.tone.name() == 'GREEN'} ? 'is-yes' : 'is-no'"
         th:text="${cell.display}">Yes</span>
   <span th:case="'ENUM'" class="badge" th:classappend="'badge-' + ${#strings.toLowerCase(cell.tone.name())}"
@@ -37,7 +41,11 @@
     <th:block th:replace="~{jpa-admin/fragments/icons :: file}"></th:block>
     <span th:text="${cell.display}">report.pdf</span>
   </a>
-  <span th:case="*" class="cell-text" th:title="${cell.title}" th:text="${cell.display}">Text</span>
+  <th:block th:case="*">
+    <a th:if="${cell.href != null}" class="cell-link cell-text" th:href="@{${cell.href}}" th:title="${cell.title}"
+       th:text="${cell.display}">Text</a>
+    <span th:if="${cell.href == null}" class="cell-text" th:title="${cell.title}" th:text="${cell.display}">Text</span>
+  </th:block>
 </th:block>
 </body>
 </html>

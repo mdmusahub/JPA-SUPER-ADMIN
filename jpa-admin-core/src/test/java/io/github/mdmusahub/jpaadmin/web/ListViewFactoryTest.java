@@ -47,7 +47,7 @@ class ListViewFactoryTest {
 
     private static ListView view(String basePath, ListQuery query, long total, int rowCount) {
         return ListViewFactory.build(basePath, "parcel", INFO, new ListPage(COLUMNS, rows(rowCount), total, query, List.of("Reference")),
-                new ListView.Actions(false, false, false, null));
+                new ListView.Actions(false, false, false, null, null));
     }
 
     private static ListView view(ListQuery query, long total, int rowCount) {
@@ -257,7 +257,7 @@ class ListViewFactoryTest {
     void noActionIsOfferedAndNoFilterExistsYet() {
         ListView list = view(ListQuery.defaults(), 25, 25);
 
-        assertThat(list.actions()).isEqualTo(new ListView.Actions(false, false, false, null));
+        assertThat(list.actions()).isEqualTo(new ListView.Actions(false, false, false, null, null));
         assertThat(list.filters().definitions()).isEmpty();
         assertThat(list.filters().chips()).isEmpty();
         assertThat(list.filters().clearAllHref()).isNull();
@@ -322,7 +322,7 @@ class ListViewFactoryTest {
             rows.add(new ListView.Row(String.valueOf(i), cells));
         }
         return ListViewFactory.build("/admin", "parcel", INFO, new ListPage(columns, rows, total, query, searched),
-                new ListView.Actions(false, false, false, null));
+                new ListView.Actions(false, false, false, null, null));
     }
 
     @Test

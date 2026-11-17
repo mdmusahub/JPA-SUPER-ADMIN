@@ -160,8 +160,10 @@ class ConsoleListPageTest {
     }
 
     @Test
-    void noActionIsOfferedYetNeitherExportNorNewNorBulkDelete() {
-        assertThat(viewOf(open("parcel")).actions()).isEqualTo(new ListView.Actions(false, false, false, null));
+    void onlyBulkDeleteIsOfferedYetNeitherExportNorNew() {
+        // Phase 7 offers bulk delete (a parcel can be deleted); "New record" is Phase 8 and export is Phase 11.
+        assertThat(viewOf(open("parcel")).actions())
+                .isEqualTo(new ListView.Actions(false, false, true, null, "/admin/parcel/bulk-delete"));
     }
 
     // ---- bad parameters never fail ----------------------------------------------------------------------------
@@ -315,14 +317,15 @@ class ConsoleListPageTest {
     }
 
     @Test
-    void aRelationCellShowsTheTargetsLabelAndNoLink() {
+    void aRelationCellShowsTheTargetsLabelAndLinksToTheTargetsDetailPage() {
+        // Phase 7 removed the "no link yet" limit of D-54; the full link rules are in ConsoleRecordLinksTest.
         ListView view = viewOf(open("parcel"));
         int depot = indexOf(view, "depot");
 
         assertThat(view.rows()).allSatisfy(row -> {
             assertThat(row.cells().get(depot).type()).isEqualTo(Cell.Type.RELATION);
             assertThat(row.cells().get(depot).display()).isEqualTo("Central depot");
-            assertThat(row.cells().get(depot).href()).isNull();
+            assertThat(row.cells().get(depot).href()).matches("/admin/depot/[0-9]+");
         });
     }
 

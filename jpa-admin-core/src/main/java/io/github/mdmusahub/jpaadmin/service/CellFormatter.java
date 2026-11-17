@@ -34,6 +34,8 @@ final class CellFormatter {
 
     static final int MAX_DISPLAY = 120;
     static final int MAX_TITLE = 1000;
+    /** The longest text the detail page prints for one field, in characters. */
+    static final int MAX_DETAIL_TEXT = 5000;
     private static final String ELLIPSIS = "…";
     private static final String HIDDEN_VALUE = "(not shown)";
 
@@ -74,6 +76,51 @@ final class CellFormatter {
         Cell text = text(shown);
         return new Cell(Cell.Type.RELATION, text.type() == Cell.Type.EMPTY ? "#" + id : text.display(), Cell.Tone.NONE,
                 null, text.title());
+    }
+
+    /** The cell of a field the detail page does not print: a collection, an embedded value, binary data (ARCH-4). */
+    static Cell notShown() {
+        return Cell.text(HIDDEN_VALUE);
+    }
+
+    /**
+     * Text for the detail page: unlike a list cell it keeps line breaks (the page prints them with {@code pre-wrap}) and
+     * is cut at {@value #MAX_DETAIL_TEXT} characters. Control characters other than the line break become spaces, runs of
+     * more than two line breaks become two, and bidirectional overrides are dropped, as in a list cell.
+     */
+    static Cell detailText(String raw) {
+        StringBuilder text = new StringBuilder(Math.min(raw.length(), 2 * MAX_DETAIL_TEXT));
+        int lineBreaks = 0;
+        for (int i = 0; i < raw.length(); ) {
+            int codePoint = raw.codePointAt(i);
+            i += Character.charCount(codePoint);
+            if (isBidirectionalControl(codePoint)) {
+                continue;
+            }
+            if (codePoint == '\r') {
+                if (i < raw.length() && raw.charAt(i) == '\n') {
+                    continue; // the \n of this \r\n is the break
+                }
+                codePoint = '\n';
+            }
+            if (codePoint == '\n') {
+                if (++lineBreaks <= 2) {
+                    text.append('\n');
+                }
+                continue;
+            }
+            lineBreaks = 0;
+            text.appendCodePoint(Character.isISOControl(codePoint) ? ' ' : codePoint);
+            if (text.length() > 2 * MAX_DETAIL_TEXT) {
+                break;
+            }
+        }
+        String shown = text.toString().strip();
+        if (shown.isEmpty()) {
+            return Cell.empty();
+        }
+        return shown.codePointCount(0, shown.length()) <= MAX_DETAIL_TEXT ? Cell.text(shown)
+                : Cell.text(cut(shown, MAX_DETAIL_TEXT) + ELLIPSIS);
     }
 
     /** The identifier as text for the row. */

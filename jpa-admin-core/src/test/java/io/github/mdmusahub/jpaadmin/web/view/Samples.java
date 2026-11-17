@@ -101,14 +101,14 @@ final class Samples {
     }
 
     static ListView.Actions actions() {
-        return new ListView.Actions(true, true, true, "/admin/item/export?search=&sort=name&dir=asc");
+        return new ListView.Actions(true, true, true, "/admin/item/export?search=&sort=name&dir=asc", "/admin/item/bulk-delete");
     }
 
     static DetailView detail() {
         return new DetailView("Alpha", "Item", "1",
                 List.of(new DetailView.Field("Name", Cell.text("Alpha")), new DetailView.Field("Secret", Cell.masked())),
                 List.of(new DetailView.Image("/admin/files/a.png", "Alpha")),
-                new DetailView.Actions(true, true, true));
+                new DetailView.Actions(true, true, true, "/admin/item/1/delete"));
     }
 
     static FormView.Field textField() {

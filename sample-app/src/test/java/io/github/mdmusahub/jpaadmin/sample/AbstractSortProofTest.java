@@ -53,9 +53,10 @@ abstract class AbstractSortProofTest {
     /** A category with no description, so a nullable text column has a missing value (removed again after each test). */
     private static final String NULL_DESCRIPTION_CATEGORY = "TEST-NULL-DESCRIPTION";
 
-    private static final Pattern HEADER = Pattern.compile("(?s)<th\\b([^>]*)>(.*?)</th>");
+    private static final Pattern HEADER = Pattern.compile("(?s)<th\\b(?![^>]*select-col)([^>]*)>(.*?)</th>");
     private static final Pattern ROW = Pattern.compile("(?s)<tr>(.*?)</tr>");
-    private static final Pattern CELL = Pattern.compile("(?s)<td\\b[^>]*>(.*?)</td>");
+    // The checkbox column of bulk delete (Phase 7) is not a data cell: its cell and header are skipped.
+    private static final Pattern CELL = Pattern.compile("(?s)<td\\b(?![^>]*select-col)[^>]*>(.*?)</td>");
 
     @Autowired
     protected MockMvc mvc;

@@ -34,6 +34,59 @@ final class ListLinks {
 
     /** The link for {@code query}. */
     String to(ListQuery query) {
+        return link(path, query);
+    }
+
+    // ---- links of the detail and delete pages (Phase 7, D-65): same writer, same encoding ---------------------------
+
+    /**
+     * The detail page of one record, carrying the list state it was opened from so that the page can lead back to the
+     * same list. {@code null} when the id cannot be written into an address (see {@link #addressable}): the cell is then
+     * shown without a link.
+     */
+    String detail(String id, ListQuery state) {
+        return addressable(id) ? link(path + "/" + encode(id), state) : null;
+    }
+
+    /** The address the delete form of one record posts to, carrying the list state. {@code null} as for {@link #detail}. */
+    String delete(String id, ListQuery state) {
+        return addressable(id) ? link(path + "/" + encode(id) + "/delete", state) : null;
+    }
+
+    /** The address the bulk-delete form posts to, carrying the list state. */
+    String bulkDelete(ListQuery state) {
+        return link(path + "/bulk-delete", state);
+    }
+
+    /**
+     * Where the visitor goes after a delete: the list they came from, with the same search, filters, sort and page size.
+     * When at least one record was deleted the list's content changed, so it starts again at the first page (the rule of
+     * D-62 for any change of what the list holds); when nothing was deleted the page stays. The list itself clamps a page
+     * past the end (D-51).
+     */
+    String afterDelete(ListQuery state, boolean deletedSomething) {
+        return to(deletedSomething ? state.withPage(0) : state);
+    }
+
+    /**
+     * Whether an id can be written into a path segment that a server will deliver back unchanged: not empty, no slash
+     * (Tomcat refuses an encoded one), not {@code .} or {@code ..}, no control character. An id for which this is false
+     * has no link; the record is still listed.
+     */
+    static boolean addressable(String id) {
+        if (id == null || id.isEmpty() || id.length() > 255 || id.equals(".") || id.equals("..")) {
+            return false;
+        }
+        for (int i = 0; i < id.length(); i++) {
+            char c = id.charAt(i);
+            if (c == '/' || c == '\\' || Character.isISOControl(c)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static String link(String path, ListQuery query) {
         List<String> parameters = new ArrayList<>(5);
         if (!query.search().isEmpty()) {
             parameters.add("q=" + encode(query.search()));

@@ -251,3 +251,63 @@
 .muted {
   color: var(--muted);
 }
+
+/* ---- destructive actions and their confirmation (task U4) -------------------------------------------------------- */
+
+/* A button that deletes something. Tinted, not filled, so it is never the loudest thing on the page. */
+.btn-danger {
+  border-color: var(--red-line);
+  background: var(--red-tint);
+  color: var(--red);
+}
+
+.btn-danger:hover {
+  border-color: var(--red);
+  background: var(--red-tint);
+}
+
+/* Script-only and no-script-only text: theme.js puts the "js" class on the page before first paint. */
+.js-only {
+  display: none;
+}
+
+.js .js-only {
+  display: revert;
+}
+
+.js .no-js-only {
+  display: none;
+}
+
+/*
+ * A confirmation that needs no script: a details element whose summary looks like the button and whose panel holds the
+ * question and the real submit button. Pressing Escape or the summary again closes it.
+ */
+.confirm {
+  display: block;
+}
+
+.confirm > summary {
+  display: inline-flex;
+  list-style: none;
+}
+
+.confirm > summary::-webkit-details-marker {
+  display: none;
+}
+
+.confirm-panel {
+  display: grid;
+  gap: var(--s3);
+  justify-items: start;
+  max-width: 60ch;
+  margin-top: var(--s3);
+  padding: var(--s4);
+  border: 1px solid var(--red-line);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+}
+
+.confirm-panel > p {
+  margin: 0;
+}

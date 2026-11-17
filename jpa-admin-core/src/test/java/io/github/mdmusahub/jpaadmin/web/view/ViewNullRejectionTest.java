@@ -79,7 +79,7 @@ class ViewNullRejectionTest {
                 rejects("Paging.sizes", () -> new ListView.Paging(0, 25, 0, null, null, null, null, null)),
                 rejects("Paging.SizeOption.href", () -> new ListView.Paging.SizeOption(25, true, null)),
                 rejects("DetailView.fields", () -> new DetailView("t", "e", "1", null, List.of(),
-                        new DetailView.Actions(true, true, true))),
+                        new DetailView.Actions(true, true, true, "/admin/item/1/delete"))),
                 rejects("DetailView.actions", () -> new DetailView("t", "e", "1", List.of(), List.of(), null)),
                 rejects("DetailView.Field.cell", () -> new DetailView.Field("l", null)),
                 rejects("DetailView.Image.url", () -> new DetailView.Image(null, "l")),

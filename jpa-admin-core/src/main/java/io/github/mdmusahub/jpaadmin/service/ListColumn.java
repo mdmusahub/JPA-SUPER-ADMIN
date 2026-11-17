@@ -19,8 +19,18 @@ import java.util.Objects;
  * @param type     kind of cell the column holds
  * @param sortable whether the column can be sorted
  * @param align    text alignment
+ * @param targetEntity URL name of the entity a relation column points at, or {@code null} when the column is not a relation
+ *                 or its target is not in the console (hidden or unsupported): exactly the columns whose cells may link to
+ *                 the related record (D-54)
+ * @param identifier whether this column holds the record's identifier (its cell links to the record's detail page)
  */
-public record ListColumn(String key, String label, Cell.Type type, boolean sortable, ListView.Column.Align align) {
+public record ListColumn(String key, String label, Cell.Type type, boolean sortable, ListView.Column.Align align,
+                         String targetEntity, boolean identifier) {
+
+    /** A column that is neither a linked relation nor the identifier. */
+    public ListColumn(String key, String label, Cell.Type type, boolean sortable, ListView.Column.Align align) {
+        this(key, label, type, sortable, align, null, false);
+    }
 
     public ListColumn {
         Objects.requireNonNull(key, "key");

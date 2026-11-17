@@ -45,16 +45,18 @@ import org.springframework.web.servlet.ModelAndView;
  * not acceptable is ignored, never an error, and the page says which one and why (in the console's notices, plain text
  * that is escaped on output). The cut-search notice and the filter notices share the same area.
  *
- * <p>The list offers no action yet: "New record" arrives with Phase 8, CSV export with Phase 11, bulk delete with
- * Phase 7. They are absent, not disabled, so no button leads nowhere (SEC-11).
+ * <p>The list offers bulk delete (row checkboxes and the bulk bar) exactly when the entity can be deleted
+ * ({@link AdminEntity#canDelete}, from {@code @AdminResource}); every row's identifier links to its detail page and a
+ * relation cell links to the related record (D-65, D-70). "New record" arrives with Phase 8 and CSV export with Phase 11.
+ * They are absent, not disabled, so no button leads nowhere (SEC-11).
  *
  * <p>Internal, not stable API. Public only so the auto-configuration module can create it.
  */
 @Controller
 public class EntityController {
 
-    /** What the list offers today: nothing. Each action arrives with its phase. */
-    private static final ListView.Actions NO_ACTIONS = new ListView.Actions(false, false, false, null);
+    /** What the list offers besides bulk delete: nothing yet. Each action arrives with its phase. */
+    private static final ListView.Actions NO_ACTIONS = new ListView.Actions(false, false, false, null, null);
 
     private final ConsoleChromeFactory chromeFactory;
     private final ConsoleViews views;
@@ -95,7 +97,8 @@ public class EntityController {
         ListQuery query = lists.parse(found, q, sort, dir, page, size).withParsedFilters(filters.filters());
         ListPage listed = lists.list(found, query);
         ListView.EntityInfo info = new ListView.EntityInfo(found.label(), Plurals.of(found.label()), found.icon());
-        ListView view = ListViewFactory.build(basePath.value(), found.urlName(), info, listed, NO_ACTIONS);
+        ListView view = ListViewFactory.build(basePath.value(), found.urlName(), info, listed, NO_ACTIONS,
+                found.canDelete());
         PageChrome chrome = chromeFactory.chrome(request,
                 List.of(new Breadcrumb("Dashboard", basePath.value()), new Breadcrumb(info.plural(), null)),
                 found.urlName(), notices(q, filters, listed));
@@ -115,7 +118,7 @@ public class EntityController {
     }
 
     /** The request's {@code filter.*} parameters only; everything else is none of the filter code's business. */
-    private static Map<String, List<String>> filterParameters(HttpServletRequest request) {
+    static Map<String, List<String>> filterParameters(HttpServletRequest request) {
         Map<String, List<String>> filters = new LinkedHashMap<>();
         request.getParameterMap().forEach((name, values) -> {
             if (name.startsWith("filter.")) {
