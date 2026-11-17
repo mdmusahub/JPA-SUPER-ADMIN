@@ -400,13 +400,32 @@ class ListQueryServiceTest {
     void aPageCostsExactlyTwoQueriesWhateverTheRowsAndRelationColumns() {
         list(null, null, null, null, "100");
 
-        assertThat(RecordingStatementInspector.statements()).as("a count and a page, nothing else (ARCH-6)").hasSize(2);
-        assertThat(RecordingStatementInspector.selects()).hasSize(2);
+        assertThat(parcelStatements()).as("a count and a page of parcels, nothing else (ARCH-6)").hasSize(2);
+        assertThat(parcelSelects()).hasSize(2);
         RecordingStatementInspector.clear();
 
         list("pkg", "weight", "desc", "1", "10");
 
-        assertThat(RecordingStatementInspector.statements()).hasSize(2);
+        assertThat(parcelStatements()).hasSize(2);
+    }
+
+    @Test
+    void theOnlyOtherStatementsAreTheChoicesOfTheTwoRelationFiltersAndNothingGrowsWithTheRows() {
+        // Phase 6: a relation filter lists its target (depot, courier: the two relations with a label). Crate has no label
+        // and vault is hidden, so they cost nothing. One small statement each, however many parcels there are.
+        list(null, null, null, null, "100");
+
+        assertThat(RecordingStatementInspector.statements()).as("2 for the parcels, 1 per filterable relation").hasSize(4);
+    }
+
+    /** The statements that read the parcels themselves: the count and the page. */
+    private static List<String> parcelStatements() {
+        return RecordingStatementInspector.statements().stream()
+                .filter(sql -> sql.toLowerCase(Locale.ROOT).contains(" from parcel ")).toList();
+    }
+
+    private static List<String> parcelSelects() {
+        return parcelStatements().stream().filter(sql -> sql.stripLeading().toLowerCase(Locale.ROOT).startsWith("select")).toList();
     }
 
     @Test
@@ -644,7 +663,7 @@ class ListQueryServiceTest {
     @Test
     void theSqlOrdersBySortColumnThenByIdentifier() {
         list(null, "pieces", "desc", null, null);
-        String page = RecordingStatementInspector.selects().get(1).toLowerCase(Locale.ROOT);
+        String page = parcelSelects().get(1).toLowerCase(Locale.ROOT);
 
         // Hibernate writes the order as positions in the select list; position 1 is the identifier.
         // The null rule (D-60) is nulls last. Hibernate writes it into the statement where the database's own default
@@ -653,13 +672,13 @@ class ListQueryServiceTest {
         RecordingStatementInspector.clear();
 
         list(null, "pieces", "asc", null, null);
-        assertThat(RecordingStatementInspector.selects().get(1).toLowerCase(Locale.ROOT))
-                .contains("order by " + selectPosition(RecordingStatementInspector.selects().get(1).toLowerCase(Locale.ROOT),
+        assertThat(parcelSelects().get(1).toLowerCase(Locale.ROOT))
+                .contains("order by " + selectPosition(parcelSelects().get(1).toLowerCase(Locale.ROOT),
                         ".pieces") + " asc nulls last,1 ");
         RecordingStatementInspector.clear();
 
         list(null, null, null, null, null);
-        assertThat(RecordingStatementInspector.selects().get(1).toLowerCase(Locale.ROOT)).contains("order by 1 ")
+        assertThat(parcelSelects().get(1).toLowerCase(Locale.ROOT)).contains("order by 1 ")
                 .doesNotContain("order by 1,");
     }
 
@@ -693,7 +712,7 @@ class ListQueryServiceTest {
 
         assertThat(page.query().sort()).isNull();
         assertThat(ids(page)).isSorted();
-        assertThat(RecordingStatementInspector.selects().get(1).toLowerCase(Locale.ROOT)).doesNotContain("order by "
+        assertThat(parcelSelects().get(1).toLowerCase(Locale.ROOT)).doesNotContain("order by "
                 + "p1_0." + key.toLowerCase(Locale.ROOT));
     }
 
@@ -837,7 +856,7 @@ class ListQueryServiceTest {
             for (String dir : List.of("asc", "desc")) {
                 RecordingStatementInspector.clear();
                 list(null, key, dir, null, null);
-                String page = RecordingStatementInspector.selects().get(1).toLowerCase(Locale.ROOT);
+                String page = parcelSelects().get(1).toLowerCase(Locale.ROOT);
                 String orderBy = page.substring(page.indexOf(" order by "));
 
                 // On H2 a descending order already puts nulls last, so Hibernate adds the clause for ascending only;
@@ -851,7 +870,7 @@ class ListQueryServiceTest {
     @Test
     void sortingByARelationAddsNoJoinAndNoStatement() {
         list(null, null, null, null, null);
-        String plain = RecordingStatementInspector.selects().get(1).toLowerCase(Locale.ROOT);
+        String plain = parcelSelects().get(1).toLowerCase(Locale.ROOT);
         int joins = countOf(plain, " left join ");
         assertThat(joins).as("one join per relation column, as in Phase 4").isEqualTo(4);
         RecordingStatementInspector.clear();
@@ -861,11 +880,11 @@ class ListQueryServiceTest {
                 RecordingStatementInspector.clear();
                 list("pkg", key, dir, "1", "10");
 
-                assertThat(RecordingStatementInspector.statements()).as(key + " " + dir + ": a count and a page")
-                        .hasSize(2);
-                assertThat(countOf(RecordingStatementInspector.selects().get(1).toLowerCase(Locale.ROOT), " left join "))
+                assertThat(parcelStatements()).as(key + " " + dir + ": a count and a page").hasSize(2);
+                assertThat(RecordingStatementInspector.statements()).as("and the two relation filters' choices").hasSize(4);
+                assertThat(countOf(parcelSelects().get(1).toLowerCase(Locale.ROOT), " left join "))
                         .as(key + " " + dir + ": the sort reuses the join the column already has").isEqualTo(joins);
-                assertThat(RecordingStatementInspector.selects().get(0).toLowerCase(Locale.ROOT))
+                assertThat(parcelSelects().get(0).toLowerCase(Locale.ROOT))
                         .as("the count has no join at all").doesNotContain(" join ");
             }
         }
@@ -874,12 +893,12 @@ class ListQueryServiceTest {
     @Test
     void theRelationSortOrdersByTheLabelColumnAndNeverTouchesASensitiveColumnOfTheTarget() {
         list(null, "depot", "desc", null, null);
-        String depot = RecordingStatementInspector.selects().get(1).toLowerCase(Locale.ROOT);
+        String depot = parcelSelects().get(1).toLowerCase(Locale.ROOT);
         assertThat(depot).contains("order by " + selectPosition(depot, ".name") + " desc,1 ");
         RecordingStatementInspector.clear();
 
         list(null, "courier", "asc", null, null);
-        String courier = RecordingStatementInspector.selects().get(1).toLowerCase(Locale.ROOT);
+        String courier = parcelSelects().get(1).toLowerCase(Locale.ROOT);
         assertThat(courier).contains("order by " + selectPosition(courier, ".callsign") + " asc nulls last,1 ");
 
         String sql = String.join("\n", RecordingStatementInspector.statements()).toLowerCase(Locale.ROOT)

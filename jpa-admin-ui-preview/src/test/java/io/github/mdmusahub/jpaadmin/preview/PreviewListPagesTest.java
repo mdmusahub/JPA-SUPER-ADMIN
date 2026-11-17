@@ -91,7 +91,7 @@ class PreviewListPagesTest {
     void theSearchIsAGetFormWithALabelThatKeepsTheSortAndTheSize() throws Exception {
         String html = render("sorted-asc");
 
-        assertThat(flat(html)).contains("<form class=\"list-toolbar\" method=\"get\" role=\"search\" action=\"/admin-preview/article\">")
+        assertThat(flat(html)).contains("<form class=\"list-toolbar\" method=\"get\" role=\"search\" data-filter-form action=\"/admin-preview/article\">")
                 .contains("<label class=\"visually-hidden\" for=\"list-search\">Search articles</label>")
                 .contains("id=\"list-search\"", "type=\"search\"", "name=\"q\"", "maxlength=\"100\"")
                 .contains("<input type=\"hidden\" name=\"sort\" value=\"title\">", "<input type=\"hidden\" name=\"dir\" value=\"asc\">",

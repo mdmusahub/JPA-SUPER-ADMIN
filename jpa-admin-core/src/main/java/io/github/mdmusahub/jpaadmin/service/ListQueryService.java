@@ -5,7 +5,9 @@ import io.github.mdmusahub.jpaadmin.metadata.AdminEntityRegistry;
 import io.github.mdmusahub.jpaadmin.metadata.AdminField;
 import io.github.mdmusahub.jpaadmin.web.view.Cell;
 import io.github.mdmusahub.jpaadmin.web.view.ListView;
+import io.github.mdmusahub.jpaadmin.web.view.FormView;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.Parameter;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.CriteriaBuilder;
@@ -22,8 +24,8 @@ import jakarta.persistence.metamodel.EntityType;
 import jakarta.persistence.metamodel.SingularAttribute;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -57,6 +59,12 @@ import org.springframework.transaction.annotation.Transactional;
  * sort column has equal values. A relation column with a label is sorted by that label, through the same join that
  * shows it, so sorting costs no extra join and no extra statement (D-60).
  *
+ * <p>Filters ({@link ActiveFilter}) are further conditions of the same two queries, all bound parameters
+ * ({@link FilterPredicates}). A relation filter lists its target's records as choices, so each filterable relation costs
+ * one more small statement per page (the target's identifier and label only, at most {@value #MAX_RELATION_OPTIONS} + 1
+ * rows, ordered by label); a target with more records than that gets no filter and the page says so, so a list is
+ * never silently cut short. The choice in the address must be one of those records, or the filter is ignored.
+ *
  * <p>A page past the end is clamped to the last page; the {@linkplain ListPage#query() effective query} says which
  * page was read. Anything the metadata does not allow in a query (a sort key, for instance) is dropped here as well,
  * not only where the request is parsed.
@@ -65,8 +73,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 public class ListQueryService {
 
-    /** The character that escapes {@code %} and {@code _} in the search pattern. Not a backslash, which some databases treat specially. */
-    private static final char ESCAPE = '!';
+    /** The most choices a relation filter lists. A target with more records gets no filter (never a cut-short list). */
+    public static final int MAX_RELATION_OPTIONS = 200;
 
     private final EntityManager entityManager;
     private final AdminEntityRegistry registry;
@@ -111,11 +119,14 @@ public class ListQueryService {
         ListQuery checked = plan.checked(query);
 
         CriteriaBuilder builder = entityManager.getCriteriaBuilder();
-        long total = count(builder, entity, plan, checked);
+        Filtering filtering = filtering(builder, plan, checked);
+        checked = filtering.query();
+        long total = count(builder, entity, plan, checked, filtering.specs());
         int lastPage = total == 0 ? 0 : (int) Math.min((total - 1) / checked.size(), Integer.MAX_VALUE);
         ListQuery effective = checked.withPage(Math.min(checked.page(), lastPage));
-        List<ListView.Row> rows = total == 0 ? List.of() : rows(builder, entity, plan, effective);
-        return new ListPage(plan.listColumns(), rows, total, effective, plan.searchedLabels());
+        List<ListView.Row> rows = total == 0 ? List.of() : rows(builder, entity, plan, effective, filtering.specs());
+        return new ListPage(plan.listColumns(), rows, total, effective, plan.searchedLabels(), filtering.controls(),
+                filtering.notes());
     }
 
     /**
@@ -128,23 +139,36 @@ public class ListQueryService {
         return ListQuery.parse(entity, registry, q, sort, dir, page, size);
     }
 
+    /**
+     * Reads the {@code filter.*} parameters of a request against this entity's metadata (see {@link ListFilters}).
+     * Never throws; whatever is not acceptable is ignored and described in a note.
+     *
+     * @param entity an entity from the registry
+     * @param params the request's parameters; only names that start with {@code filter.} are read
+     */
+    public FilterParse parseFilters(AdminEntity entity, Map<String, List<String>> params) {
+        return ListFilters.parse(entity, registry, params);
+    }
+
     // ---- the two queries ------------------------------------------------------------------------------------
 
-    private long count(CriteriaBuilder builder, AdminEntity entity, Plan plan, ListQuery query) {
+    private long count(CriteriaBuilder builder, AdminEntity entity, Plan plan, ListQuery query,
+                       List<FilterPredicates.Spec> specs) {
         CriteriaQuery<Long> count = builder.createQuery(Long.class);
         Root<?> root = count.from(entity.type());
         count.select(builder.count(root));
-        Search search = Search.of(builder, root, plan.searchable(), query.search());
-        if (search != null) {
-            count.where(search.predicate());
+        FilterPredicates.Built conditions = conditions(builder, root, plan, query, specs);
+        if (!conditions.predicates().isEmpty()) {
+            count.where(conditions.predicates().toArray(new Predicate[0]));
         }
         TypedQuery<Long> typed = entityManager.createQuery(count);
-        bind(typed, search);
+        bind(typed, conditions.bindings());
         Long total = typed.getSingleResult();
         return total == null ? 0 : total;
     }
 
-    private List<ListView.Row> rows(CriteriaBuilder builder, AdminEntity entity, Plan plan, ListQuery query) {
+    private List<ListView.Row> rows(CriteriaBuilder builder, AdminEntity entity, Plan plan, ListQuery query,
+                                    List<FilterPredicates.Spec> specs) {
         CriteriaQuery<Tuple> select = builder.createTupleQuery();
         Root<?> root = select.from(entity.type());
 
@@ -180,14 +204,14 @@ public class ListQueryService {
         }
         select.multiselect(selections);
 
-        Search search = Search.of(builder, root, plan.searchable(), query.search());
-        if (search != null) {
-            select.where(search.predicate());
+        FilterPredicates.Built conditions = conditions(builder, root, plan, query, specs);
+        if (!conditions.predicates().isEmpty()) {
+            select.where(conditions.predicates().toArray(new Predicate[0]));
         }
         orderBy(builder, select, root, plan, query, labelPaths);
 
         TypedQuery<Tuple> typed = entityManager.createQuery(select);
-        bind(typed, search);
+        bind(typed, conditions.bindings());
         typed.setFirstResult((int) Math.min((long) query.page() * query.size(), Integer.MAX_VALUE));
         typed.setMaxResults(query.size());
 
@@ -238,11 +262,29 @@ public class ListQueryService {
                 : builder.asc(sorted, Nulls.LAST), byId);
     }
 
-    private static Search bind(TypedQuery<?> typed, Search search) {
-        if (search != null && search.parameter() != null) {
-            typed.setParameter(search.parameter(), search.pattern());
+    /** The search and the filters as one list of conditions (all must hold) and the values to bind. */
+    private static FilterPredicates.Built conditions(CriteriaBuilder builder, Root<?> root, Plan plan, ListQuery query,
+                                                     List<FilterPredicates.Spec> specs) {
+        FilterPredicates.Built filters = FilterPredicates.build(builder, root, specs);
+        List<Predicate> predicates = new ArrayList<>();
+        List<FilterPredicates.Bound> bindings = new ArrayList<>();
+        Search search = Search.of(builder, root, plan.searchable(), query.search());
+        if (search != null) {
+            predicates.add(search.predicate());
+            if (search.parameter() != null) {
+                bindings.add(new FilterPredicates.Bound(search.parameter(), search.pattern()));
+            }
         }
-        return search;
+        predicates.addAll(filters.predicates());
+        bindings.addAll(filters.bindings());
+        return new FilterPredicates.Built(predicates, bindings);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void bind(TypedQuery<?> typed, List<FilterPredicates.Bound> bindings) {
+        for (FilterPredicates.Bound bound : bindings) {
+            typed.setParameter((Parameter<Object>) bound.parameter(), bound.value());
+        }
     }
 
     // ---- the search -----------------------------------------------------------------------------------------
@@ -264,22 +306,95 @@ public class ListQueryService {
             ParameterExpression<String> parameter = builder.parameter(String.class);
             List<Predicate> any = new ArrayList<>();
             for (String name : searchable) {
-                any.add(builder.like(builder.lower(root.<String>get(name)), parameter, ESCAPE));
+                any.add(builder.like(builder.lower(root.<String>get(name)), parameter, FilterPredicates.ESCAPE));
             }
-            return new Search(builder.or(any), parameter, "%" + escape(text.toLowerCase(Locale.ROOT)) + "%");
+            return new Search(builder.or(any), parameter, FilterPredicates.containsPattern(text));
         }
+    }
 
-        private static String escape(String text) {
-            StringBuilder escaped = new StringBuilder(text.length() + 8);
-            for (int i = 0; i < text.length(); i++) {
-                char c = text.charAt(i);
-                if (c == ESCAPE || c == '%' || c == '_') {
-                    escaped.append(ESCAPE);
+    // ---- filters: controls, choices, and the conditions ---------------------------------------------------
+
+    private record Filtering(ListQuery query, List<FilterPredicates.Spec> specs, List<FilterControl> controls,
+                             List<FilterNote> notes) {
+    }
+
+    private record Choices(List<FormView.Option> options, Map<String, Object> ids, boolean overTheBound) {
+    }
+
+    /**
+     * The controls on offer and the filters that stay in force. A relation choice is checked against the target's
+     * records (the same list the dropdown shows), so an id that is not one of them is ignored and never reaches a query.
+     */
+    private Filtering filtering(CriteriaBuilder builder, Plan plan, ListQuery query) {
+        Map<String, ActiveFilter> active = new LinkedHashMap<>();
+        query.filters().forEach(filter -> active.put(filter.key(), filter));
+        List<FilterControl> controls = new ArrayList<>();
+        List<FilterNote> notes = new ArrayList<>();
+        List<ActiveFilter> kept = new ArrayList<>();
+        List<FilterPredicates.Spec> specs = new ArrayList<>();
+        for (FilterPlan planned : plan.filters()) {
+            FilterField field = planned.field();
+            ActiveFilter filter = active.get(field.key());
+            Object relationId = null;
+            switch (field.kind()) {
+                case ENUM -> controls.add(new FilterControl(field.key(), field.label(), field.kind(), field.enumValues().stream()
+                        .map(constant -> new FormView.Option(constant, CellFormatter.humanize(constant))).toList()));
+                case BOOLEAN -> controls.add(new FilterControl(field.key(), field.label(), field.kind(),
+                        List.of(new FormView.Option("true", "Yes"), new FormView.Option("false", "No"))));
+                case RELATION -> {
+                    Choices choices = choices(builder, planned.relation());
+                    if (choices.overTheBound()) {
+                        notes.add(new FilterNote("The " + field.label() + " filter is not available: it would have more than "
+                                + MAX_RELATION_OPTIONS + " choices.", false));
+                        continue;
+                    }
+                    controls.add(new FilterControl(field.key(), field.label(), field.kind(), choices.options()));
+                    if (filter != null) {
+                        relationId = choices.ids().get(filter.value());
+                        if (relationId == null) {
+                            notes.add(new FilterNote("The " + field.label()
+                                    + " filter was ignored: that choice is not available.", false));
+                            filter = null;
+                        }
+                    }
                 }
-                escaped.append(c);
+                case TEXT, NUMBER_RANGE, DATE_RANGE ->
+                        controls.add(new FilterControl(field.key(), field.label(), field.kind(), List.of()));
             }
-            return escaped.toString();
+            if (filter != null) {
+                kept.add(filter);
+                specs.add(new FilterPredicates.Spec(filter, field,
+                        planned.relation() == null ? null : planned.relation().idAttribute(), relationId));
+            }
         }
+        ListQuery effective = new ListQuery(query.search(), query.sort(), query.dir(), query.page(), query.size(), kept);
+        return new Filtering(effective, specs, controls, notes);
+    }
+
+    /**
+     * The target's records as choices: identifier and label attribute only, ordered by label (missing labels last) and then
+     * identifier, at most {@value #MAX_RELATION_OPTIONS} of them. One row more is read to find out whether there are more.
+     */
+    private Choices choices(CriteriaBuilder builder, Relation relation) {
+        CriteriaQuery<Tuple> select = builder.createTupleQuery();
+        Root<?> target = select.from(relation.targetType());
+        Path<?> id = target.get(relation.idAttribute());
+        Path<?> label = target.get(relation.labelAttribute());
+        select.multiselect(id, label);
+        select.orderBy(builder.asc(label, Nulls.LAST), builder.asc(id));
+        List<Tuple> found = entityManager.createQuery(select).setMaxResults(MAX_RELATION_OPTIONS + 1).getResultList();
+        if (found.size() > MAX_RELATION_OPTIONS) {
+            return new Choices(List.of(), Map.of(), true);
+        }
+        List<FormView.Option> options = new ArrayList<>(found.size());
+        Map<String, Object> ids = new HashMap<>();
+        for (Tuple row : found) {
+            Object value = row.get(0);
+            String text = CellFormatter.id(value);
+            options.add(new FormView.Option(text, CellFormatter.relation(row.get(1), value).display()));
+            ids.put(text, value);
+        }
+        return new Choices(options, ids, false);
     }
 
     // ---- what an entity's list is made of ---------------------------------------------------------------------
@@ -306,7 +421,23 @@ public class ListQueryService {
             }
         }
         return new Plan(entity.idAttribute(), List.copyOf(columns), List.copyOf(searchable),
-                List.copyOf(searchedLabels));
+                List.copyOf(searchedLabels), filterPlans(entity));
+    }
+
+    /** The fields of {@code entity} that may be filtered, and for a relation the target to read its choices from. */
+    private List<FilterPlan> filterPlans(AdminEntity entity) {
+        List<FilterPlan> plans = new ArrayList<>();
+        for (FilterField field : ListFilters.fields(entity, registry)) {
+            Relation relation = null;
+            if (field.kind() == ListView.Filters.Definition.Kind.RELATION) {
+                relation = relationOf(entity.visibleField(field.key()).orElseThrow());
+                if (relation == null || relation.labelAttribute() == null) {
+                    continue; // nothing to list the choices from: no filter, never a guess
+                }
+            }
+            plans.add(new FilterPlan(field, relation));
+        }
+        return List.copyOf(plans);
     }
 
     /**
@@ -333,10 +464,13 @@ public class ListQueryService {
             return null;
         }
         String label = registry.find(field.targetEntity()).flatMap(ListColumns::labelAttributeOf).orElse(null);
-        return new Relation(idAttribute, label);
+        return new Relation(idAttribute, label, target.getJavaType());
     }
 
-    private record Relation(String idAttribute, String labelAttribute) {
+    private record Relation(String idAttribute, String labelAttribute, Class<?> targetType) {
+    }
+
+    private record FilterPlan(FilterField field, Relation relation) {
     }
 
     private record PlannedColumn(ListColumn column, AdminField field, Relation relation) {
@@ -348,20 +482,30 @@ public class ListQueryService {
 
     /** Everything about an entity's list that does not depend on a request. Built once per entity. */
     private record Plan(String idAttribute, List<PlannedColumn> columns, List<String> searchable,
-                        List<String> searchedLabels) {
+                        List<String> searchedLabels, List<FilterPlan> filters) {
 
         List<ListColumn> listColumns() {
             return columns.stream().map(PlannedColumn::column).toList();
         }
 
-        /** The query with any sort the entity cannot do removed (SEC-2), so only known names reach a query. */
+        /**
+         * The query with any sort or filter the entity cannot do removed (SEC-2), so only known names reach a query. The
+         * filters come out in column order, at most {@value ListQuery#MAX_FILTERS}.
+         */
         ListQuery checked(ListQuery query) {
-            if (query.sort() == null) {
-                return query;
-            }
-            boolean sortable = columns.stream().anyMatch(column -> column.column().sortable()
+            boolean sortable = query.sort() != null && columns.stream().anyMatch(column -> column.column().sortable()
                     && column.column().key().equals(query.sort()));
-            return sortable ? query : new ListQuery(query.search(), null, null, query.page(), query.size());
+            List<ActiveFilter> allowed = new ArrayList<>();
+            for (FilterPlan plan : filters) {
+                for (ActiveFilter filter : query.filters()) {
+                    if (filter.key().equals(plan.field().key()) && filter.kind() == plan.field().kind()
+                            && allowed.size() < ListQuery.MAX_FILTERS) {
+                        allowed.add(filter);
+                    }
+                }
+            }
+            return new ListQuery(query.search(), sortable ? query.sort() : null, sortable ? query.dir() : null,
+                    query.page(), query.size(), allowed);
         }
     }
 }

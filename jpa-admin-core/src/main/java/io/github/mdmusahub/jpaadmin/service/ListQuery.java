@@ -26,6 +26,9 @@ import java.util.stream.Collectors;
  *       non-numeric) means page 0. A number too big for an {@code int} counts as {@link Integer#MAX_VALUE}, which the
  *       service then clamps to the last page. The page returned by the service is always a real page.</li>
  *   <li><b>Size</b> ({@code size}): one of {@link #PAGE_SIZES}. Anything else means {@value #DEFAULT_SIZE}.</li>
+ *   <li><b>Filters</b> ({@code filter.*}): read by {@code ListQueryService#parseFilters}, not by {@link #parse}; the
+ *       checked result is carried here as {@link ActiveFilter}s, at most {@value #MAX_FILTERS}, one per field.
+ *       Every change of the filter set starts again at page 0 (the old page number would mean other rows).</li>
  * </ul>
  *
  * <p>Internal, not stable API. Public because the controller and the preview build it.
@@ -35,8 +38,9 @@ import java.util.stream.Collectors;
  * @param dir    {@code asc} or {@code desc}; {@code null} exactly when {@code sort} is {@code null}
  * @param page   requested page, zero-based, not negative
  * @param size   rows per page, one of {@link #PAGE_SIZES}
+ * @param filters the filters in force, in column order, at most {@value #MAX_FILTERS}
  */
-public record ListQuery(String search, String sort, String dir, int page, int size) {
+public record ListQuery(String search, String sort, String dir, int page, int size, List<ActiveFilter> filters) {
 
     /** The page sizes the console offers (FR-10). */
     public static final List<Integer> PAGE_SIZES = List.of(10, 25, 50, 100);
@@ -47,14 +51,29 @@ public record ListQuery(String search, String sort, String dir, int page, int si
     /** The longest search text, in characters. Longer text is cut, not refused. */
     public static final int MAX_SEARCH_LENGTH = 100;
 
+    /** The most filters that can be in force at once (a range with two bounds is one filter). */
+    public static final int MAX_FILTERS = 10;
+
     /** Ascending order. */
     public static final String ASC = "asc";
 
     /** Descending order. */
     public static final String DESC = "desc";
 
+    /** A query with no filters. */
+    public ListQuery(String search, String sort, String dir, int page, int size) {
+        this(search, sort, dir, page, size, List.of());
+    }
+
     public ListQuery {
         Objects.requireNonNull(search, "search");
+        filters = List.copyOf(Objects.requireNonNull(filters, "filters"));
+        if (filters.size() > MAX_FILTERS) {
+            throw new IllegalArgumentException("at most " + MAX_FILTERS + " filters");
+        }
+        if (filters.stream().map(ActiveFilter::key).distinct().count() != filters.size()) {
+            throw new IllegalArgumentException("one filter per field");
+        }
         if ((sort == null) != (dir == null)) {
             throw new IllegalArgumentException("sort and dir must both be set or both be null");
         }
@@ -96,17 +115,41 @@ public record ListQuery(String search, String sort, String dir, int page, int si
 
     /** The same query on another page. */
     public ListQuery withPage(int newPage) {
-        return new ListQuery(search, sort, dir, newPage, size);
+        return new ListQuery(search, sort, dir, newPage, size, filters);
     }
 
     /** The same query with another page size, back on the first page (the old page number would mean other rows). */
     public ListQuery withSize(int newSize) {
-        return new ListQuery(search, sort, dir, 0, newSize);
+        return new ListQuery(search, sort, dir, 0, newSize, filters);
     }
 
     /** The same search sorted by {@code key} and {@code direction}, back on the first page. */
     public ListQuery withSort(String key, String direction) {
-        return new ListQuery(search, key, direction, 0, size);
+        return new ListQuery(search, key, direction, 0, size, filters);
+    }
+
+    /** The same query with these filters instead, back on the first page (the old page number would mean other rows). */
+    public ListQuery withFilters(List<ActiveFilter> newFilters) {
+        return new ListQuery(search, sort, dir, 0, size, newFilters);
+    }
+
+    /**
+     * The same query with the filters that were read from the same address. Unlike {@link #withFilters}, the page stays:
+     * the address that carries these filters also carries that page, and a link built for it (next page, Back) must keep
+     * working. Only a <em>change</em> of the filter set, made through {@link #withFilters}, starts again at page 0.
+     */
+    public ListQuery withParsedFilters(List<ActiveFilter> parsed) {
+        return new ListQuery(search, sort, dir, page, size, parsed);
+    }
+
+    /** The same query without the filter on {@code key}, back on the first page. */
+    public ListQuery withoutFilter(String key) {
+        return withFilters(filters.stream().filter(filter -> !filter.key().equals(key)).toList());
+    }
+
+    /** The same query without any filter, back on the first page. */
+    public ListQuery withoutFilters() {
+        return withFilters(List.of());
     }
 
     private static Set<String> sortableKeys(AdminEntity entity, AdminEntityRegistry registry) {

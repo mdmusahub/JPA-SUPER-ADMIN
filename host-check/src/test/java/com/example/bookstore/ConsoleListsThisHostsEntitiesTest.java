@@ -171,6 +171,34 @@ class ConsoleListsThisHostsEntitiesTest {
         assertThat(page("/admin/book?sort=secretToken&dir=asc")).doesNotContain("sort=secretToken");
     }
 
+    /** The value of the option labelled {@code label} in the select with this id, as the page prints it. */
+    private static String choice(String html, String selectId, String label) {
+        int from = html.indexOf("id=\"" + selectId + "\"");
+        assertThat(from).as(selectId).isGreaterThanOrEqualTo(0);
+        Matcher option = Pattern.compile("<option value=\"([^\"]+)\"[^>]*>" + Pattern.quote(label) + "</option>").matcher(html.substring(from, html.indexOf("</select>", from)));
+        assertThat(option.find()).as(label).isTrue();
+        return option.group(1);
+    }
+
+    @Test
+    void filtersWorkOnThisHostsEntitiesTooAndTheSecretTokenCanNotBeFiltered() throws Exception {
+        signInAndOpenDashboard();
+        String all = page("/admin/book");
+        String authorTwo = choice(all, "filter-author", "Author 2");
+        String publisherOne = choice(all, "filter-publisher", "Publisher 1");
+
+        // Books: 1 (Author 1, Publisher 1), 2 (A2, P2), 3 (A3, P1), 4 (A1, P2), 5 (A2, P1). Column 4 is the title.
+        assertThat(table(page("/admin/book?filter.author=" + authorTwo)).stream().map(row -> row.get(4))).containsExactly("Book 2", "Book 5");
+        assertThat(table(page("/admin/book?filter.publisher=" + publisherOne + "&filter.author=" + authorTwo)).stream().map(row -> row.get(4)))
+                .containsExactly("Book 5");
+        assertThat(table(page("/admin/book?filter.title=BOOK 3")).stream().map(row -> row.get(4))).containsExactly("Book 3");
+        String chips = page("/admin/book?filter.author=" + authorTwo);
+        assertThat(chips).contains("<span class=\"chip-label\">Author:</span>", "Author 2", "Clear all filters");
+        assertThat(page("/admin/book?filter.secretToken=token-0")).contains("1 filter in the address does not match any filter of this table and was ignored.")
+                .doesNotContain("filter.secretToken\"", "token-0");
+        assertThat(page("/admin/book?filter.author=999999")).contains("The Author filter was ignored: that choice is not available.");
+    }
+
     @Test
     void anAddressThatIsNotOneOfThisHostsEntitiesIsNotFound() throws Exception {
         signInAndOpenDashboard();
