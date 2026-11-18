@@ -68,4 +68,30 @@ public interface StorageProvider {
 
     /** The address under which the file is served: under the console, or under the storage's public path when it has one. */
     String url(StoredFile file);
+
+    /**
+     * Reads one of this provider's own addresses back: the exact text {@link #url} makes for a stored file, and nothing else.
+     * It looks at the text only and never at the disk, so it can be asked about any posted value. A value that is not an
+     * address of this provider (another site, another storage, a traversal, anything that {@link #url} would not have written)
+     * is empty.
+     *
+     * <p>The default is empty, so a provider that does not implement it owns no address and the console refuses every
+     * address a form posts for it (fail closed).
+     *
+     * @param url an address, from a form or a database; untrusted
+     */
+    default Optional<StoredFile> parse(String url) {
+        return Optional.empty();
+    }
+
+    /**
+     * Whether {@code url} is an address this provider made for a file that is still stored. The console accepts a posted
+     * upload address only if this is true (the file really is one the console uploaded). The default is "it parses"; a provider
+     * that can ask its storage whether the file exists should say so, as the local provider does.
+     *
+     * @param url an address, from a form or a database; untrusted
+     */
+    default boolean owns(String url) {
+        return parse(url).isPresent();
+    }
 }

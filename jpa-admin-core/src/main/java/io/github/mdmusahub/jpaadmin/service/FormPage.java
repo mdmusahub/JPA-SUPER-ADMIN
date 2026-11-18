@@ -37,7 +37,19 @@ public record FormPage(String recordId, String version, String label, List<FormV
         List<FormView.Field> shown = new ArrayList<>(fields.size());
         for (FormView.Field field : fields) {
             String value = field.value();
-            if (field.inputType() != FormView.Field.InputType.MASKED) {
+            if (field.inputType() == FormView.Field.InputType.UPLOAD) {
+                // An address that was refused is not put back (it would only be refused again): the field shows what the
+                // page read for it. An address that was accepted stays when another field of the form was wrong, and a
+                // file the visitor removed stays removed.
+                if (errors.get(field.key()) == null) {
+                    String typed = posted.apply(field.key());
+                    if ("true".equals(posted.apply(field.key() + RecordWriteService.REMOVE_SUFFIX))) {
+                        value = null;
+                    } else if (typed != null && !typed.isBlank()) {
+                        value = typed.strip();
+                    }
+                }
+            } else if (field.inputType() != FormView.Field.InputType.MASKED) {
                 String typed = posted.apply(field.key());
                 if (typed != null) {
                     value = typed;

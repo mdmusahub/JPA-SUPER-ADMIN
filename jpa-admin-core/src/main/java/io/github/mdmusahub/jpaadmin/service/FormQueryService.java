@@ -49,14 +49,30 @@ import org.springframework.transaction.annotation.Transactional;
  */
 public class FormQueryService {
 
+    /**
+     * The convention of an {@link InputType#UPLOAD} field for the two advisory limits the uploader script reads (D-96): its
+     * {@code options} are exactly two entries, {@code (UPLOAD_ACCEPT, "image/png,image/jpeg")} and
+     * {@code (UPLOAD_MAX_BYTES, "2097152")}. The server decides again (UPL-1, UPL-2); these only let the browser say so early.
+     */
+    public static final String UPLOAD_ACCEPT = "accept";
+
+    /** See {@link #UPLOAD_ACCEPT}. */
+    public static final String UPLOAD_MAX_BYTES = "maxBytes";
+
     private final EntityManager entityManager;
     private final AdminEntityRegistry registry;
+    private final UploadFiles uploads;
     private final Map<String, List<EditableFields.Editable>> plans = new ConcurrentHashMap<>();
 
     /** Not public, for the same reason as {@code ListQueryService}: Spring's transactional proxy subclasses this class. */
     protected FormQueryService(EntityManager entityManager, AdminEntityRegistry registry) {
+        this(entityManager, registry, UploadFiles.none());
+    }
+
+    protected FormQueryService(EntityManager entityManager, AdminEntityRegistry registry, UploadFiles uploads) {
         this.entityManager = entityManager;
         this.registry = Objects.requireNonNull(registry, "registry");
+        this.uploads = Objects.requireNonNull(uploads, "uploads");
     }
 
     /**
@@ -67,6 +83,15 @@ public class FormQueryService {
      */
     public static FormQueryService over(EntityManager entityManager, AdminEntityRegistry registry) {
         return new FormQueryService(Objects.requireNonNull(entityManager, "entityManager"), registry);
+    }
+
+    /**
+     * The service with upload support: an upload field is an upload input with a fresh ticket (Phase 9b).
+     *
+     * @param uploads what the forms need to know about uploaded files
+     */
+    public static FormQueryService over(EntityManager entityManager, AdminEntityRegistry registry, UploadFiles uploads) {
+        return new FormQueryService(Objects.requireNonNull(entityManager, "entityManager"), registry, uploads);
     }
 
     /** A service for a console that has no entity manager factory. Every entity is unknown to it. */
@@ -85,7 +110,7 @@ public class FormQueryService {
         requireCreatable(entity);
         List<EditableFields.Editable> plan = plan(entity);
         Map<String, String> defaults = defaults(entity, plan);
-        return new FormPage(null, null, null, fields(plan, true, editable -> defaults.get(editable.key())));
+        return new FormPage(null, null, null, fields(entity, plan, true, editable -> defaults.get(editable.key())));
     }
 
     /**
@@ -102,7 +127,7 @@ public class FormQueryService {
         Map<String, String> values = new HashMap<>();
         seed.values().forEach(value -> values.put(value.key(), value.text()));
         List<EditableFields.Editable> plan = plan(entity);
-        return new FormPage(null, null, null, fields(plan, true, editable -> values.get(editable.key())));
+        return new FormPage(null, null, null, fields(entity, plan, true, editable -> values.get(editable.key())));
     }
 
     /**
@@ -178,24 +203,24 @@ public class FormQueryService {
         }
         String versionText = versionAt >= 0 && tuple.get(versionAt) != null ? tuple.get(versionAt).toString() : null;
         return Optional.of(new FormPage(CellFormatter.id(tuple.get(0)), versionText, label,
-                fields(plan, false, editable -> values.get(editable.key()))));
+                fields(entity, plan, false, editable -> values.get(editable.key()))));
     }
 
     // ---- the fields --------------------------------------------------------------------------------------------------
 
-    private List<FormView.Field> fields(List<EditableFields.Editable> plan, boolean creating,
+    private List<FormView.Field> fields(AdminEntity entity, List<EditableFields.Editable> plan, boolean creating,
                                         Function<EditableFields.Editable, String> valueOf) {
         List<FormView.Field> fields = new ArrayList<>(plan.size());
         for (EditableFields.Editable editable : plan) {
             if (editable.createOnly() && !creating) {
                 continue; // the identifier of an existing record never changes
             }
-            fields.add(field(editable, creating, valueOf.apply(editable)));
+            fields.add(field(entity, editable, creating, valueOf.apply(editable)));
         }
         return fields;
     }
 
-    private FormView.Field field(EditableFields.Editable editable, boolean creating, String value) {
+    private FormView.Field field(AdminEntity entity, EditableFields.Editable editable, boolean creating, String value) {
         AdminField field = editable.field();
         InputType input = editable.input();
         boolean required = switch (input) {
@@ -205,7 +230,21 @@ public class FormQueryService {
         };
         String help = null;
         List<FormView.Option> options = List.of();
-        if (input == InputType.MASKED) {
+        String ticket = null;
+        if (input == InputType.UPLOAD) {
+            // A new ticket at every render, bound to this entity and this field (UPL-2a). It is handed to the field's own
+            // inputs and nowhere else, and never logged.
+            UploadFiles.Settings settings = uploads.settings(entity.urlName(), field.name()).orElseThrow();
+            ticket = uploads.ticket(entity.urlName(), field.name(), settings.maxBytes());
+            help = settings.help();
+            if (value != null && uploads.cell(value, field.label()).isEmpty()) {
+                // A stored value that is not an address of the console's own storage (set by the host's code, or by hand) is not
+                // shown as a file or put in a link or an image source; the form shows no file, and a blank value keeps it.
+                value = null;
+            }
+            options = List.of(new FormView.Option(UPLOAD_ACCEPT, String.join(",", settings.accept())),
+                    new FormView.Option(UPLOAD_MAX_BYTES, Long.toString(settings.maxBytes())));
+        } else if (input == InputType.MASKED) {
             help = creating ? null : "Leave blank to keep the current value.";
             value = null;
         } else if (editable.createOnly()) {
@@ -224,7 +263,7 @@ public class FormQueryService {
                     .map(constant -> new FormView.Option(constant, CellFormatter.humanize(constant))).toList();
             options = withBlank(constants, field.required());
         }
-        return new FormView.Field(field.name(), field.label(), input, value, required, help, options, null, null);
+        return new FormView.Field(field.name(), field.label(), input, value, required, help, options, null, ticket);
     }
 
     /** Every select starts with a blank choice: "None" when the value is optional, "Choose..." when it is required. */
@@ -296,7 +335,7 @@ public class FormQueryService {
     }
 
     private List<EditableFields.Editable> plan(AdminEntity entity) {
-        return plans.computeIfAbsent(entity.urlName(), key -> EditableFields.of(entity, registry, entityManager));
+        return plans.computeIfAbsent(entity.urlName(), key -> EditableFields.of(entity, registry, entityManager, uploads));
     }
 
     @SuppressWarnings("unchecked")

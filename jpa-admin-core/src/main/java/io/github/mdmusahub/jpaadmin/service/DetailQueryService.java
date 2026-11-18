@@ -50,12 +50,18 @@ public class DetailQueryService {
 
     private final EntityManager entityManager;
     private final AdminEntityRegistry registry;
+    private final UploadFiles uploads;
     private final Map<String, Plan> plans = new ConcurrentHashMap<>();
 
     /** Not public, for the same reason as {@code ListQueryService}: Spring's transactional proxy subclasses this class. */
     protected DetailQueryService(EntityManager entityManager, AdminEntityRegistry registry) {
+        this(entityManager, registry, UploadFiles.none());
+    }
+
+    protected DetailQueryService(EntityManager entityManager, AdminEntityRegistry registry, UploadFiles uploads) {
         this.entityManager = entityManager;
         this.registry = Objects.requireNonNull(registry, "registry");
+        this.uploads = Objects.requireNonNull(uploads, "uploads");
     }
 
     /**
@@ -66,6 +72,15 @@ public class DetailQueryService {
      */
     public static DetailQueryService over(EntityManager entityManager, AdminEntityRegistry registry) {
         return new DetailQueryService(Objects.requireNonNull(entityManager, "entityManager"), registry);
+    }
+
+    /**
+     * The service with upload support: an upload field is an image or a file link (Phase 9b, D-99).
+     *
+     * @param uploads what the pages need to know about uploaded files
+     */
+    public static DetailQueryService over(EntityManager entityManager, AdminEntityRegistry registry, UploadFiles uploads) {
+        return new DetailQueryService(Objects.requireNonNull(entityManager, "entityManager"), registry, uploads);
     }
 
     /** A service for a console that has no entity manager factory. It finds nothing. */
@@ -147,7 +162,7 @@ public class DetailQueryService {
         return Optional.of(new DetailRecord(CellFormatter.id(tuple.get(0)), label, items));
     }
 
-    private static DetailRecord.Item item(Planned planned, Tuple tuple, int valueAt, int relationLabelAt) {
+    private DetailRecord.Item item(Planned planned, Tuple tuple, int valueAt, int relationLabelAt) {
         AdminField field = planned.field();
         String label = planned.column() != null ? planned.column().label() : field.label();
         if (field.sensitive()) {
@@ -167,6 +182,12 @@ public class DetailQueryService {
         Object value = valueAt < 0 ? null : tuple.get(valueAt);
         if (value == null) {
             return DetailRecord.Item.of(label, Cell.empty());
+        }
+        if (field.isUpload() && value instanceof String url) {
+            Optional<Cell> shown = uploads.cell(url, label);
+            if (shown.isPresent()) {
+                return DetailRecord.Item.of(label, shown.get());
+            }
         }
         Cell cell = planned.column().type() == Cell.Type.TEXT && value instanceof CharSequence text
                 ? CellFormatter.detailText(text.toString())

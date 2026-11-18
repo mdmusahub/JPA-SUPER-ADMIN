@@ -57,11 +57,16 @@ public final class DetailViewFactory {
         Objects.requireNonNull(offers, "offers");
         ListLinks links = new ListLinks(basePath, urlName);
         List<DetailView.Field> fields = new ArrayList<>(record.items().size());
+        List<DetailView.Image> images = new ArrayList<>();
         for (DetailRecord.Item item : record.items()) {
             fields.add(new DetailView.Field(item.label(), linked(basePath, item)));
+            if (item.cell().type() == Cell.Type.IMAGE && item.cell().href() != null) {
+                // The strip shows the stored pictures larger; its alternative text is the field's label, never a file name (D-99).
+                images.add(new DetailView.Image(item.cell().href(), item.label()));
+            }
         }
         String deleteHref = offers.canDelete() ? links.delete(record.id(), state) : null;
-        return new DetailView(title(entityLabel, record), entityLabel, record.id(), fields, List.of(),
+        return new DetailView(title(entityLabel, record), entityLabel, record.id(), fields, images,
                 new DetailView.Actions(offers.canEdit(), offers.canDuplicate(), deleteHref != null, deleteHref));
     }
 

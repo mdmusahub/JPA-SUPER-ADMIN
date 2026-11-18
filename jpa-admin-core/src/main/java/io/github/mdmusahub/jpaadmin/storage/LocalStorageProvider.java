@@ -295,6 +295,58 @@ public final class LocalStorageProvider implements StorageProvider {
         return consoleFilesPath + "/" + file.storage() + "/" + file.key();
     }
 
+    // ---- reading an address back ---------------------------------------------------------------------------------------------------
+
+    /**
+     * An address this provider made: under the console's files path as {@code <storage>/<key>}, or under the public path of the
+     * storage that has one as {@code <key>}. It must be exactly what {@link #url} writes for the file it names, so a prefix that
+     * only looks alike, a second slash, a traversal, an upper-case name or trailing text is never one.
+     */
+    @Override
+    public Optional<StoredFile> parse(String url) {
+        if (url == null || url.length() > 400 || url.chars().anyMatch(c -> c <= ' ' || c == 0x7f || c == '\\' || c == '%')) {
+            return Optional.empty();
+        }
+        String consolePrefix = consoleFilesPath + "/";
+        if (url.startsWith(consolePrefix)) {
+            String rest = url.substring(consolePrefix.length());
+            int slash = rest.indexOf('/');
+            if (slash > 0) {
+                Optional<StoredFile> file = made(rest.substring(0, slash), rest.substring(slash + 1), url);
+                if (file.isPresent()) {
+                    return file;
+                }
+            }
+        }
+        for (StorageSettings settings : storages.values()) {
+            String publicPath = settings.publicPath();
+            if (publicPath != null && url.startsWith(publicPath + "/")) {
+                Optional<StoredFile> file = made(settings.name(), url.substring(publicPath.length() + 1), url);
+                if (file.isPresent()) {
+                    return file;
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    /** True only for an address that parses and whose file is still in the storage's root. */
+    @Override
+    public boolean owns(String url) {
+        Optional<StoredFile> file = parse(url);
+        return file.isPresent() && existingFile(file.get().storage(), file.get().key()).isPresent();
+    }
+
+    private Optional<StoredFile> made(String storage, String key, String url) {
+        StorageSettings settings = storages.get(storage);
+        if (settings == null || !settings.supportedType() || !StoragePaths.validStorageName(storage)
+                || !StoragePaths.validKey(key)) {
+            return Optional.empty();
+        }
+        StoredFile file = new StoredFile(storage, key);
+        return url(file).equals(url) ? Optional.of(file) : Optional.empty();
+    }
+
     // ---- helpers -----------------------------------------------------------------------------------------------------------------------
 
     private static Path rootOf(StorageSettings settings) {

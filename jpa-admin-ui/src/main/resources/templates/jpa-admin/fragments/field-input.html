@@ -13,12 +13,12 @@
   sentence instead of being wiped by the browser), BOOLEAN (a checkbox followed by a hidden "false", so an unchecked box
   still sends an answer), DATE, DATETIME, SELECT, MASKED. A MASKED input is a password input that never has a value, in
   any mode (SEC-1). A SELECT with no options is a notice: the field's help text says why (too many records to choose from,
-  or none yet), and no control is printed. An UPLOAD field is not rendered in this version (uploads are a later phase).
+  or none yet), and no control is printed. An UPLOAD field prints only a hidden input here, the address that is saved with the record; its visible part is the section of fragments/uploader.html, outside this form (task U6).
 
   Everything is printed with th:text or a th: attribute, so it is escaped (SEC-9).
 */-->
 <div th:fragment="input(field)" class="field form-field"
-     th:classappend="(${field.error != null} ? 'field-invalid' : '') + (${field.inputType.name() == 'TEXTAREA'} ? ' form-field-wide' : '')"
+     th:classappend="(${field.error != null} ? 'field-invalid' : '') + (${field.inputType.name() == 'TEXTAREA'} ? ' form-field-wide' : '') + (${field.inputType.name() == 'UPLOAD'} ? ' form-field-upload' : '')"
      th:with="describedby=${field.help != null ? (field.error != null ? 'h-' + field.key + ' e-' + field.key : 'h-' + field.key) : (field.error != null ? 'e-' + field.key : null)}">
   <th:block th:switch="${field.inputType.name()}">
 
@@ -32,7 +32,11 @@
       </div>
     </th:block>
 
-    <th:block th:case="'UPLOAD'"></th:block>
+    <!--/* The address that is saved with the record (blank on an edit keeps the stored one). The "remove" checkbox belongs to the
+         record form through its form attribute and is printed by fragments/uploader.html. */-->
+    <th:block th:case="'UPLOAD'">
+      <input type="hidden" th:name="${field.key}" th:value="${field.value}" data-upload-value>
+    </th:block>
 
     <th:block th:case="'SELECT'">
       <th:block th:if="${field.options.isEmpty()}">
