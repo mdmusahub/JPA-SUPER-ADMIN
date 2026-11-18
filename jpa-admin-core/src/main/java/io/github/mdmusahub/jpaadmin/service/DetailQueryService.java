@@ -242,6 +242,11 @@ public class DetailQueryService {
         if (field.id() || field.version() || field.sensitive() || field.hidden() || planned.column() == null) {
             return false;
         }
+        if (field.isUpload()) {
+            // D-73: a copy never carries a stored file, so two records never share one file (and a delete or a replace of
+            // one record can never touch the other's).
+            return false;
+        }
         return switch (field.kind()) {
             case TEXT, NUMBER, BOOLEAN, ENUM, DATE, DATETIME -> true;
             case TO_ONE -> field.targetEntity() != null && planned.relation() != null;

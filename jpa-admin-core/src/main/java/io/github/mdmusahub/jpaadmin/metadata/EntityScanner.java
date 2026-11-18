@@ -3,6 +3,7 @@ package io.github.mdmusahub.jpaadmin.metadata;
 import io.github.mdmusahub.jpaadmin.annotation.AdminHidden;
 import io.github.mdmusahub.jpaadmin.annotation.AdminResource;
 import io.github.mdmusahub.jpaadmin.annotation.AdminSensitive;
+import io.github.mdmusahub.jpaadmin.annotation.AdminUpload;
 import jakarta.persistence.metamodel.Attribute;
 import jakarta.persistence.metamodel.EntityType;
 import jakarta.persistence.metamodel.Metamodel;
@@ -56,6 +57,13 @@ public final class EntityScanner {
     private static final Set<Class<?>> DATETIME_TYPES = Set.of(LocalDateTime.class, Instant.class,
             OffsetDateTime.class, ZonedDateTime.class, java.util.Date.class, java.sql.Timestamp.class,
             java.util.Calendar.class);
+
+    /**
+     * Addresses the console keeps for its own routes under the base path: {@code POST {base}/uploads} is the upload endpoint, and
+     * an entity with that address would have its create form posted to it (Phase 9a). Such an entity is unsupported, with a reason
+     * in the log, instead of silently broken.
+     */
+    private static final Set<String> RESERVED_ADDRESSES = Set.of("uploads");
 
     private EntityScanner() {
     }
@@ -147,6 +155,9 @@ public final class EntityScanner {
             if (group.getKey().isEmpty()) {
                 group.getValue().forEach(candidate -> candidate.unsupportedReason =
                         "its class name holds no letter or digit, so the console has no address for it");
+            } else if (RESERVED_ADDRESSES.contains(group.getKey())) {
+                group.getValue().forEach(candidate -> candidate.unsupportedReason =
+                        "its address '" + group.getKey() + "' is one the console keeps for itself");
             } else if (group.getValue().size() > 1) {
                 group.getValue().forEach(candidate -> candidate.unsupportedReason =
                         "another entity class maps to the same console address '" + group.getKey() + "'");
@@ -252,7 +263,7 @@ public final class EntityScanner {
                     || Names.looksSensitive(name, settings.sensitiveFields());
             boolean required = !nullable && !id && !version && kind != AdminField.Kind.TO_MANY;
             return new AdminField(name, Names.label(name), attribute.getJavaType(), kind, enumValues, target, id,
-                    version, nullable, required, sensitive, hidden);
+                    version, nullable, required, sensitive, hidden, uploadSpec(attribute));
         }
 
         private static boolean isId(Attribute<?, ?> attribute) {
@@ -317,16 +328,28 @@ public final class EntityScanner {
          * on the other one, so it works with field access and with property access.
          */
         private boolean hasAnnotation(Attribute<?, ?> attribute, Class<? extends Annotation> annotation) {
-            Member member = attribute.getJavaMember();
-            if (member instanceof AnnotatedElement element && element.isAnnotationPresent(annotation)) {
-                return true;
-            }
-            return isAnnotated(declaredField(attribute.getName()), annotation)
-                    || isAnnotated(getter(attribute.getName()), annotation);
+            return findAnnotation(attribute, annotation) != null;
         }
 
-        private static boolean isAnnotated(AnnotatedElement element, Class<? extends Annotation> annotation) {
-            return element != null && element.isAnnotationPresent(annotation);
+        /** The annotation on the member JPA uses, else on the field, else on the getter; {@code null} when there is none. */
+        private <A extends Annotation> A findAnnotation(Attribute<?, ?> attribute, Class<A> annotation) {
+            Member member = attribute.getJavaMember();
+            if (member instanceof AnnotatedElement element && element.isAnnotationPresent(annotation)) {
+                return element.getAnnotation(annotation);
+            }
+            AnnotatedElement field = declaredField(attribute.getName());
+            if (field != null && field.isAnnotationPresent(annotation)) {
+                return field.getAnnotation(annotation);
+            }
+            AnnotatedElement getter = getter(attribute.getName());
+            return getter != null && getter.isAnnotationPresent(annotation) ? getter.getAnnotation(annotation) : null;
+        }
+
+        /** What {@code @AdminUpload} says about the attribute, or {@code null} when it is not an upload field. */
+        private UploadSpec uploadSpec(Attribute<?, ?> attribute) {
+            AdminUpload upload = findAnnotation(attribute, AdminUpload.class);
+            return upload == null ? null
+                    : new UploadSpec(upload.storage(), upload.folder(), List.of(upload.accept()), upload.maxSize());
         }
 
         private Field declaredField(String name) {
