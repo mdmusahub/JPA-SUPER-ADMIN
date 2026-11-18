@@ -100,11 +100,11 @@ public final class ConsoleNavigation {
     }
 
     /**
-     * What the console offers for an entity today: deleting, when {@code @AdminResource} allows it (the flag is also
-     * enforced in the service, SEC-11). Creating, changing and exporting arrive in Phases 8 to 11, so they are not offered
-     * yet and no page shows a button that would lead nowhere.
+     * What the console offers for an entity today: creating, changing and deleting, when {@code @AdminResource} allows it
+     * (each flag is also enforced in its service, SEC-11). Exporting arrives in Phase 11, so it is not offered yet and no
+     * page shows a button that would lead nowhere.
      */
     private static DashboardView.Permissions permissions(AdminEntity entity) {
-        return new DashboardView.Permissions(false, false, entity.canDelete(), false);
+        return new DashboardView.Permissions(entity.canCreate(), entity.canUpdate(), entity.canDelete(), false);
     }
 }

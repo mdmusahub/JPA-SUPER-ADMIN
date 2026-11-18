@@ -210,13 +210,13 @@ class ConsoleEntityPagesTest {
     }
 
     @Test
-    void onlyDeleteIsOfferedForAnEntityYetSoNoPageShowsAButtonThatLeadsNowhere() {
+    void everythingButExportIsOfferedYetSoNoPageShowsAButtonThatLeadsNowhere() {
         DashboardView view = navigation.dashboard();
 
-        // Create, update and export arrive in Phases 8 and 11. Delete is real since Phase 7 (all these entities are deletable).
+        // Create and update are real since Phase 8, delete since Phase 7 (all these entities allow all three); export arrives in Phase 11.
         assertThat(view.groups().stream().flatMap(group -> group.entities().stream())
                 .map(DashboardView.EntityCard::permissions).distinct())
-                .containsExactly(new DashboardView.Permissions(false, false, true, false));
+                .containsExactly(new DashboardView.Permissions(true, true, true, false));
     }
 
     @Test

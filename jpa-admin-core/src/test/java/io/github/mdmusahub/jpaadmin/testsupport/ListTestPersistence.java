@@ -6,10 +6,13 @@ import io.github.mdmusahub.jpaadmin.testsupport.listmodel.Counter;
 import io.github.mdmusahub.jpaadmin.testsupport.listmodel.Courier;
 import io.github.mdmusahub.jpaadmin.testsupport.listmodel.Crate;
 import io.github.mdmusahub.jpaadmin.testsupport.listmodel.Depot;
+import io.github.mdmusahub.jpaadmin.testsupport.listmodel.Folio;
+import io.github.mdmusahub.jpaadmin.testsupport.listmodel.Frozen;
 import io.github.mdmusahub.jpaadmin.testsupport.listmodel.Ledger;
 import io.github.mdmusahub.jpaadmin.testsupport.listmodel.Parcel;
 import io.github.mdmusahub.jpaadmin.testsupport.listmodel.ParcelItem;
 import io.github.mdmusahub.jpaadmin.testsupport.listmodel.Pass;
+import io.github.mdmusahub.jpaadmin.testsupport.listmodel.Sealed;
 import io.github.mdmusahub.jpaadmin.testsupport.listmodel.Stamp;
 import io.github.mdmusahub.jpaadmin.testsupport.listmodel.Ticket;
 import io.github.mdmusahub.jpaadmin.testsupport.listmodel.Vault;
@@ -58,7 +61,7 @@ public final class ListTestPersistence {
     /** Empties every table, children first. */
     public static void empty() {
         inTransaction(em -> {
-            for (Class<?> type : new Class<?>[] {ParcelItem.class, Parcel.class, Depot.class, Courier.class,
+            for (Class<?> type : new Class<?>[] {Frozen.class, Sealed.class, Folio.class, ParcelItem.class, Parcel.class, Depot.class, Courier.class,
                     Crate.class, Vault.class, Stamp.class, Ledger.class, Archive.class, Anchor.class, Ticket.class,
                     Counter.class, Pass.class}) {
                 em.createQuery("delete from " + type.getSimpleName()).executeUpdate();

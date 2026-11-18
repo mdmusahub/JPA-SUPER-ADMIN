@@ -275,13 +275,6 @@ class PreviewRecordPagesTest {
         assertThat(html).contains("Yes, delete record");
     }
 
-    @Test
-    void theDuplicateRoutesNoticeIsAnInformationMessage() throws Exception {
-        String html = render("detail", "duplicate-later");
-
-        assertThat(html).contains("role=\"status\"", "Duplicating a record needs the create form");
-    }
-
     // ---- the list: row links, checkboxes and the bulk bar ---------------------------------------------------------------------
 
     @Test
