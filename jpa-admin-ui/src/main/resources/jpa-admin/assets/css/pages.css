@@ -1295,3 +1295,131 @@ a.icon-button {
     padding: var(--s3) var(--s4);
   }
 }
+
+/* ---- create and edit form (task U5) ------------------------------------------------------------------------- */
+
+.form-card {
+  max-width: 64rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s5) var(--s6);
+}
+
+.form-field {
+  min-width: 0;
+  align-content: start;
+}
+
+.form-field-wide {
+  grid-column: 1 / -1;
+}
+
+.form-field label,
+.field-label {
+  margin: 0;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.required-mark {
+  margin-left: var(--s1);
+  color: var(--red);
+}
+
+.textarea {
+  min-height: 8rem;
+  padding: var(--s2) var(--s3);
+  font: inherit;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+select.input {
+  padding-right: var(--s2);
+}
+
+.field-check {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  min-height: 38px;
+}
+
+.field-check input[type="checkbox"] {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent-strong);
+}
+
+.field-check label {
+  font-weight: 500;
+}
+
+.field-invalid .input,
+.field-invalid input[type="checkbox"] {
+  border-color: var(--red);
+}
+
+.field-help,
+.field-error {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.field-notice {
+  margin: 0;
+  padding: var(--s3);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--panel-alt);
+  color: var(--muted);
+}
+
+.form-summary {
+  margin-bottom: var(--s5);
+  padding: var(--s4);
+  border: 1px solid var(--red-line);
+  border-radius: var(--radius-lg);
+  background: var(--red-tint);
+  color: var(--red);
+}
+
+.form-summary-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.form-summary-list {
+  margin: var(--s2) 0 0;
+  padding-left: var(--s5);
+}
+
+.form-summary-list a {
+  color: inherit;
+  overflow-wrap: anywhere;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--s3);
+  margin-top: var(--s6);
+  padding-top: var(--s5);
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 599px) {
+  .form-card {
+    padding: var(--s4);
+  }
+
+  .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s4);
+  }
+}

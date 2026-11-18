@@ -63,12 +63,6 @@ public final class DeleteMessages {
                 + " records at a time, and nothing was deleted. Select fewer records and try again.");
     }
 
-    /** The duplicate route was reached for a record that exists; the create form arrives with Phase 8. */
-    public static FlashMessage duplicateComesLater() {
-        return new FlashMessage(Level.INFO, "Duplicating a record needs the create form, which this version of the "
-                + "console does not have yet. Nothing was copied.");
-    }
-
     private static String skipped(int notDeleted) {
         return notDeleted == 1 ? "1 selected record was skipped because it no longer exists."
                 : notDeleted + " selected records were skipped because they no longer exist or were not valid.";

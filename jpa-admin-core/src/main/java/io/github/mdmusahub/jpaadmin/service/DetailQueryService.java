@@ -15,11 +15,7 @@ import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.ParameterExpression;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Selection;
-import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -228,7 +224,7 @@ public class DetailQueryService {
         for (int i = 0; i < copied.size(); i++) {
             Object value = tuple.get(i + 1);
             if (value != null) {
-                values.add(new CopySeed.Value(copied.get(i).field().name(), rawText(value)));
+                values.add(new CopySeed.Value(copied.get(i).field().name(), FormText.of(value)));
             }
         }
         return Optional.of(new CopySeed(CellFormatter.id(tuple.get(0)), values));
@@ -251,29 +247,6 @@ public class DetailQueryService {
             case TO_ONE -> field.targetEntity() != null && planned.relation() != null;
             case TO_MANY, EMBEDDED, BINARY, OTHER -> false;
         };
-    }
-
-    /** A value as plain text for a form: numbers without grouping, enums by constant name, dates in ISO form. */
-    private static String rawText(Object value) {
-        if (value instanceof BigDecimal decimal) {
-            return decimal.toPlainString();
-        }
-        if (value instanceof Enum<?> constant) {
-            return constant.name();
-        }
-        if (value instanceof java.sql.Date date) {
-            return date.toLocalDate().toString();
-        }
-        if (value instanceof java.sql.Timestamp stamp) {
-            return stamp.toInstant().toString();
-        }
-        if (value instanceof Date date) {
-            return Instant.ofEpochMilli(date.getTime()).toString();
-        }
-        if (value instanceof Calendar calendar) {
-            return calendar.toInstant().toString();
-        }
-        return value.toString();
     }
 
     // ---- shared ---------------------------------------------------------------------------------------------------

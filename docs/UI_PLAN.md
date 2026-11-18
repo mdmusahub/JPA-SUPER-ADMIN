@@ -93,6 +93,7 @@ Conventions the records enforce or assume:
 - `Actions.bulkDeleteHref` is present exactly when `canBulkDelete` is true, and `DetailView.Actions.deleteHref` exactly when `canDelete` is true (D-65). Each is the delete route plus the list state in its query; the controller re-reads that state with the list parser, so the redirect after a delete returns to the same list and is never taken from a request.
 - A `RELATION` cell links to the related record when its column names a target in the console (a hidden target has no link, D-54, D-70). The identifier cell of a row links to the record. A `TEXT` or `NUMBER` cell with an `href` is such a link.
 - `FormView.recordId` is present exactly in `EDIT` mode. The duplicate flow is a `CREATE` form that is pre-filled, so it has no `recordId`.
+- Phase 8 conventions of `FormView`, with no change to the record (D-75): the edit form's `actionHref` carries the version the form was opened with (`?jpa-admin-version=N`, only for an entity with a `@Version`); a `SELECT` field with no `options` is a notice (its `help` says why) and prints no control, and every other select starts with a blank option ("None" or "Choose..."); `formErrors` holds the whole-form sentences, led by one line that counts the fields with errors; a `MASKED` field has no value in any mode and its input has no `value` attribute; an `UPLOAD` field is not rendered until Phase 9.
 - The login page also receives a `PageChrome`, with an empty sidebar and `user` `null`, for the base path, theme and CSRF token.
 - A record count (`PageChrome.NavItem.count`, `DashboardView.EntityCard.count`) is a `Long`: a number, or `null` when the console could not read it, in which case the page prints "unavailable" and the entity is left out of `DashboardView.Stats.totalRecords` and `largestTable` (D-44). `PageChrome.user` is the signed-in username or `null`; it holds no credential (SEC-1).
 
@@ -193,7 +194,7 @@ UI tasks use the prefix **U**. A UI task is "done" when it works in the preview 
 | U2 | List table, cell renderer, search box, sortable headers, pager, empty state | 4 List (search and sort were built with the list, D-50); Phase 5 (D-60) refined it with no template or stylesheet change | Phase 4 (connected: the real list page works in the sample app) |
 | U3 | Filter panel, chips, clear all (the filter links and the `Filters` data come with it from the backend, moved out of Phase 4, D-60). **Delivered 2026-11-17, see "U3 status" below** | 6 Filters | Phase 6 |
 | U4 | Detail page, confirm dialog, bulk bar, duplicate and delete flows, row checkboxes in the list, and relation cells as links (D-54). **Delivered 2026-11-17, see "U4 status" below** | 7 Detail and delete | Phase 7 |
-| U5 | Form page, all field inputs, validation display, unsaved-changes guard | 8 Create and edit | Phase 8 |
+| U5 | Form page, all field inputs, validation display, unsaved-changes guard. **Delivered 2026-11-18, see "U5 status" below** | 8 Create and edit | Phase 8 |
 | U6 | Uploader component, previews, progress, errors, image cells | 9 Uploads | Phase 9 |
 | U7 | Dashboard chart with range switch | 10 Charts | Phase 10 |
 | U8 | Export button states, saved views menu, column visibility | 11 Export, 12 Saved views | Phase 12 |
@@ -254,6 +255,18 @@ Delivered and connected in the sample app (D-65 to D-74). **One contract change,
 Styles are in `components.css` (the danger button, script-only and no-script-only helpers, the confirmation) and `pages.css` (checkbox column, bar, detail grid): tokens only, so both themes follow; the grid and the bar stack at 599px and below; no animation; no inline script, style or handler, no `th:utext`.
 
 New preview fixtures (built by the real factories, see `docs/FIXTURES.md` sections 5 and 6): the page `detail` with 15 states and 12 new `list` states, and 9 new chrome variants for the pages that follow a delete. A manual browser pass (light and dark, phone width, keyboard only, script off) is listed in `docs/logs/phase-7-report.md`; the automated real-browser test stays a Phase 14 item.
+
+### U5 status (2026-11-18, Phase 8)
+
+Delivered and connected in the sample app (D-75 to D-84). **No record changed** (no contract change): the frozen `FormView` carried everything; the conventions are listed in section 3.
+
+**The form** (`form.html`, `fragments/field-input.html`) is one template for create and edit: a heading (the title, with "Entity #id" above it on edit), a plain POST form with the CSRF token, a two-column grid of fields (one column under 600px; a text area spans both), and the actions. It posts to `view.actionHref` and prints `view.cancelHref`; it builds no link. Each field has a label that points at its input, a visible `*` and the words "(required)" for a screen reader when required, the help text and the error, both linked with `aria-describedby`, and `aria-invalid` on an input with an error. The inputs: text, text area, number (a text input with a numeric keypad, so the server's sentence can explain a mistake), a checkbox followed by a hidden `false`, date, date-time (`step="1"`), a select (blank choice first), and a masked input that is a password input with no `value` attribute. A select with no options is a notice, not a control. After a refused save the page is shown again (status 422) with what was typed (not a secret), a sentence next to each field that was wrong, and a summary at the top (role alert, `autofocus`) with a link to each of them.
+
+**Leaving the form.** "Cancel" is a `details` element whose panel asks "Discard your changes?" and holds the link ("Yes, discard changes"), so it needs no script (UI-5). `form-guard.js` (about 70 lines, loaded with `defer`, stores nothing) adds the browser's warning when a changed form is left another way, a direct Cancel when nothing changed, and focus on the first error or the summary. The "New record" button of the list and the "Edit record" and "Duplicate record" buttons of the detail page were already in the templates; the backend now offers them.
+
+Styles are in `pages.css` (section "create and edit form"): tokens only, so both themes follow; no animation; no inline script, style or handler, no `th:utext`.
+
+New preview fixtures (built by the real `FormViewFactory` and the real `FieldMessages`, see `docs/FIXTURES.md` section 7): the page `form` with 12 states. A manual browser pass (light and dark, phone width, keyboard only, script off) is listed in `docs/logs/phase-8-report.md`; the automated real-browser test stays a Phase 14 item.
 
 ## 8. Sync points
 

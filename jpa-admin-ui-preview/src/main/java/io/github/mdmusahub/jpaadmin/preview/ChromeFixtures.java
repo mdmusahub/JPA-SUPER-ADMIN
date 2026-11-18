@@ -85,7 +85,7 @@ final class ChromeFixtures {
                 new Breadcrumb("Dashboard", BASE), new Breadcrumb("Articles", BASE + "/article"),
                 new Breadcrumb("Guide on onboarding 7", null)), List.of()));
         for (Map.Entry<String, List<FlashMessage>> message : RecordFixtures.messages().entrySet()) {
-            boolean onDetail = message.getKey().equals("delete-blocked") || message.getKey().equals("duplicate-later");
+            boolean onDetail = message.getKey().equals("delete-blocked");
             VARIANTS.put(message.getKey(), () -> chrome(BASE, Theme.SYSTEM, navigation(), "article", onDetail
                     ? List.of(new Breadcrumb("Dashboard", BASE), new Breadcrumb("Articles", BASE + "/article"),
                             new Breadcrumb("Guide on onboarding 7", null))

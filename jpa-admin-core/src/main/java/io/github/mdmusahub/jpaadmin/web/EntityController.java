@@ -47,16 +47,13 @@ import org.springframework.web.servlet.ModelAndView;
  *
  * <p>The list offers bulk delete (row checkboxes and the bulk bar) exactly when the entity can be deleted
  * ({@link AdminEntity#canDelete}, from {@code @AdminResource}); every row's identifier links to its detail page and a
- * relation cell links to the related record (D-65, D-70). "New record" arrives with Phase 8 and CSV export with Phase 11.
- * They are absent, not disabled, so no button leads nowhere (SEC-11).
+ * relation cell links to the related record (D-65, D-70). "New record" is offered exactly when the entity can be created in (Phase 8, SEC-11) and CSV export arrives with
+ * Phase 11. An action that is not offered is absent, not disabled, so no button leads nowhere.
  *
  * <p>Internal, not stable API. Public only so the auto-configuration module can create it.
  */
 @Controller
 public class EntityController {
-
-    /** What the list offers besides bulk delete: nothing yet. Each action arrives with its phase. */
-    private static final ListView.Actions NO_ACTIONS = new ListView.Actions(false, false, false, null, null);
 
     private final ConsoleChromeFactory chromeFactory;
     private final ConsoleViews views;
@@ -97,7 +94,8 @@ public class EntityController {
         ListQuery query = lists.parse(found, q, sort, dir, page, size).withParsedFilters(filters.filters());
         ListPage listed = lists.list(found, query);
         ListView.EntityInfo info = new ListView.EntityInfo(found.label(), Plurals.of(found.label()), found.icon());
-        ListView view = ListViewFactory.build(basePath.value(), found.urlName(), info, listed, NO_ACTIONS,
+        ListView view = ListViewFactory.build(basePath.value(), found.urlName(), info, listed,
+                new ListView.Actions(found.canCreate(), false, false, null, null),
                 found.canDelete());
         PageChrome chrome = chromeFactory.chrome(request,
                 List.of(new Breadcrumb("Dashboard", basePath.value()), new Breadcrumb(info.plural(), null)),

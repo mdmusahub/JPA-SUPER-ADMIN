@@ -10,7 +10,7 @@ A **fixture** is a named, fake instance of a view-model record. The preview app 
 - **Fake data only:** no real names, no real secrets. Masked values are never given a value, even in a fixture (SEC-1).
 - **Generic names:** fixtures use invented entities such as Article, Member and Invoice, never entity names from `sample-app` (ARCH-12).
 - **Links:** every link in a fixture is a local path under the chrome's base path (`docs/UI_PLAN.md` section 3, "Links"). Fixtures are built through the real record constructors, so a link that breaks the rule cannot be written. A fixture never contains an external link. Templates print the links the fixture gives them and never build sort, page, page-size, export or form links themselves.
-- **Status:** each fixture below belongs to the UI task that first needs it (U0 to U9, `docs/UI_PLAN.md` section 7). A fixture is part of "done" for that task. After Phase 4 the list fixtures of task U2 exist; those of U3 (filters) exist since Phase 6; those of U4 (detail, row links, checkboxes, the pages after a delete) exist since Phase 7; those of U8 (export, saved views) do not yet.
+- **Status:** each fixture below belongs to the UI task that first needs it (U0 to U9, `docs/UI_PLAN.md` section 7). A fixture is part of "done" for that task. After Phase 4 the list fixtures of task U2 exist; those of U3 (filters) exist since Phase 6; those of U4 (detail, row links, checkboxes, the pages after a delete) exist since Phase 7; those of U5 (the form) exist since Phase 8; those of U6 (uploads) and U8 (export, saved views) do not yet.
 
 Fixture names are lower-case with hyphens. A fixture listed under "Covers" proves that the template handles that state.
 
@@ -33,7 +33,7 @@ Used with any page through `&chrome=`.
 | `search-cut` | the Articles entity active, one INFO flash message built by `ListViewFactory.searchCutNotice()` | The notice for a search cut at the limit (the `search-cut` list fixture uses it by default) | U2 |
 | `filters-ignored` | the Articles entity active, `flash` holds the notices built by `ListViewFactory.filterNotices(...)` from real `FilterNote`s: four WARNING notes and one INFO note | The notices for ignored and cut filters, above the content (the `filter-ignored` list fixture uses it by default) | U3 |
 | `article-detail` | the Articles entity active, breadcrumbs Dashboard, Articles (a link), "Guide on onboarding 7" (delivered, task U4) | The shell of a detail page (the `detail` fixtures use a chrome built from their own record and list state by default) | U4 |
-| `delete-done`, `delete-blocked`, `bulk-done`, `bulk-partial`, `bulk-over-cap`, `bulk-blocked`, `bulk-nothing-selected`, `duplicate-later` | the Articles entity active, `flash` holds one message built by the real `DeleteMessages` (SUCCESS, ERROR, SUCCESS, WARNING, ERROR, ERROR, WARNING, INFO); the two on a record page carry the record's breadcrumbs (delivered, task U4) | The messages after a delete, shown once above the content: role `status` for success and information, role `alert` for a refusal or a warning; no SQL, table name or stack trace | U4 |
+| `delete-done`, `delete-blocked`, `bulk-done`, `bulk-partial`, `bulk-over-cap`, `bulk-blocked`, `bulk-nothing-selected` | the Articles entity active, `flash` holds one message built by the real `DeleteMessages` (SUCCESS, ERROR, SUCCESS, WARNING, ERROR, ERROR, WARNING); the two on a record page carry the record's breadcrumbs (delivered, task U4) | The messages after a delete, shown once above the content: role `status` for success and information, role `alert` for a refusal or a warning; no SQL, table name or stack trace | U4 |
 
 ## 2. Login (record: `LoginView`)
 
@@ -144,21 +144,25 @@ Delivered with task U4 (Phase 7). Every state is built by the real `DetailViewFa
 | `escaped` | title, labels and values that are markup, quotes, unicode | Everything printed as text | U4 |
 | `with-list-state` | the page opened with search, sort, page and size | The breadcrumb for the list and the delete form's address carry `q`, `sort`, `dir`, `page`, `size`, encoded | U4 |
 | `delete-blocked` | the page with the chrome variant `delete-blocked` (the real `DeleteMessages.inUse` text) | The friendly message after a refused delete, no SQL | U4 |
-| `duplicate-later` | the page with the chrome variant `duplicate-later` | The notice of the duplicate route | U4 |
 
 ## 7. Form (records: `FormView`, `FormView.Field`, `FormView.Option`)
 
+Delivered with task U5 (Phase 8). Every state is built by the real `FormViewFactory` (the addresses, the title, the breadcrumbs) and the real `FieldMessages` (the sentences) from a fake `FormPage`, with a chrome built from the page (`/admin-preview/form?state=...`). The entity is an invented "Article"; no value is real and a masked field has none.
+
 | Fixture | Fills | Covers | Task |
 |---|---|---|---|
-| `create-empty` | `Mode.CREATE`, `title` such as "New article", `recordId` `null`, `actionHref` the collection path, `cancelHref` the list, one field per `InputType` except upload, no values | Every input kind, required markers, help text, heading from `title` and `entityLabel`, form posts to `actionHref` | U5 |
-| `edit-prefilled` | `Mode.EDIT`, `recordId` set, `actionHref` the record path, `cancelHref` the detail page, values set | Prefilled inputs, unsaved-changes guard when a value changes, Cancel goes to `cancelHref` | U5 |
-| `long-identity` | `title` of 120 characters, `entityLabel` of 40 characters, a UUID as `recordId` | Heading wrapping, long action path | U5 |
-| `validation-errors` | `Field.error` on several fields | Error text next to each field, linked to the input, focus on the first error | U5 |
-| `form-errors` | `formErrors` set, no field errors | Error summary at the top of the form | U5 |
-| `select-options` | `SELECT` fields for an enum (4 options) and a relation (50 options) | Selects, selected state, empty choice | U5 |
-| `masked-input` | A `MASKED` field with no value, in create and in edit mode | Masked input, "leave blank to keep the current value" help | U5 |
-| `long-form` | 30 fields, with long labels and long help text | Form grid, layout on a phone | U5 |
-| `duplicate` | `Mode.CREATE` prefilled, `recordId` `null`, `actionHref` the collection path, no masked value | Duplicate flow starts from a filled create form and posts as a new record | U5 |
+| `create-empty` | `Mode.CREATE`, `title` "New article", `recordId` `null`, `actionHref` the collection path, `cancelHref` the list, one field per `InputType` except upload, no values (delivered, task U5) | Every input kind with its label, required markers, help text, the heading, the form posts to `actionHref` with the CSRF token, "Create record" and the Cancel question | U5 |
+| `edit-prefilled` | `Mode.EDIT`, `recordId` 12, version 3, values set (delivered, task U5) | Prefilled inputs, the post address carries `?jpa-admin-version=3`, selected options, a checked box, a text area with line breaks and markup shown as text, "Save changes", Cancel goes to `cancelHref` | U5 |
+| `long-identity` | `title` of 120 characters, `entityLabel` of 40 characters, a UUID as `recordId` (delivered, task U5) | Heading wrapping, a long action path | U5 |
+| `validation-errors` | `Field.error` on five fields, the typed values kept, `formErrors` with the count (delivered, task U5) | Error text next to each field, linked to the input with `aria-describedby`, `aria-invalid`, the summary (role alert) with a link to each field | U5 |
+| `form-errors` | `formErrors` set (the stale-form sentence), no field errors (delivered, task U5) | The summary at the top with no field marked and no links | U5 |
+| `select-options` | `SELECT` fields for an enum (4 options and a blank), a required enum, and a relation (50 options), one selected (delivered, task U5) | Selects, selected state, the blank choice ("None" or "Choose...") | U5 |
+| `masked-input` | `MASKED` fields with no value, in edit mode (delivered, task U5) | A password input with no `value` attribute, "Leave blank to keep the current value." | U5 |
+| `masked-input-create` | `MASKED` fields in create mode, one required (delivered, task U5) | The same input without the "leave blank" help, `required` on the one that is | U5 |
+| `long-form` | 30 fields, with long labels and long help text (delivered, task U5) | Form grid, layout on a phone | U5 |
+| `duplicate` | `Mode.CREATE` prefilled, `recordId` `null`, `actionHref` the collection path, no masked value, and the INFO notice built by the real `SaveMessages` (delivered, task U5) | A filled create form that posts as a new record, no version in its address, the notice that says what a copy leaves out | U5 |
+| `relation-notice` | `SELECT` fields with no options: one with more than 200 records, one required with none yet (delivered, task U5) | A notice instead of a control, with its help text | U5 |
+| `escaped` | title, labels, help, an error and values that are markup, quotes, unicode (delivered, task U5) | Everything printed as text, escaped | U5 |
 | `upload-states` | `UPLOAD` fields with a ticket: one empty, one with an existing image, one with an existing file, one with a field error | Server-provided upload states and the preview, replace and remove controls | U6 |
 
 ## 8. Uploader behaviour (record: `UploadResult`, JSON)

@@ -19,14 +19,21 @@ import java.lang.annotation.Target;
  * public class AuditTrailEntry { ... }
  *
  * @Entity
- * @AdminResource(deletable = false)      // can be looked at (and, from a later version, edited) but never deleted
+ * @AdminResource(deletable = false)      // can be looked at, created and edited, but never deleted
  * public class Invoice { ... }
  * }</pre>
  *
- * <p>This version of the console reads two options. The others named in the project plan (display names, group, icon,
- * order, creatable, updatable, exportable, default sort, page size) arrive with the phases that use them.
+ * <pre>{@code
+ * @Entity
+ * @AdminResource(creatable = false)      // records can be looked at, changed and deleted, but not created in the console
+ * public class Invoice { ... }
+ * }</pre>
  *
- * <p>Part of the console's public API.
+ * <p>This version of the console reads four options. The others named in the project plan (display names, group, icon,
+ * order, exportable, default sort, page size) arrive with the phases that use them.
+ *
+ * <p>Part of the console's public API (ARCH-9): the options are small, documented and have defaults, so adding the annotation
+ * never changes an entity that does not use it.
  *
  * @see AdminHidden
  */
@@ -37,10 +44,24 @@ import java.lang.annotation.Target;
 public @interface AdminResource {
 
     /**
-     * Whether the console only shows this entity's records: no delete, and (from a later version) no create or edit.
-     * Default {@code false}. A read-only entity is never deletable, whatever {@link #deletable()} says.
+     * Whether the console only shows this entity's records: no create, no edit and no delete. Default {@code false}. A
+     * read-only entity is never creatable, updatable or deletable, whatever the other options say.
      */
     boolean readOnly() default false;
+
+    /**
+     * Whether new records of this entity can be created in the console (the "New record" button, the create form and
+     * "Duplicate"). Default {@code true}. Ignored when {@link #readOnly()} is {@code true}. A request that creates a record
+     * of an entity that is not creatable is refused by the service even when the page never offered the button (SEC-11).
+     */
+    boolean creatable() default true;
+
+    /**
+     * Whether existing records of this entity can be changed in the console (the "Edit record" button and the edit form).
+     * Default {@code true}. Ignored when {@link #readOnly()} is {@code true}. A request that changes a record of an entity
+     * that is not updatable is refused by the service even when the page never offered the button (SEC-11).
+     */
+    boolean updatable() default true;
 
     /**
      * Whether records of this entity can be deleted in the console. Default {@code true}. Ignored when

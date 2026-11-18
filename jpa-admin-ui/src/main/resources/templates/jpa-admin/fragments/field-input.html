@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<body>
+<!--/*
+  One form field: its label with the required marker, the input for its type, the help text and the error (U5).
+
+  Every input has a label that points at it (for / id: "f-" + key), so it is named for a screen reader and a click on the
+  label focuses it. The help text and the error are linked to the input with aria-describedby ("h-" + key, "e-" + key), and
+  an input with an error has aria-invalid. A required field has a visible "*" and the words "(required)" for a screen
+  reader; the "required" attribute lets the browser say so before it sends.
+
+  The types: TEXT, TEXTAREA, NUMBER (a text input with a numeric keypad, so that a mistake can be shown as the server's
+  sentence instead of being wiped by the browser), BOOLEAN (a checkbox followed by a hidden "false", so an unchecked box
+  still sends an answer), DATE, DATETIME, SELECT, MASKED. A MASKED input is a password input that never has a value, in
+  any mode (SEC-1). A SELECT with no options is a notice: the field's help text says why (too many records to choose from,
+  or none yet), and no control is printed. An UPLOAD field is not rendered in this version (uploads are a later phase).
+
+  Everything is printed with th:text or a th: attribute, so it is escaped (SEC-9).
+*/-->
+<div th:fragment="input(field)" class="field form-field"
+     th:classappend="(${field.error != null} ? 'field-invalid' : '') + (${field.inputType.name() == 'TEXTAREA'} ? ' form-field-wide' : '')"
+     th:with="describedby=${field.help != null ? (field.error != null ? 'h-' + field.key + ' e-' + field.key : 'h-' + field.key) : (field.error != null ? 'e-' + field.key : null)}">
+  <th:block th:switch="${field.inputType.name()}">
+
+    <th:block th:case="'BOOLEAN'">
+      <div class="field-check">
+        <input type="checkbox" value="true" th:id="'f-' + ${field.key}" th:name="${field.key}"
+               th:checked="${field.value == 'true'}"
+               th:attr="aria-invalid=${field.error != null} ? 'true', aria-describedby=${describedby}">
+        <input type="hidden" value="false" th:name="${field.key}">
+        <label th:for="'f-' + ${field.key}" th:text="${field.label}">Label</label>
+      </div>
+    </th:block>
+
+    <th:block th:case="'UPLOAD'"></th:block>
+
+    <th:block th:case="'SELECT'">
+      <th:block th:if="${field.options.isEmpty()}">
+        <p class="field-label">
+          <span th:text="${field.label}">Label</span>
+          <span class="required-mark" th:if="${field.required}" aria-hidden="true">*</span>
+          <span class="visually-hidden" th:if="${field.required}"> (required)</span>
+        </p>
+        <p class="field-notice" role="note" th:id="'h-' + ${field.key}" th:text="${field.help}">There are no records to choose from yet.</p>
+      </th:block>
+      <th:block th:unless="${field.options.isEmpty()}">
+        <label th:for="'f-' + ${field.key}">
+          <span th:text="${field.label}">Label</span>
+          <span class="required-mark" th:if="${field.required}" aria-hidden="true">*</span>
+          <span class="visually-hidden" th:if="${field.required}"> (required)</span>
+        </label>
+        <select class="input" th:id="'f-' + ${field.key}" th:name="${field.key}" th:required="${field.required}"
+                th:attr="aria-invalid=${field.error != null} ? 'true', aria-describedby=${describedby}">
+          <option th:each="option : ${field.options}" th:value="${option.value}" th:text="${option.label}"
+                  th:selected="${field.value == null ? option.value.isEmpty() : option.value == field.value}">Choice</option>
+        </select>
+      </th:block>
+    </th:block>
+
+    <th:block th:case="*">
+      <label th:for="'f-' + ${field.key}">
+        <span th:text="${field.label}">Label</span>
+        <span class="required-mark" th:if="${field.required}" aria-hidden="true">*</span>
+        <span class="visually-hidden" th:if="${field.required}"> (required)</span>
+      </label>
+      <th:block th:switch="${field.inputType.name()}">
+        <textarea th:case="'TEXTAREA'" class="input textarea" rows="6" th:id="'f-' + ${field.key}"
+                  th:name="${field.key}" th:required="${field.required}"
+                  th:attr="aria-invalid=${field.error != null} ? 'true', aria-describedby=${describedby}"
+                  th:text="${field.value}"></textarea>
+        <input th:case="'NUMBER'" class="input" type="text" inputmode="decimal" autocomplete="off"
+               th:id="'f-' + ${field.key}" th:name="${field.key}" th:value="${field.value}" th:required="${field.required}"
+               th:attr="aria-invalid=${field.error != null} ? 'true', aria-describedby=${describedby}">
+        <input th:case="'DATE'" class="input" type="date"
+               th:id="'f-' + ${field.key}" th:name="${field.key}" th:value="${field.value}" th:required="${field.required}"
+               th:attr="aria-invalid=${field.error != null} ? 'true', aria-describedby=${describedby}">
+        <input th:case="'DATETIME'" class="input" type="datetime-local" step="1"
+               th:id="'f-' + ${field.key}" th:name="${field.key}" th:value="${field.value}" th:required="${field.required}"
+               th:attr="aria-invalid=${field.error != null} ? 'true', aria-describedby=${describedby}">
+        <!--/* A masked input has no value attribute at all: not an empty one, none (SEC-1). */-->
+        <input th:case="'MASKED'" class="input" type="password" autocomplete="new-password"
+               th:id="'f-' + ${field.key}" th:name="${field.key}" th:required="${field.required}"
+               th:attr="aria-invalid=${field.error != null} ? 'true', aria-describedby=${describedby}">
+        <input th:case="*" class="input" type="text"
+               th:id="'f-' + ${field.key}" th:name="${field.key}" th:value="${field.value}" th:required="${field.required}"
+               th:attr="aria-invalid=${field.error != null} ? 'true', aria-describedby=${describedby}">
+      </th:block>
+    </th:block>
+
+  </th:block>
+
+  <p class="field-help" th:if="${field.help != null and !(field.inputType.name() == 'SELECT' and field.options.isEmpty())}"
+     th:id="'h-' + ${field.key}" th:text="${field.help}">Help text.</p>
+  <p class="field-error" th:if="${field.error != null}" th:id="'e-' + ${field.key}">
+    <span class="visually-hidden">Error: </span><span th:text="${field.error}">Enter a value.</span>
+  </p>
+</div>
+</body>
+</html>

@@ -80,7 +80,6 @@ final class RecordFixtures {
         DETAILS.put("escaped", detail("article-detail", RecordFixtures::escaped2));
         DETAILS.put("with-list-state", detail("article-detail", RecordFixtures::withListState));
         DETAILS.put("delete-blocked", detail("delete-blocked", base -> normal(base, new DetailViewFactory.Offers(false, false, true))));
-        DETAILS.put("duplicate-later", detail("duplicate-later", base -> normal(base, new DetailViewFactory.Offers(false, false, true))));
     }
 
     private RecordFixtures() {
@@ -146,7 +145,6 @@ final class RecordFixtures {
         messages.put("bulk-over-cap", List.of(DeleteMessages.tooMany()));
         messages.put("bulk-blocked", List.of(DeleteMessages.bulkInUse(4)));
         messages.put("bulk-nothing-selected", List.of(DeleteMessages.nothingSelected()));
-        messages.put("duplicate-later", List.of(DeleteMessages.duplicateComesLater()));
         return messages;
     }
 

@@ -160,10 +160,10 @@ class ConsoleListPageTest {
     }
 
     @Test
-    void onlyBulkDeleteIsOfferedYetNeitherExportNorNew() {
-        // Phase 7 offers bulk delete (a parcel can be deleted); "New record" is Phase 8 and export is Phase 11.
+    void newRecordAndBulkDeleteAreOfferedButNotExportYet() {
+        // A parcel can be created and deleted (Phases 8 and 7); export is Phase 11.
         assertThat(viewOf(open("parcel")).actions())
-                .isEqualTo(new ListView.Actions(false, false, true, null, "/admin/parcel/bulk-delete"));
+                .isEqualTo(new ListView.Actions(true, false, true, null, "/admin/parcel/bulk-delete"));
     }
 
     // ---- bad parameters never fail ----------------------------------------------------------------------------
