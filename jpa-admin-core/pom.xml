@@ -50,6 +50,18 @@
     </dependency>
 
     <!--
+      Provided (D-75): only the annotation types and ConstraintViolationException, to read the constraints of a field and to
+      turn a violation into a plain sentence for that field. Hibernate Validator itself is the host's choice: the console
+      works without it, and when the host has it (Boot's validation starter) its violations are mapped to field messages.
+      Provided, not compile, so nothing is added to a host. Version from the Boot BOM.
+    -->
+    <dependency>
+      <groupId>jakarta.validation</groupId>
+      <artifactId>jakarta.validation-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
+    <!--
       Test scope only: a real Hibernate EntityManagerFactory over H2, so the scanner is tested against a real JPA
       metamodel instead of a hand-made one. The tests bootstrap it with plain JPA (persistence.xml), so no Spring
       Boot context is started in this module.

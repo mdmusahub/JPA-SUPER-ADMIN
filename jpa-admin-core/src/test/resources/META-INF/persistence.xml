@@ -54,6 +54,9 @@
     <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Ticket</class>
     <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Counter</class>
     <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Pass</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Folio</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Frozen</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Sealed</class>
     <exclude-unlisted-classes>true</exclude-unlisted-classes>
     <properties>
       <property name="jakarta.persistence.jdbc.url" value="jdbc:h2:mem:jpa-admin-core-list-test;DB_CLOSE_DELAY=-1"/>

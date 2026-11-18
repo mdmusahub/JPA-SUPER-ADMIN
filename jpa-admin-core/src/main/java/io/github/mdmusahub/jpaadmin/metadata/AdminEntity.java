@@ -38,13 +38,30 @@ public record AdminEntity(Class<?> type, String entityName, String urlName, Stri
      *
      * <p>Internal, not stable API.
      *
-     * @param readOnly  whether the console only shows the records (implies no delete)
+     * @param readOnly  whether the console only shows the records (implies no create, no edit and no delete)
+     * @param creatable whether records can be created; ignored when {@code readOnly}
+     * @param updatable whether records can be changed; ignored when {@code readOnly}
      * @param deletable whether records can be deleted; ignored when {@code readOnly}
      */
-    public record Access(boolean readOnly, boolean deletable) {
+    public record Access(boolean readOnly, boolean creatable, boolean updatable, boolean deletable) {
 
         /** No annotation: nothing is forbidden. */
-        public static final Access FULL = new Access(false, true);
+        public static final Access FULL = new Access(false, true, true, true);
+
+        /** Read-only and deletable only: the pair of options Phase 7 had. Creating and changing stay allowed. */
+        public Access(boolean readOnly, boolean deletable) {
+            this(readOnly, true, true, deletable);
+        }
+
+        /** Whether records can be created. */
+        public boolean canCreate() {
+            return !readOnly && creatable;
+        }
+
+        /** Whether records can be changed. */
+        public boolean canUpdate() {
+            return !readOnly && updatable;
+        }
 
         /** Whether records can be deleted. */
         public boolean canDelete() {
@@ -101,6 +118,19 @@ public record AdminEntity(Class<?> type, String entityName, String urlName, Stri
     /** Whether the console may delete this entity's records: addressable, not read-only, deletable (SEC-11). */
     public boolean canDelete() {
         return addressable() && access.canDelete();
+    }
+
+    /** Whether the console may create records of this entity: supported, not read-only, creatable (SEC-11). */
+    public boolean canCreate() {
+        return supported() && access.canCreate();
+    }
+
+    /**
+     * Whether the console may change this entity's records: addressable (a record is found by its identifier), not
+     * read-only, updatable (SEC-11).
+     */
+    public boolean canUpdate() {
+        return addressable() && access.canUpdate();
     }
 
     /** The entity class name, for logs and for the {@code excluded-entities} property. */

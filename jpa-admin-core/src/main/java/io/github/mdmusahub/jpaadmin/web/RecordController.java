@@ -27,20 +27,20 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.ModelAndView;
 
 /**
- * The routes of one record: its detail page, deleting it, deleting several, and the checks of the duplicate route.
+ * The routes of one record: its detail page, deleting it and deleting several. The forms (create, edit, duplicate) are
+ * {@link FormController}'s.
  *
  * <pre>
  * GET  {base}/{entity}/{id}              the detail page
  * POST {base}/{entity}/{id}/delete       delete one record
  * POST {base}/{entity}/bulk-delete       delete the records whose ids are in the {@code ids} parameter
- * GET  {base}/{entity}/new?copyFrom={id} the checks of "Duplicate" (the form itself is Phase 8)
  * </pre>
  *
  * <p>The controller is thin (ARCH-2): it looks the entity up, asks a service, builds a record with a factory, or redirects. It
  * touches no entity manager, no entity and no sensitive value (ARCH-3, SEC-1).
  *
  * <p><b>Same answer, always</b> (SEC-2): an entity that is hidden, excluded, unsupported or unknown, an id that is not the
- * shape of an id, an id that has no record, and (for the duplicate route) a missing or bad {@code copyFrom} all answer
+ * shape of an id, and an id that has no record all answer
  * the console's own 404, with no message and nothing from the request in it. An entity that is in the console but is
  * read-only or not deletable answers 403 (SEC-11, enforced in {@link DeleteService}, not here).
  *
@@ -99,7 +99,7 @@ public class RecordController {
         DetailRecord record = details.find(found, id).orElseThrow(RecordController::notFound);
         ListQuery state = listState(found, request);
         DetailView view = DetailViewFactory.build(basePath.value(), found.urlName(), found.label(), record, state,
-                new DetailViewFactory.Offers(false, false, found.canDelete()));
+                new DetailViewFactory.Offers(found.canUpdate(), found.canCreate(), found.canDelete()));
         PageChrome chrome = chromeFactory.chrome(request, DetailViewFactory.breadcrumbs(basePath.value(),
                 found.urlName(), Plurals.of(found.label()), view.title(), state), found.urlName(), List.of());
         return views.page(request, DetailView.TEMPLATE, chrome, view);
@@ -166,31 +166,6 @@ public class RecordController {
         } catch (ActionRefusedException refused) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         }
-    }
-
-    // ---- duplicate ------------------------------------------------------------------------------------------------
-
-    /**
-     * The checks of "Duplicate" (D-73). The create form is Phase 8, so a valid request ends in a redirect to the source
-     * record's page with a notice, and nothing is created. An unknown or hidden entity, a missing, malformed or unknown
-     * {@code copyFrom}, and a read-only entity (nothing can be created in it) are the console's 404 and 403, exactly as for
-     * a record that does not exist.
-     *
-     * @param copyFrom the id of the record to copy; untrusted
-     */
-    @GetMapping(ENTITY + "/new")
-    public ModelAndView copy(@PathVariable("entity") String entity,
-                             @RequestParam(name = "copyFrom", required = false) String copyFrom,
-                             HttpServletRequest request) {
-        AdminEntity found = entity(entity);
-        if (found.access().readOnly()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        }
-        details.copySeed(found, copyFrom).orElseThrow(RecordController::notFound);
-        ConsoleFlash.add(request, DeleteMessages.duplicateComesLater());
-        ListLinks links = new ListLinks(basePath.value(), found.urlName());
-        String back = links.detail(copyFrom, ListQuery.defaults());
-        return ConsoleRedirect.to(basePath, back != null ? back : links.to(ListQuery.defaults()));
     }
 
     // ---- shared ---------------------------------------------------------------------------------------------------

@@ -5,7 +5,9 @@ import io.github.mdmusahub.jpaadmin.metadata.EntityScanner;
 import io.github.mdmusahub.jpaadmin.service.CountService;
 import io.github.mdmusahub.jpaadmin.service.DeleteService;
 import io.github.mdmusahub.jpaadmin.service.DetailQueryService;
+import io.github.mdmusahub.jpaadmin.service.FormQueryService;
 import io.github.mdmusahub.jpaadmin.service.ListQueryService;
+import io.github.mdmusahub.jpaadmin.service.RecordWriteService;
 import io.github.mdmusahub.jpaadmin.web.BasePath;
 import io.github.mdmusahub.jpaadmin.web.ConsoleChromeFactory;
 import io.github.mdmusahub.jpaadmin.web.ConsoleController;
@@ -16,6 +18,7 @@ import io.github.mdmusahub.jpaadmin.web.ConsoleViewFactory;
 import io.github.mdmusahub.jpaadmin.web.ConsoleViews;
 import io.github.mdmusahub.jpaadmin.web.CsrfTokens;
 import io.github.mdmusahub.jpaadmin.web.EntityController;
+import io.github.mdmusahub.jpaadmin.web.FormController;
 import io.github.mdmusahub.jpaadmin.web.RecordController;
 import io.github.mdmusahub.jpaadmin.web.ThemeController;
 import jakarta.persistence.EntityManagerFactory;
@@ -213,6 +216,37 @@ public class JpaAdminAutoConfiguration {
     }
 
     /**
+     * The create and edit forms' read side: the fields, the choices and the starting values. Same entity manager as the other
+     * read services; {@code @Transactional(readOnly = true)} is a real read-only transaction (ARCH-5).
+     */
+    @Bean
+    @ConditionalOnBean(type = ENTITY_MANAGER_FACTORY)
+    @ConditionalOnMissingBean
+    FormQueryService jpaAdminFormQueryService(ObjectProvider<EntityManagerFactory> factories,
+                                              ObjectProvider<AdminEntityRegistry> registries) {
+        EntityManagerFactory factory = consoleEntityManagerFactory(factories);
+        return factory == null ? FormQueryService.unavailable()
+                : FormQueryService.over(SharedEntityManagerCreator.createSharedEntityManager(factory),
+                        registries.getIfAvailable(AdminEntityRegistry::empty));
+    }
+
+    /**
+     * The writer of creates and updates (with {@link DeleteService}, the only writers). {@code @Transactional}, so a refused
+     * record rolls back (ARCH-5). The flags of {@code @AdminResource} are checked inside the service (SEC-11). Bean Validation
+     * is whatever the host's persistence provider does at insert and update; the console needs no validator of its own.
+     */
+    @Bean
+    @ConditionalOnBean(type = ENTITY_MANAGER_FACTORY)
+    @ConditionalOnMissingBean
+    RecordWriteService jpaAdminRecordWriteService(ObjectProvider<EntityManagerFactory> factories,
+                                                  ObjectProvider<AdminEntityRegistry> registries) {
+        EntityManagerFactory factory = consoleEntityManagerFactory(factories);
+        return factory == null ? RecordWriteService.unavailable()
+                : RecordWriteService.over(SharedEntityManagerCreator.createSharedEntityManager(factory),
+                        registries.getIfAvailable(AdminEntityRegistry::empty));
+    }
+
+    /**
      * The sidebar and the dashboard. Without JPA, or without an entity manager factory, the console still works:
      * it then has no entities, and the pages say so.
      */
@@ -266,7 +300,7 @@ public class JpaAdminAutoConfiguration {
     }
 
     /**
-     * One record's routes at {@code {path}/{entity}/{id}}: the detail page, delete, bulk delete and the checks of duplicate.
+     * One record's routes at {@code {path}/{entity}/{id}}: the detail page, delete and bulk delete.
      * Without an entity manager factory the services find nothing, so every record is the console's 404.
      */
     @Bean
@@ -278,6 +312,21 @@ public class JpaAdminAutoConfiguration {
         return new RecordController(chromeFactory, views, navigation, lists.getIfAvailable(ListQueryService::unavailable),
                 details.getIfAvailable(DetailQueryService::unavailable),
                 deletes.getIfAvailable(DeleteService::unavailable), basePath);
+    }
+
+    /**
+     * The create and edit forms at {@code {path}/{entity}/new}, {@code {path}/{entity}/{id}/edit} and their POSTs, and the
+     * duplicate form. Without an entity manager factory the services find nothing, so every form is the console's 404.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    FormController jpaAdminFormController(ConsoleChromeFactory chromeFactory, ConsoleViews views,
+                                          ConsoleNavigation navigation, ObjectProvider<FormQueryService> forms,
+                                          ObjectProvider<DetailQueryService> details,
+                                          ObjectProvider<RecordWriteService> writes, BasePath basePath) {
+        return new FormController(chromeFactory, views, navigation, forms.getIfAvailable(FormQueryService::unavailable),
+                details.getIfAvailable(DetailQueryService::unavailable),
+                writes.getIfAvailable(RecordWriteService::unavailable), basePath);
     }
 
     /** {@code {path}/theme.css}: the accent colour as one CSS variable (SEC-15). */

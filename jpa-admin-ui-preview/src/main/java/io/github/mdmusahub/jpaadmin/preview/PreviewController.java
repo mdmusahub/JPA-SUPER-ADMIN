@@ -6,6 +6,7 @@ import static io.github.mdmusahub.jpaadmin.preview.ChromeFixtures.BASE;
 import io.github.mdmusahub.jpaadmin.web.view.DashboardView;
 import io.github.mdmusahub.jpaadmin.web.view.DetailView;
 import io.github.mdmusahub.jpaadmin.web.view.ErrorView;
+import io.github.mdmusahub.jpaadmin.web.view.FormView;
 import io.github.mdmusahub.jpaadmin.web.view.ListView;
 import io.github.mdmusahub.jpaadmin.web.view.LoginView;
 import io.github.mdmusahub.jpaadmin.web.view.PageChrome;
@@ -26,8 +27,8 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 /**
  * Renders the real console templates with fixtures, with no database and no login: {@code /admin-preview/{page}?state=}
- * and {@code &chrome=} ({@code docs/FIXTURES.md}). The pages are {@code login}, {@code dashboard}, {@code list}
- * and {@code error} (tasks U0 to U2); each later UI task adds its own. Without {@code &chrome=} a state uses the chrome
+ * and {@code &chrome=} ({@code docs/FIXTURES.md}). The pages are {@code login}, {@code dashboard}, {@code list}, {@code detail},
+ * {@code form} and {@code error} (tasks U0 to U5); each later UI task adds its own. Without {@code &chrome=} a state uses the chrome
  * variant that fits it ({@code default} for all but a few list states).
  *
  * <p>It fills the same model attributes as the real controllers ({@code chrome} and {@code view}) and returns the same
@@ -65,8 +66,9 @@ class PreviewController {
     String page(@PathVariable String page, @RequestParam(defaultValue = "normal") String state,
                 @RequestParam(required = false) String chrome, Model model) {
         String variant = chrome != null ? chrome : "list".equals(page) ? preferredListChrome(state) : "default";
-        PageChrome pageChrome = (chrome == null && "detail".equals(page)
-                ? RecordFixtures.detailChrome(state, BASE) : ChromeFixtures.find(variant)).orElseThrow(() -> new UnknownFixture(
+        PageChrome pageChrome = (chrome == null && "detail".equals(page) ? RecordFixtures.detailChrome(state, BASE)
+                : chrome == null && "form".equals(page) ? FormFixtures.chrome(state, BASE)
+                : ChromeFixtures.find(variant)).orElseThrow(() -> new UnknownFixture(
                 "No chrome variant called '" + variant + "'. Valid chrome variants: " + ChromeFixtures.names()));
         model.addAttribute(PageChrome.ATTRIBUTE, pageChrome);
         return switch (page) {
@@ -87,6 +89,11 @@ class PreviewController {
                 model.addAttribute(PageChrome.VIEW_ATTRIBUTE,
                         PageFixtures.detail(state, pageChrome.basePath()).orElseThrow(() -> unknown(page, state)));
                 yield DetailView.TEMPLATE;
+            }
+            case "form" -> {
+                model.addAttribute(PageChrome.VIEW_ATTRIBUTE,
+                        PageFixtures.form(state, pageChrome.basePath()).orElseThrow(() -> unknown(page, state)));
+                yield FormView.TEMPLATE;
             }
             case "error" -> {
                 model.addAttribute(PageChrome.VIEW_ATTRIBUTE, PageFixtures.error(state).orElseThrow(() -> unknown(page, state)));
