@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
 import org.springframework.web.ErrorResponse;
+import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 import org.springframework.web.servlet.ModelAndView;
 
@@ -58,6 +59,11 @@ public final class ConsoleExceptionResolver implements HandlerExceptionResolver,
         if (response.isCommitted() || !isConsolePage(request) || isSecurityException(exception)) {
             return null;
         }
+        if (exception instanceof MultipartException multipart && isUploadRoute(request)) {
+            // A file over the host's multipart limit is refused by Spring before any controller runs, so only a resolver sees
+            // it. The upload endpoint has its own answer (JSON for the uploader script, the error page for a plain form).
+            return UploadAnswers.refuseMultipart(request, response, views, chromeFactory, basePath, multipart);
+        }
         int status = statusOf(exception);
         if (status >= 500) {
             log.error("A console request failed with status {} at {}", status, path(request), exception);
@@ -88,6 +94,11 @@ public final class ConsoleExceptionResolver implements HandlerExceptionResolver,
         boolean underConsole = path.equals(base) || path.startsWith(base + "/");
         boolean asset = path.equals(base + "/assets") || path.startsWith(base + "/assets/");
         return underConsole && !asset;
+    }
+
+    /** {@code POST {base}/uploads}. */
+    private boolean isUploadRoute(HttpServletRequest request) {
+        return "POST".equals(request.getMethod()) && path(request).equals(basePath.value() + "/uploads");
     }
 
     /** The request path without the servlet context path. */

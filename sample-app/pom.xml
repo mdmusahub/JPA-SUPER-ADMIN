@@ -64,6 +64,20 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!--
+            Phase 9a: the sample has an upload field, so the console creates its storage folder at startup. Some tests start the app
+            without the test properties file (spring.config.name=...), where the default ./uploads would be created in the source
+            tree. A system property reaches every test JVM, whatever files it reads, and puts the folder under target.
+          -->
+          <systemPropertyVariables>
+            <jpa.admin.storage.default.directory>target/test-uploads</jpa.admin.storage.default.directory>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
 </project>
