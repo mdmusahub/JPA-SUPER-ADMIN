@@ -408,6 +408,120 @@ class LocalStorageProviderTest {
         assertThat(provider.verify("nothing")).hasSize(1);
     }
 
+    // ---- owns: which posted addresses are ours (Phase 9b) -----------------------------------------------------------------------------
+
+    @Test
+    void anAddressTheProviderMadeForAFileThatIsStillThereIsOwned() throws IOException {
+        StoredFile stored = provider.store("default", "docs", "png", new ByteArrayInputStream(PNG), 1000);
+        String address = provider.url(stored);
+
+        assertThat(provider.owns(address)).isTrue();
+        assertThat(provider.parse(address)).hasValue(stored);
+    }
+
+    @Test
+    void theAddressOfAStorageWithAPublicPathIsThePublicOneAndTheConsoleFormOfItIsNotOwned() throws IOException {
+        StoredFile stored = provider.store("public", "", "png", new ByteArrayInputStream(PNG), 1000);
+
+        assertThat(provider.url(stored)).startsWith("/files/");
+        assertThat(provider.owns(provider.url(stored))).isTrue();
+        assertThat(provider.owns("/admin/files/public/" + stored.key())).isFalse();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"https://evil.example/admin/files/default/2026/11/0123456789abcdef0123456789abcdef.png",
+            "//evil.example/admin/files/default/2026/11/0123456789abcdef0123456789abcdef.png",
+            "javascript:alert(1)", "data:image/png;base64,AAAA", "/other/files/default/2026/11/0123456789abcdef0123456789abcdef.png",
+            "/admin/files/2026/11/0123456789abcdef0123456789abcdef.png", "admin/files/default/2026/11/0123456789abcdef0123456789abcdef.png",
+            "/admin/filesx/default/2026/11/0123456789abcdef0123456789abcdef.png",
+            "/admin/files/default/2026/11/0123456789abcdef0123456789abcdef.png?x=1",
+            "/admin/files/default/2026/11/0123456789abcdef0123456789abcdef.png#x",
+            "/admin/files/default/2026/11/0123456789abcdef0123456789abcdef.png ",
+            " /admin/files/default/2026/11/0123456789abcdef0123456789abcdef.png", "", "   "})
+    void aForeignAddressIsNotOwned(String url) throws IOException {
+        // The file exists under that name, so only the address can be what refuses it.
+        Files.createDirectories(root.resolve("2026/11"));
+        Files.write(root.resolve("2026/11/0123456789abcdef0123456789abcdef.png"), PNG);
+
+        assertThat(provider.owns(url)).isFalse();
+        assertThat(provider.parse(url)).isEmpty();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"/admin/files/default/../2026/11/0123456789abcdef0123456789abcdef.png",
+            "/admin/files/default/2026/11/../11/0123456789abcdef0123456789abcdef.png",
+            "/admin/files/default/%2e%2e/default/2026/11/0123456789abcdef0123456789abcdef.png",
+            "/admin/files/default/..%2f2026/11/0123456789abcdef0123456789abcdef.png",
+            "/admin/files/default/2026\\11\\0123456789abcdef0123456789abcdef.png",
+            "/admin/files//default/2026/11/0123456789abcdef0123456789abcdef.png",
+            "/admin/files/default//2026/11/0123456789abcdef0123456789abcdef.png",
+            "/admin/files/default/2026/11/0123456789abcdef0123456789abcdef.png/../0123456789abcdef0123456789abcdef.png",
+            "/admin/files/default/2026/11/0123456789ABCDEF0123456789abcdef.png",
+            "/admin/files/default/2026/11/0123456789abcdef0123456789abcdef.png\u0000",
+            "/admin/files/default/./2026/11/0123456789abcdef0123456789abcdef.png"})
+    void aTraversalLookingAddressIsNotOwnedEvenWhenTheFileItNamesExists(String url) throws IOException {
+        Files.createDirectories(root.resolve("2026/11"));
+        Files.write(root.resolve("2026/11/0123456789abcdef0123456789abcdef.png"), PNG);
+
+        assertThat(provider.owns(url)).isFalse();
+    }
+
+    @Test
+    void anAddressUnderAnotherStorageIsNotOwnedWhenThatStorageIsUnknownOrNotLocal() throws IOException {
+        StoredFile stored = provider.store("default", "", "png", new ByteArrayInputStream(PNG), 1000);
+
+        assertThat(provider.owns("/admin/files/nothing/" + stored.key())).isFalse();
+        assertThat(provider.owns("/admin/files/cloud/" + stored.key())).isFalse();
+        // The same key under another storage that is configured is a different file, which does not exist there.
+        assertThat(provider.owns("/files/" + stored.key())).isFalse();
+    }
+
+    @Test
+    void anAddressOfAFileThatDoesNotExistIsNotOwnedAndOneThatWasRemovedStopsBeingOwned() throws IOException {
+        assertThat(provider.owns("/admin/files/default/2026/11/0123456789abcdef0123456789abcdef.png")).isFalse();
+        StoredFile stored = provider.store("default", "", "png", new ByteArrayInputStream(PNG), 1000);
+        String address = provider.url(stored);
+        assertThat(provider.owns(address)).isTrue();
+
+        provider.delete(stored);
+
+        assertThat(provider.owns(address)).isFalse();
+        assertThat(provider.parse(address)).isPresent();
+    }
+
+    @Test
+    void nullIsNotOwnedAndAProviderThatImplementsNothingOwnsNothing() {
+        assertThat(provider.owns(null)).isFalse();
+        StorageProvider silent = new StorageProvider() {
+            @Override
+            public boolean supports(String storage) {
+                return true;
+            }
+
+            @Override
+            public StoredFile store(String storage, String folder, String extension, InputStream content, long maxBytes) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public void delete(StoredFile file) {
+            }
+
+            @Override
+            public Optional<StoredContent> open(String storage, String key) {
+                return Optional.empty();
+            }
+
+            @Override
+            public String url(StoredFile file) {
+                return "/x";
+            }
+        };
+
+        assertThat(silent.owns("/admin/files/default/2026/11/0123456789abcdef0123456789abcdef.png")).isFalse();
+        assertThat(silent.parse("/x")).isEmpty();
+    }
+
     @Test
     void aProviderIsReplaceableThroughTheInterface() {
         StorageProvider replacement = new StorageProvider() {

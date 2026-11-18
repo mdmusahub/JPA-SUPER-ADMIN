@@ -8,8 +8,10 @@ import io.github.mdmusahub.jpaadmin.service.DetailQueryService;
 import io.github.mdmusahub.jpaadmin.service.FormQueryService;
 import io.github.mdmusahub.jpaadmin.service.ListQueryService;
 import io.github.mdmusahub.jpaadmin.service.RecordWriteService;
+import io.github.mdmusahub.jpaadmin.service.UploadFiles;
 import io.github.mdmusahub.jpaadmin.storage.LocalStorageProvider;
 import io.github.mdmusahub.jpaadmin.storage.StorageProvider;
+import io.github.mdmusahub.jpaadmin.storage.StorageUploadFiles;
 import io.github.mdmusahub.jpaadmin.storage.UploadService;
 import io.github.mdmusahub.jpaadmin.storage.UploadTargets;
 import io.github.mdmusahub.jpaadmin.storage.UploadTicketService;
@@ -246,7 +248,17 @@ public class JpaAdminAutoConfiguration {
         return key == null ? UploadTicketService.withRandomKey(clock) : UploadTicketService.withKey(key, clock);
     }
 
-    /** Checks and stores uploads. Not replaceable: it holds the file checks (UPL-1, UPL-2, UPL-5). */
+/**
+ * What the lists, pages and forms know about uploaded files (Phase 9b): which fields are upload inputs, a fresh ticket for
+ * each, which posted addresses a field may keep, and how a stored address is shown. Not replaceable: it holds the rule that
+ * only the field's own storage's addresses are ever stored (D-97).
+ */
+@Bean
+UploadFiles jpaAdminUploadFiles(UploadTargets targets, UploadTicketService tickets, StorageProvider provider) {
+    return new StorageUploadFiles(targets, tickets, provider);
+}
+
+/** Checks and stores uploads. Not replaceable: it holds the file checks (UPL-1, UPL-2, UPL-5). */
     @Bean
     UploadService jpaAdminUploadService(UploadTargets targets, UploadTicketService tickets, StorageProvider provider) {
         return new UploadService(targets, tickets, provider);
@@ -276,11 +288,12 @@ public class JpaAdminAutoConfiguration {
     @ConditionalOnBean(type = ENTITY_MANAGER_FACTORY)
     @ConditionalOnMissingBean
     ListQueryService jpaAdminListQueryService(ObjectProvider<EntityManagerFactory> factories,
-                                              ObjectProvider<AdminEntityRegistry> registries) {
+                                              ObjectProvider<AdminEntityRegistry> registries,
+                                              ObjectProvider<UploadFiles> uploads) {
         EntityManagerFactory factory = consoleEntityManagerFactory(factories);
         return factory == null ? ListQueryService.unavailable()
                 : ListQueryService.over(SharedEntityManagerCreator.createSharedEntityManager(factory),
-                        registries.getIfAvailable(AdminEntityRegistry::empty));
+                        registries.getIfAvailable(AdminEntityRegistry::empty), uploads.getIfAvailable(UploadFiles::none));
     }
 
     /**
@@ -292,11 +305,12 @@ public class JpaAdminAutoConfiguration {
     @ConditionalOnBean(type = ENTITY_MANAGER_FACTORY)
     @ConditionalOnMissingBean
     DetailQueryService jpaAdminDetailQueryService(ObjectProvider<EntityManagerFactory> factories,
-                                                  ObjectProvider<AdminEntityRegistry> registries) {
+                                                  ObjectProvider<AdminEntityRegistry> registries,
+                                                  ObjectProvider<UploadFiles> uploads) {
         EntityManagerFactory factory = consoleEntityManagerFactory(factories);
         return factory == null ? DetailQueryService.unavailable()
                 : DetailQueryService.over(SharedEntityManagerCreator.createSharedEntityManager(factory),
-                        registries.getIfAvailable(AdminEntityRegistry::empty));
+                        registries.getIfAvailable(AdminEntityRegistry::empty), uploads.getIfAvailable(UploadFiles::none));
     }
 
     /**
@@ -322,11 +336,12 @@ public class JpaAdminAutoConfiguration {
     @ConditionalOnBean(type = ENTITY_MANAGER_FACTORY)
     @ConditionalOnMissingBean
     FormQueryService jpaAdminFormQueryService(ObjectProvider<EntityManagerFactory> factories,
-                                              ObjectProvider<AdminEntityRegistry> registries) {
+                                              ObjectProvider<AdminEntityRegistry> registries,
+                                              ObjectProvider<UploadFiles> uploads) {
         EntityManagerFactory factory = consoleEntityManagerFactory(factories);
         return factory == null ? FormQueryService.unavailable()
                 : FormQueryService.over(SharedEntityManagerCreator.createSharedEntityManager(factory),
-                        registries.getIfAvailable(AdminEntityRegistry::empty));
+                        registries.getIfAvailable(AdminEntityRegistry::empty), uploads.getIfAvailable(UploadFiles::none));
     }
 
     /**
@@ -338,11 +353,12 @@ public class JpaAdminAutoConfiguration {
     @ConditionalOnBean(type = ENTITY_MANAGER_FACTORY)
     @ConditionalOnMissingBean
     RecordWriteService jpaAdminRecordWriteService(ObjectProvider<EntityManagerFactory> factories,
-                                                  ObjectProvider<AdminEntityRegistry> registries) {
+                                                  ObjectProvider<AdminEntityRegistry> registries,
+                                                  ObjectProvider<UploadFiles> uploads) {
         EntityManagerFactory factory = consoleEntityManagerFactory(factories);
         return factory == null ? RecordWriteService.unavailable()
                 : RecordWriteService.over(SharedEntityManagerCreator.createSharedEntityManager(factory),
-                        registries.getIfAvailable(AdminEntityRegistry::empty));
+                        registries.getIfAvailable(AdminEntityRegistry::empty), uploads.getIfAvailable(UploadFiles::none));
     }
 
     /**
@@ -422,10 +438,11 @@ public class JpaAdminAutoConfiguration {
     FormController jpaAdminFormController(ConsoleChromeFactory chromeFactory, ConsoleViews views,
                                           ConsoleNavigation navigation, ObjectProvider<FormQueryService> forms,
                                           ObjectProvider<DetailQueryService> details,
-                                          ObjectProvider<RecordWriteService> writes, BasePath basePath) {
+                                          ObjectProvider<RecordWriteService> writes, BasePath basePath,
+                                          ObjectProvider<UploadFiles> uploads) {
         return new FormController(chromeFactory, views, navigation, forms.getIfAvailable(FormQueryService::unavailable),
                 details.getIfAvailable(DetailQueryService::unavailable),
-                writes.getIfAvailable(RecordWriteService::unavailable), basePath);
+                writes.getIfAvailable(RecordWriteService::unavailable), basePath, uploads.getIfAvailable(UploadFiles::none));
     }
 
     /** {@code POST {path}/uploads}: takes one file for one upload field. */

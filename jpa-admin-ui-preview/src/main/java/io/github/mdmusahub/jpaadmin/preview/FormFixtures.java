@@ -30,6 +30,9 @@ final class FormFixtures {
     private static final String LABEL = "Article";
     private static final String PLURAL = "Articles";
 
+    /** Where the stub serves its picture and its document: the preview's own base path. */
+    private static final String BASE_FILES = "/admin-preview/files";
+
     /** A fixture: the page the form shows, what is wrong with it, and the notices above it. */
     private record Fixture(FormPage page, List<String> formErrors, List<FlashMessage> notices, String entityLabel) {
     }
@@ -65,6 +68,40 @@ final class FormFixtures {
                 List.of(SaveMessages.copied(LABEL, "12"))));
         FORMS.put("relation-notice", base -> of(page(null, null, null, notices()), List.of(), List.of()));
         FORMS.put("escaped", base -> of(escaped(), List.of(), List.of()));
+        FORMS.put("upload-states", base -> of(page(null, null, null, uploadStates()), List.of(), List.of()));
+        FORMS.put("upload-edit", base -> of(page("12", "3", "Guide on onboarding 12", List.of(
+                field("title", "Title", InputType.TEXT, "Guide on onboarding 12", true, null, List.of(), null),
+                upload("cover", "Cover", BASE_FILES + "/cover.png", false, null, UploadStub.SUCCESS_IMAGE))), List.of(), List.of()));
+        for (String state : UploadStub.STATES) {
+            FORMS.put("upload-" + state, base -> of(page(null, null, null, List.of(
+                    field("title", "Title", InputType.TEXT, null, true, null, List.of(), null),
+                    upload("cover", "Cover", null, false, null, state))), List.of(), List.of()));
+        }
+    }
+
+    /**
+     * An UPLOAD field the way the real form service builds it (D-96): the two advisory limits as options, the human sentence as
+     * help, and a ticket. In the preview the ticket is the NAME OF THE STUB STATE the field should show (see UploadStub).
+     */
+    private static FormView.Field upload(String key, String label, String value, boolean required, String error, String stubState) {
+        return new FormView.Field(key, label, InputType.UPLOAD, value, required,
+                "Accepts PNG image, JPEG image, GIF image, WebP image, up to 2 MB.",
+                List.of(new Option("accept", "image/png,image/jpeg,image/gif,image/webp"), new Option("maxBytes", "2097152")),
+                error, stubState);
+    }
+
+    /** Four upload fields: empty, with a picture, with a document, and one the server refused. */
+    private static List<FormView.Field> uploadStates() {
+        return List.of(
+                field("title", "Title", InputType.TEXT, null, true, null, List.of(), null),
+                upload("cover", "Cover (empty, the stub says done)", null, false, null, UploadStub.SUCCESS_IMAGE),
+                upload("photo", "Photo (has a picture, the stub is slow)", BASE_FILES + "/cover.png", false, null, UploadStub.SLOW),
+                new FormView.Field("brochure", "Brochure (has a document, the stub refuses a large file)", InputType.UPLOAD,
+                        BASE_FILES + "/brochure.pdf", false, "Accepts PDF document, up to 2 MB.",
+                        List.of(new Option("accept", "application/pdf"), new Option("maxBytes", "2097152")), null,
+                        UploadStub.ERROR_TOO_LARGE),
+                upload("scan", "Scan (refused: not a file this console uploaded)", null, true, FieldMessages.notOurFile(),
+                        UploadStub.ERROR_TYPE));
     }
 
     private FormFixtures() {

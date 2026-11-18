@@ -74,6 +74,7 @@ final class RecordFixtures {
         DETAILS.put("relations", detail("article-detail", RecordFixtures::relations));
         DETAILS.put("masked-field", detail("article-detail", RecordFixtures::maskedField));
         DETAILS.put("with-images", detail("article-detail", RecordFixtures::withImages));
+        DETAILS.put("upload-cells", detail("article-detail", RecordFixtures::uploadCells));
         DETAILS.put("all-cell-types", detail("article-detail", RecordFixtures::allCellTypes));
         DETAILS.put("collection-not-shown", detail("article-detail", RecordFixtures::collectionNotShown));
         DETAILS.put("no-label", detail("article-detail", RecordFixtures::noLabel));
@@ -285,9 +286,9 @@ final class RecordFixtures {
     private static DetailPart withImages(String basePath) {
         DetailPart base = normal(basePath, new DetailViewFactory.Offers(true, true, true));
         List<DetailView.Field> fields = new ArrayList<>(base.view().fields());
-        fields.add(new DetailView.Field("Cover", new Cell(Cell.Type.IMAGE, "cover.png", Cell.Tone.NONE,
+        fields.add(new DetailView.Field("Cover", new Cell(Cell.Type.IMAGE, "Cover", Cell.Tone.NONE,
                 basePath + "/files/cover.png", null)));
-        fields.add(new DetailView.Field("Attachment", new Cell(Cell.Type.FILE, "report.pdf", Cell.Tone.NONE,
+        fields.add(new DetailView.Field("Attachment", new Cell(Cell.Type.FILE, "Attachment (PDF)", Cell.Tone.NONE,
                 basePath + "/files/report.pdf", null)));
         DetailView view = new DetailView(base.view().title(), base.view().entityLabel(), base.view().id(), fields,
                 List.of(new DetailView.Image(basePath + "/files/cover.png", "Cover of the article"),
@@ -315,9 +316,9 @@ final class RecordFixtures {
         DetailPart part = part(basePath, new DetailRecord("1", "Everything", items), ListQuery.defaults(),
                 new DetailViewFactory.Offers(true, true, true), List.of());
         List<DetailView.Field> fields = new ArrayList<>(part.view().fields());
-        fields.add(new DetailView.Field("Image", new Cell(Cell.Type.IMAGE, "cover.png", Cell.Tone.NONE,
+        fields.add(new DetailView.Field("Image", new Cell(Cell.Type.IMAGE, "Cover", Cell.Tone.NONE,
                 basePath + "/files/cover.png", null)));
-        fields.add(new DetailView.Field("File", new Cell(Cell.Type.FILE, "report.pdf", Cell.Tone.NONE,
+        fields.add(new DetailView.Field("File", new Cell(Cell.Type.FILE, "Attachment (PDF)", Cell.Tone.NONE,
                 basePath + "/files/report.pdf", null)));
         return new DetailPart(new DetailView(part.view().title(), part.view().entityLabel(), part.view().id(), fields,
                 List.of(), part.view().actions()), part.state(), part.flash());
@@ -348,7 +349,26 @@ final class RecordFixtures {
                 new DetailViewFactory.Offers(false, false, true), List.of());
     }
 
-    private static DetailPart withListState(String basePath) {
+    /**
+ * What the real service makes of upload fields (task U6, D-99), built through the real factory: a stored picture (its cell is
+ * an IMAGE whose text is the field label, and the strip is filled from it), a stored document, a file that is gone (a plain
+ * note), and labels and names that are markup, which the page prints as text.
+ */
+private static DetailPart uploadCells(String basePath) {
+    List<DetailRecord.Item> items = new ArrayList<>();
+    items.add(plain("ID", ListFixtures.number("7")));
+    items.add(plain("Cover", new Cell(Cell.Type.IMAGE, "Cover", Cell.Tone.NONE, basePath + "/files/cover.png", null)));
+    items.add(plain("Photo <i>two</i>", new Cell(Cell.Type.IMAGE, "Photo <i>two</i>", Cell.Tone.NONE,
+            basePath + "/files/second.png", null)));
+    items.add(plain("Brochure", new Cell(Cell.Type.FILE, "<b>Brochure</b> (PDF)", Cell.Tone.NONE,
+            basePath + "/files/brochure.pdf", "<script>x</script>.pdf")));
+    items.add(plain("Scan", new Cell(Cell.Type.TEXT, "Scan: file not found", Cell.Tone.NONE, null, null)));
+    items.add(plain("Other", Cell.text("<img src=x onerror=alert(1)>")));
+    return part(basePath, new DetailRecord("7", "Guide on onboarding 7", items), ListQuery.defaults(),
+            new DetailViewFactory.Offers(false, false, true), List.of());
+}
+
+private static DetailPart withListState(String basePath) {
         ListQuery state = new ListQuery("guide & more", "views", "desc", 2, 10);
         return part(basePath, new DetailRecord("7", "Guide on onboarding 7", articleItems()), state,
                 new DetailViewFactory.Offers(false, false, true), List.of());

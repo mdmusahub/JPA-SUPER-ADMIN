@@ -12,8 +12,10 @@
     ENUM      a badge; the tone decides the colour (grey for NONE and GREY)
     RELATION  the related record's label, a link when the record has an href
     DATE      the formatted date, with the full value as the hover text
-    IMAGE     a small picture, href is the image address and display the file name
-    FILE      a link with a file icon
+    IMAGE     a small picture (the original scaled by CSS, D-9): href is the image address, display is its alternative text
+              (the field label, never a file name). A file that is gone is not an IMAGE cell: the backend sends a plain TEXT
+              cell with the words "file not found", so there is never a broken picture with nothing to read (D-99)
+    FILE      a link with a file icon; display is the field label and the type, title the stored name
     MASKED    dots only; the cell holds no value, so there is nothing to leak. A screen reader hears "Hidden value"
     EMPTY     a dash, with "No value" for a screen reader
 */-->

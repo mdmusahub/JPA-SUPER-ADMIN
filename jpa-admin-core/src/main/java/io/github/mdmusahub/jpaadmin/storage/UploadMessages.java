@@ -72,6 +72,11 @@ public final class UploadMessages {
                 + "upload folder.";
     }
 
+    /** One plain sentence under an upload input: what the field takes and how large a file may be. */
+    public static String fieldHelp(List<String> accepted, long maxBytes) {
+        return "Accepts " + describeTypes(accepted) + ", up to " + UploadLimits.describe(maxBytes) + ".";
+    }
+
     /** A person's name for a MIME type the console can recognise; the type itself for anything else. */
     public static String describeType(String mime) {
         return switch (mime) {

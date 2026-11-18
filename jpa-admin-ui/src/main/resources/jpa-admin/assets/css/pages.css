@@ -1423,3 +1423,136 @@ select.input {
     gap: var(--s4);
   }
 }
+
+/* ---- uploads (task U6) ---------------------------------------------------------------------------------------------------- */
+
+/* The record form holds only the hidden address of an upload field; its visible part is the section after the form. */
+.form-field-upload {
+  display: none;
+}
+
+.upload-field {
+  margin-top: var(--s6);
+  padding-top: var(--s5);
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: var(--s3);
+}
+
+.upload-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.upload-title label {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.upload-current {
+  min-height: 3rem;
+}
+
+.upload-preview {
+  display: block;
+  max-width: min(100%, 16rem);
+  max-height: 12rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-alt);
+  object-fit: contain;
+}
+
+.upload-empty {
+  margin: 0;
+  color: var(--muted);
+}
+
+.upload-remove {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin: 0;
+}
+
+.upload-remove[hidden],
+.upload-actions[hidden],
+.upload-progress[hidden] {
+  display: none;
+}
+
+.upload-form {
+  display: grid;
+  gap: var(--s2);
+}
+
+.upload-drop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s4);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--panel-alt);
+}
+
+.upload-input {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.upload-note,
+.upload-status {
+  margin: 0;
+}
+
+.upload-status:empty {
+  display: none;
+}
+
+.upload-progress {
+  width: 100%;
+  height: 0.5rem;
+  accent-color: var(--accent-strong);
+}
+
+.upload-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+
+.upload-field[data-state="dragging"] .upload-drop {
+  border-color: var(--accent-strong);
+  background: var(--accent-tint, var(--panel-alt));
+}
+
+.upload-field[data-state="uploading"] .upload-drop {
+  opacity: 0.7;
+}
+
+.upload-field[data-state="done"] .upload-status {
+  color: var(--green, var(--accent-strong));
+}
+
+.upload-field[data-state="error"] .upload-status,
+.upload-field.field-invalid .upload-drop {
+  color: var(--red);
+  border-color: var(--red);
+}
+
+/* With script the page is not reloaded by a file, so the warning and the plain button are not needed. */
+.js .upload-note,
+.js .upload-submit-plain,
+.js [data-upload-submit],
+.js .upload-remove {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .upload-drop {
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+  }
+}

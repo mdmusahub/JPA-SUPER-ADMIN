@@ -22,6 +22,13 @@ public final class TransactionalRecordWriteService extends RecordWriteService {
         this.entityManager = entityManager;
     }
 
+    /** With upload support (Phase 9b): an upload field is an input and accepts only addresses that {@code uploads} accepts. */
+    public TransactionalRecordWriteService(EntityManager entityManager, AdminEntityRegistry registry,
+                                           io.github.mdmusahub.jpaadmin.service.UploadFiles uploads) {
+        super(entityManager, registry, uploads);
+        this.entityManager = entityManager;
+    }
+
     @Override
     public Saved create(AdminEntity entity, Function<String, String> posted) {
         return inTransaction(() -> super.create(entity, posted));

@@ -158,6 +158,7 @@ final class HtmlRules {
         unlabelledButtons(html, problems);
         unlabelledInputs(html, problems);
         nestedForms(html, problems);
+        imagesWithoutAlternativeText(html, problems);
         return problems;
     }
 
@@ -176,6 +177,20 @@ final class HtmlRules {
                 depth++;
             } else if (depth > 0) {
                 depth--;
+            }
+        }
+    }
+
+    /**
+     * Every picture has alternative text (UI-4, task U6): an image whose file is missing then shows the words, not a broken icon
+     * with nothing to read. An empty alt is not enough, because it hides the picture from a screen reader.
+     */
+    private static void imagesWithoutAlternativeText(String html, List<String> problems) {
+        Matcher images = Pattern.compile("(?is)<img\\b([^>]*)>").matcher(html);
+        while (images.find()) {
+            Matcher alt = Pattern.compile("(?is)\\salt\\s*=\\s*\"([^\"]*)\"").matcher(images.group(1));
+            if (!alt.find() || alt.group(1).isBlank()) {
+                problems.add("an <img> has no alternative text (UI-4)");
             }
         }
     }
