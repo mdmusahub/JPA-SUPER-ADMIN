@@ -65,12 +65,25 @@ public class RecordWriteService {
 
     private final EntityManager entityManager;
     private final AdminEntityRegistry registry;
+    private final UploadFiles uploads;
     private final Map<String, List<EditableFields.Editable>> plans = new ConcurrentHashMap<>();
+
+    /**
+     * The suffix of the extra name an upload field's "remove" marker is posted under: {@code <field>-remove}. A field name
+     * cannot hold a hyphen, so the marker can never be another field's name, and it is asked for only for a field that is an
+     * upload input, so mass assignment stays impossible.
+     */
+    public static final String REMOVE_SUFFIX = "-remove";
 
     /** Not public, for the same reason as {@code ListQueryService}: Spring's transactional proxy subclasses this class. */
     protected RecordWriteService(EntityManager entityManager, AdminEntityRegistry registry) {
+        this(entityManager, registry, UploadFiles.none());
+    }
+
+    protected RecordWriteService(EntityManager entityManager, AdminEntityRegistry registry, UploadFiles uploads) {
         this.entityManager = entityManager;
         this.registry = Objects.requireNonNull(registry, "registry");
+        this.uploads = Objects.requireNonNull(uploads, "uploads");
     }
 
     /**
@@ -81,6 +94,15 @@ public class RecordWriteService {
      */
     public static RecordWriteService over(EntityManager entityManager, AdminEntityRegistry registry) {
         return new RecordWriteService(Objects.requireNonNull(entityManager, "entityManager"), registry);
+    }
+
+    /**
+     * The service with upload support: an upload field accepts an address only when the field's own storage made it (D-97).
+     *
+     * @param uploads what the forms need to know about uploaded files
+     */
+    public static RecordWriteService over(EntityManager entityManager, AdminEntityRegistry registry, UploadFiles uploads) {
+        return new RecordWriteService(Objects.requireNonNull(entityManager, "entityManager"), registry, uploads);
     }
 
     /** A service for a console that has no entity manager factory. Every entity is unknown to it. */
@@ -119,6 +141,10 @@ public class RecordWriteService {
         Work work = new Work();
         for (EditableFields.Editable editable : plan) {
             String text = posted.apply(editable.key());
+            if (editable.input() == InputType.UPLOAD) {
+                upload(entity, editable, text, null, record, work, true);
+                continue;
+            }
             apply(entity, editable, text == null ? "" : text, record, null, work, true);
         }
         work.failIfAny();
@@ -166,6 +192,10 @@ public class RecordWriteService {
                 continue; // the identifier of an existing record never changes
             }
             String text = posted.apply(editable.key());
+            if (editable.input() == InputType.UPLOAD) {
+                upload(entity, editable, text, posted.apply(editable.key() + REMOVE_SUFFIX), record, work, false);
+                continue;
+            }
             if (text != null) {
                 apply(entity, editable, text, record, id, work, false);
             }
@@ -208,6 +238,46 @@ public class RecordWriteService {
         }
         if (result.value() == null && field.javaType().isPrimitive()) {
             work.fieldErrors.put(field.name(), FieldMessages.required());
+            return;
+        }
+        Members.set(record, field.name(), result.value());
+    }
+
+    /**
+     * An upload field (D-97). The only value that can be written is an address the field's own storage made for a file that is
+     * stored: anything else is refused for this field alone. On an update a blank value keeps what is stored, the "remove"
+     * marker clears the field (an error for a required one), and the stored address posted again is no change. No file is ever
+     * deleted: replacing or removing leaves the old file on disk (UPL-9).
+     */
+    private void upload(AdminEntity entity, EditableFields.Editable editable, String posted, String removeMarker, Object record,
+                        Work work, boolean creating) {
+        AdminField field = editable.field();
+        String url = posted == null ? "" : posted.strip();
+        Object current = creating ? null : Members.get(record, field.name());
+        if (!creating && "true".equals(removeMarker)) {
+            if (field.required()) {
+                work.fieldErrors.put(field.name(), FieldMessages.required());
+            } else if (current != null) {
+                Members.set(record, field.name(), null);
+            }
+            return;
+        }
+        if (url.isEmpty()) {
+            if (creating && field.required()) {
+                work.fieldErrors.put(field.name(), FieldMessages.required());
+            }
+            return; // on an update: keep what is stored
+        }
+        if (current != null && url.equals(current.toString())) {
+            return; // unchanged: not checked again, not written
+        }
+        if (!uploads.accepts(entity.urlName(), field.name(), url)) {
+            work.fieldErrors.put(field.name(), FieldMessages.notOurFile());
+            return;
+        }
+        ValueConverter.Result result = ValueConverter.convert(field, url, editable.maxLength());
+        if (result.failed()) {
+            work.fieldErrors.put(field.name(), result.error());
             return;
         }
         Members.set(record, field.name(), result.value());
@@ -361,7 +431,7 @@ public class RecordWriteService {
     }
 
     private List<EditableFields.Editable> plan(AdminEntity entity) {
-        return plans.computeIfAbsent(entity.urlName(), key -> EditableFields.of(entity, registry, entityManager));
+        return plans.computeIfAbsent(entity.urlName(), key -> EditableFields.of(entity, registry, entityManager, uploads));
     }
 
     /** What one save collects: the errors, and the choices already read for a relation. */

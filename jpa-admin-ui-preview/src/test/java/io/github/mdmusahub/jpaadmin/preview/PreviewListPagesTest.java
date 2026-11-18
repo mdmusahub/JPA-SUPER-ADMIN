@@ -423,8 +423,8 @@ class PreviewListPagesTest {
                 "class=\"badge badge-none\">Unknown",
                 "<a class=\"cell-link\" href=\"/admin-preview/member/1\">Ava Stone</a>", "Ben Carter",
                 "class=\"cell-date\" title=\"2026-11-01T10:15:30\">2026-11-01",
-                "<img class=\"cell-thumb\" src=\"/admin-preview/files/cover.png\" alt=\"cover.png\">",
-                "class=\"cell-link cell-file\" href=\"/admin-preview/files/report.pdf\"", "report.pdf",
+                "<img class=\"cell-thumb\" src=\"/admin-preview/files/cover.png\" alt=\"Image\">",
+                "class=\"cell-link cell-file\" href=\"/admin-preview/files/report.pdf\"", "File (PDF)",
                 "class=\"cell-masked\"", "class=\"cell-empty\"", "No value");
     }
 

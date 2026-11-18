@@ -45,13 +45,16 @@ class PreviewFormPagesTest {
         return response.getContentAsString();
     }
 
-    /** The form itself, without the shell (the sidebar has a sign-out form of its own). */
+    /**
+     * The form card, without the shell (the sidebar has a sign-out form of its own). Since task U6 the card is a div that holds
+     * the record form, the upload sections and the actions (a form cannot hold a form), so it runs to the end of the main area.
+     */
     private String form(String state) throws Exception {
         return formOf(render(state));
     }
 
     private static String formOf(String html) {
-        Matcher form = Pattern.compile("(?s)<form class=\"card form-card\".*?</form>").matcher(html);
+        Matcher form = Pattern.compile("(?s)<div class=\"card form-card\">.*</main>").matcher(html);
         assertThat(form.find()).as("the form").isTrue();
         return form.group();
     }

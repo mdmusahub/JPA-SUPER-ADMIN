@@ -36,7 +36,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 class FormPagesLogTest {
 
     private static final String SECRET = "needle-secret-for-the-log-9182";
-    private static final Pattern FORM_ACTION = Pattern.compile("(?s)<form class=\"card form-card\"[^>]*?\\saction=\"([^\"]+)\"");
+    private static final Pattern FORM_ACTION = Pattern.compile("(?s)<form id=\"record-form\"[^>]*?\\saction=\"([^\"]+)\"");
 
     @Autowired
     private MockMvc mvc;

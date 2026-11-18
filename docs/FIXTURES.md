@@ -138,6 +138,7 @@ Delivered with task U4 (Phase 7). Every state is built by the real `DetailViewFa
 | `relations` | a member link, a label-less target (`#4`, still a link), a hidden target (`#9`, no link), an empty relation, a label that is markup | Links only where the cell has an `href`; the label escaped | U4 |
 | `masked-field` | two `MASKED` cells | Dots only, "Hidden value" for a screen reader, no value anywhere | U4 |
 | `with-images` | three `Image` entries, an image cell and a file cell | Image strip under the base path, escaped alternative text, a missing picture's alt text | U4, U6 |
+| `upload-cells` | built through the real factory: two `IMAGE` cells (one with a label that is markup), a `FILE` cell whose text and hover text are markup, a "file not found" text cell, a text cell that is markup (delivered, task U6) | The strip is filled from the image cells; thumbnails and links under the base path; alternative text; every name escaped; a missing file is words, not a broken picture | U6 |
 | `all-cell-types` | one field per `Cell.Type` | Cell renderer in the detail grid | U4 |
 | `collection-not-shown` | three fields that say "(not shown)" | A collection, an embedded value and binary data show their label only | U4 |
 | `no-label` | `label` null | Title "Article #7" | U4 |
@@ -163,11 +164,13 @@ Delivered with task U5 (Phase 8). Every state is built by the real `FormViewFact
 | `duplicate` | `Mode.CREATE` prefilled, `recordId` `null`, `actionHref` the collection path, no masked value, and the INFO notice built by the real `SaveMessages` (delivered, task U5) | A filled create form that posts as a new record, no version in its address, the notice that says what a copy leaves out | U5 |
 | `relation-notice` | `SELECT` fields with no options: one with more than 200 records, one required with none yet (delivered, task U5) | A notice instead of a control, with its help text | U5 |
 | `escaped` | title, labels, help, an error and values that are markup, quotes, unicode (delivered, task U5) | Everything printed as text, escaped | U5 |
-| `upload-states` | `UPLOAD` fields with a ticket: one empty, one with an existing image, one with an existing file, one with a field error | Server-provided upload states and the preview, replace and remove controls | U6 |
+| `upload-states` | `UPLOAD` fields: one empty, one with an existing picture, one with an existing document, one with a field error. Each has a ticket that names the stub state it shows (`success-image`, `slow`, `error-too-large`, `error-type`), the two advisory options and the sentence (delivered, task U6) | The upload section, the preview, the remove checkbox, the replace and remove buttons, the error next to the field, the upload form with its hidden fields, no form inside another | U6 |
+| `upload-edit` | `Mode.EDIT`, record 12, one upload field with a picture (delivered, task U6) | The `record` hidden field, the post address with the version, the buttons with their `aria-label` | U6 |
+| `upload-success-image`, `upload-success-file`, `upload-error-too-large`, `upload-error-type`, `upload-error-ticket-expired`, `upload-slow` | A create form with one empty upload field whose ticket is the name of the stub state (delivered, task U6) | One page for each state of section 8, so `uploader.js` can be tried in a browser | U6 |
 
 ## 8. Uploader behaviour (record: `UploadResult`, JSON)
 
-The preview serves these from a stub upload endpoint, chosen with the `state` fixture name. They let `uploader.js` show the states that only exist in the browser: idle, dragging, uploading with progress, done and error.
+The preview serves these from a stub upload endpoint (`POST /admin-preview/uploads`, delivered with task U6, it stores nothing); the state is the **ticket** the fixture page printed for the field (any other ticket is `success-image`), and the sentences are the real `UploadMessages`. They let `uploader.js` show the states that only exist in the browser: idle, dragging, uploading with progress, done and error.
 
 | Fixture | Fills | Covers | Task |
 |---|---|---|---|

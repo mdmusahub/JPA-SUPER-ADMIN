@@ -26,6 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -76,12 +77,18 @@ public class ListQueryService {
 
     private final EntityManager entityManager;
     private final AdminEntityRegistry registry;
+    private final UploadFiles uploads;
     private final Map<String, Plan> plans = new ConcurrentHashMap<>();
 
     /** Not public, for the same reason as {@code CountService}: Spring's transactional proxy subclasses this class. */
     protected ListQueryService(EntityManager entityManager, AdminEntityRegistry registry) {
+        this(entityManager, registry, UploadFiles.none());
+    }
+
+    protected ListQueryService(EntityManager entityManager, AdminEntityRegistry registry, UploadFiles uploads) {
         this.entityManager = entityManager;
         this.registry = Objects.requireNonNull(registry, "registry");
+        this.uploads = Objects.requireNonNull(uploads, "uploads");
     }
 
     /**
@@ -92,6 +99,15 @@ public class ListQueryService {
      */
     public static ListQueryService over(EntityManager entityManager, AdminEntityRegistry registry) {
         return new ListQueryService(Objects.requireNonNull(entityManager, "entityManager"), registry);
+    }
+
+    /**
+     * The service with upload support: the cell of an upload field is an image or a file link (Phase 9b, D-99).
+     *
+     * @param uploads what the lists need to know about uploaded files
+     */
+    public static ListQueryService over(EntityManager entityManager, AdminEntityRegistry registry, UploadFiles uploads) {
+        return new ListQueryService(Objects.requireNonNull(entityManager, "entityManager"), registry, uploads);
     }
 
     /** A service for a console that has no entity manager factory. It lists nothing; no entity can be asked for. */
@@ -236,7 +252,7 @@ public class ListQueryService {
         return rows;
     }
 
-    private static Cell cell(PlannedColumn column, Tuple tuple, int valueAt, int labelAt) {
+    private Cell cell(PlannedColumn column, Tuple tuple, int valueAt, int labelAt) {
         if (column.masked()) {
             return Cell.masked();
         }
@@ -246,6 +262,14 @@ public class ListQueryService {
         Object value = tuple.get(valueAt);
         if (column.relation() != null) {
             return CellFormatter.relation(labelAt < 0 ? null : tuple.get(labelAt), value);
+        }
+        if (column.field().isUpload() && value instanceof String url) {
+            // The stored address of an upload field: an image, a file link or a note, or ordinary escaped text when it is not
+            // one of the console's own addresses (never a link or an image source then).
+            Optional<Cell> shown = uploads.cell(url, column.column().label());
+            if (shown.isPresent()) {
+                return shown.get();
+            }
         }
         return CellFormatter.format(column.column().type(), value);
     }

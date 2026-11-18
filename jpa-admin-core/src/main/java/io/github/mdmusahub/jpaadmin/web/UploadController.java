@@ -94,6 +94,10 @@ public class UploadController {
             return null;
         }
         ListLinks links = new ListLinks(basePath.value(), stored.entity());
+        // The result waits in the visitor's own session for the form page it is redirected to (option A, D-95). The record id is
+        // used only if it can be written into an address, exactly as the redirect does, so an entry and its page always agree.
+        PendingUploads.add(request, new PendingUploads.Entry(stored.entity(), stored.field(),
+                record != null && ListLinks.addressable(record) ? record : "", result.url(), result.name(), result.size()));
         ConsoleFlash.add(request, new FlashMessage(FlashMessage.Level.SUCCESS,
                 "The file " + result.name() + " (" + UploadLimits.describe(result.size()) + ") was uploaded."));
         return ConsoleRedirect.to(basePath, links.afterUpload(record));

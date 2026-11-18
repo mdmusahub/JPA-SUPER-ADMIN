@@ -153,4 +153,13 @@ class HtmlRulesTest {
         assertThat(HtmlRules.renderedViolations(GOOD_PAGE + "<FORM method=\"get\"><FORM method=\"post\"></FORM></FORM>"))
                 .anyMatch(p -> p.contains("inside another"));
     }
+
+    @Test
+    void catchesAnImageWithoutAlternativeText() {
+        assertThat(HtmlRules.renderedViolations(GOOD_PAGE + "<img src=\"/a.png\">")).anyMatch(p -> p.contains("no alternative text"));
+        assertThat(HtmlRules.renderedViolations(GOOD_PAGE + "<img src=\"/a.png\" alt=\"\">")).anyMatch(p -> p.contains("no alternative text"));
+        assertThat(HtmlRules.renderedViolations(GOOD_PAGE + "<IMG SRC=\"/a.png\" ALT=\"   \">")).anyMatch(p -> p.contains("no alternative text"));
+        assertThat(HtmlRules.renderedViolations(GOOD_PAGE + "<img class=\"x\" src=\"/a.png\" alt=\"Cover\">")).isEmpty();
+        assertThat(HtmlRules.renderedViolations(GOOD_PAGE + "<img alt=\"Cover\" src=\"/a.png\">")).isEmpty();
+    }
 }

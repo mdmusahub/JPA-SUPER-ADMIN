@@ -11,6 +11,7 @@ import io.github.mdmusahub.jpaadmin.service.InvalidRecordException;
 import io.github.mdmusahub.jpaadmin.service.ListQuery;
 import io.github.mdmusahub.jpaadmin.service.RecordNotFoundException;
 import io.github.mdmusahub.jpaadmin.service.RecordWriteService;
+import io.github.mdmusahub.jpaadmin.service.UploadFiles;
 import io.github.mdmusahub.jpaadmin.web.view.FormView;
 import io.github.mdmusahub.jpaadmin.web.view.PageChrome;
 import io.github.mdmusahub.jpaadmin.web.view.PageChrome.FlashMessage;
@@ -19,6 +20,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -71,10 +73,19 @@ public class FormController {
     private final DetailQueryService details;
     private final RecordWriteService writes;
     private final BasePath basePath;
+    private final UploadFiles uploads;
 
     public FormController(ConsoleChromeFactory chromeFactory, ConsoleViews views, ConsoleNavigation navigation,
                           FormQueryService forms, DetailQueryService details, RecordWriteService writes,
                           BasePath basePath) {
+        this(chromeFactory, views, navigation, forms, details, writes, basePath, UploadFiles.none());
+    }
+
+    /** With upload support: a file sent with the plain form is shown as the field's value when the page is opened again. */
+    public FormController(ConsoleChromeFactory chromeFactory, ConsoleViews views, ConsoleNavigation navigation,
+                          FormQueryService forms, DetailQueryService details, RecordWriteService writes,
+                          BasePath basePath, UploadFiles uploads) {
+        this.uploads = Objects.requireNonNull(uploads, "uploads");
         this.chromeFactory = Objects.requireNonNull(chromeFactory, "chromeFactory");
         this.views = Objects.requireNonNull(views, "views");
         this.navigation = Objects.requireNonNull(navigation, "navigation");
@@ -99,10 +110,10 @@ public class FormController {
         try {
             forms.requireCreatable(found); // the flags first: a forbidden entity is 403 whatever copyFrom says
             if (copyFrom == null) {
-                return show(request, null, found, forms.blank(found), List.of(), List.of());
+                return show(request, null, found, withUploaded(request, found, "", forms.blank(found)), List.of(), List.of());
             }
             CopySeed seed = details.copySeed(found, copyFrom).orElseThrow(FormController::notFound);
-            return show(request, null, found, forms.copyOf(found, seed), List.of(),
+            return show(request, null, found, withUploaded(request, found, "", forms.copyOf(found, seed)), List.of(),
                     List.of(SaveMessages.copied(found.label(), seed.sourceId())));
         } catch (RecordNotFoundException missing) {
             throw notFound();
@@ -141,7 +152,7 @@ public class FormController {
         AdminEntity found = entity(entity);
         try {
             FormPage page = forms.record(found, id).orElseThrow(FormController::notFound);
-            return show(request, id, found, page, List.of(), List.of());
+            return show(request, id, found, withUploaded(request, found, id, page), List.of(), List.of());
         } catch (RecordNotFoundException missing) {
             throw notFound();
         } catch (ActionRefusedException refused) {
@@ -193,7 +204,31 @@ public class FormController {
 
     // ---- shared ----------------------------------------------------------------------------------------------------
 
-    private ModelAndView show(HttpServletRequest request, String id, AdminEntity found, FormPage page,
+    /**
+ * Puts the file the visitor just sent with the plain form (option A, D-95) into the form as the upload field's value. An
+ * entry is used once, only for the same entity, field and record, and only if the field's own storage still confirms the
+ * address; anything else is dropped, so a session entry can never put an address in a field that the storage would refuse.
+ * Nothing is saved: the visitor saves the record when they are ready.
+ */
+private FormPage withUploaded(HttpServletRequest request, AdminEntity found, String record, FormPage page) {
+    List<FormView.Field> shown = new ArrayList<>(page.fields().size());
+    boolean changed = false;
+    for (FormView.Field field : page.fields()) {
+        FormView.Field next = field;
+        if (field.inputType() == FormView.Field.InputType.UPLOAD) {
+            Optional<PendingUploads.Entry> pending = PendingUploads.take(request, found.urlName(), field.key(), record);
+            if (pending.isPresent() && uploads.accepts(found.urlName(), field.key(), pending.get().url())) {
+                next = new FormView.Field(field.key(), field.label(), field.inputType(), pending.get().url(),
+                        field.required(), field.help(), field.options(), field.error(), field.uploadTicket());
+                changed = true;
+            }
+        }
+        shown.add(next);
+    }
+    return changed ? new FormPage(page.recordId(), page.version(), page.label(), shown) : page;
+}
+
+private ModelAndView show(HttpServletRequest request, String id, AdminEntity found, FormPage page,
                               List<String> formErrors, List<FlashMessage> notices) {
         FormView view = FormViewFactory.build(basePath.value(), found.urlName(), found.label(), page, formErrors);
         PageChrome chrome = chromeFactory.chrome(request, FormViewFactory.breadcrumbs(basePath.value(), found.urlName(),

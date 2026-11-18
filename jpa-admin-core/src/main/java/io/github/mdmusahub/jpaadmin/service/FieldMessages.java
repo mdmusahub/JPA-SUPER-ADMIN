@@ -78,6 +78,11 @@ public final class FieldMessages {
         return "Enter an identifier in the form 123e4567-e89b-12d3-a456-426614174000.";
     }
 
+    /** An upload field whose posted address is not a file the console stored for that field (Phase 9b, D-97). */
+    public static String notOurFile() {
+        return "The file is not one this console uploaded. Upload it again.";
+    }
+
     /** A relation whose chosen record is not one of the choices. */
     public static String chooseExisting() {
         return "Choose one of the listed records. The record you picked is not available any more.";
