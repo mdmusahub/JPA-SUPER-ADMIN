@@ -158,7 +158,9 @@ abstract class AbstractRecordPagesTest {
         assertThat(html).contains("<dl class=\"detail-grid\">", "<dt>ID</dt>", "<p class=\"muted detail-kicker\">" + entity + " #" + id + "</p>");
         assertThat(html).contains("aria-label=\"Breadcrumb\"", "href=\"/admin/" + urlName + "\"");
         assertThat(html).contains("Delete record", "action=\"/admin/" + urlName + "/" + id + "/delete\"");
-        assertThat(html).doesNotContain("Edit record", "Duplicate record");
+        // Since Phase 8 the record can be edited and duplicated, so both links lead to a form.
+        assertThat(html).contains("Edit record", "href=\"/admin/" + urlName + "/" + id + "/edit\"", "Duplicate record",
+                "href=\"/admin/" + urlName + "/new?copyFrom=" + id + "\"");
     }
 
     @Test

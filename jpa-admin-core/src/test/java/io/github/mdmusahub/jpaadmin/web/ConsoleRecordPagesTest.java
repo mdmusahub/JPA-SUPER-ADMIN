@@ -9,10 +9,12 @@ import io.github.mdmusahub.jpaadmin.metadata.EntityScanner;
 import io.github.mdmusahub.jpaadmin.service.CountService;
 import io.github.mdmusahub.jpaadmin.service.DeleteService;
 import io.github.mdmusahub.jpaadmin.service.DetailQueryService;
+import io.github.mdmusahub.jpaadmin.service.FormQueryService;
 import io.github.mdmusahub.jpaadmin.service.ListQueryService;
 import io.github.mdmusahub.jpaadmin.testsupport.ListTestPersistence;
 import io.github.mdmusahub.jpaadmin.testsupport.RecordingStatementInspector;
 import io.github.mdmusahub.jpaadmin.testsupport.TransactionalDeleteService;
+import io.github.mdmusahub.jpaadmin.testsupport.TransactionalRecordWriteService;
 import io.github.mdmusahub.jpaadmin.testsupport.listmodel.Anchor;
 import io.github.mdmusahub.jpaadmin.testsupport.listmodel.Archive;
 import io.github.mdmusahub.jpaadmin.testsupport.listmodel.Depot;
@@ -23,6 +25,7 @@ import io.github.mdmusahub.jpaadmin.testsupport.listmodel.Pass;
 import io.github.mdmusahub.jpaadmin.testsupport.listmodel.Vault;
 import io.github.mdmusahub.jpaadmin.web.view.Cell;
 import io.github.mdmusahub.jpaadmin.web.view.DetailView;
+import io.github.mdmusahub.jpaadmin.web.view.FormView;
 import io.github.mdmusahub.jpaadmin.web.view.PageChrome;
 import jakarta.persistence.EntityManager;
 import jakarta.servlet.http.HttpServletRequest;
@@ -67,6 +70,7 @@ class ConsoleRecordPagesTest {
     private static final CsrfTokens TOKENS = request -> new PageChrome.Csrf("_csrf", "X-CSRF-TOKEN", "token-123");
 
     private RecordController controller;
+    private FormController forms;
     private EntityManager entityManager;
     private Long[] parcels;
     private Long depotId;
@@ -138,6 +142,9 @@ class ConsoleRecordPagesTest {
         controller = new RecordController(chromes, new ConsoleViews(Page::new), navigation,
                 ListQueryService.over(entityManager, registry), DetailQueryService.over(entityManager, registry),
                 new TransactionalDeleteService(entityManager, registry), BASE);
+        forms = new FormController(chromes, new ConsoleViews(Page::new), navigation,
+                FormQueryService.over(entityManager, registry), DetailQueryService.over(entityManager, registry),
+                new TransactionalRecordWriteService(entityManager, registry), BASE);
         RecordingStatementInspector.clear();
     }
 
@@ -224,11 +231,11 @@ class ConsoleRecordPagesTest {
     }
 
     @Test
-    void onlyDeleteIsOfferedOnTheDetailPageAndItsAddressIsTheRecordsOwn() {
+    void editDuplicateAndDeleteAreOfferedOnTheDetailPageAndTheDeleteAddressIsTheRecordsOwn() {
         DetailView.Actions actions = viewOf(open("parcel", parcels[3])).actions();
 
-        assertThat(actions.canEdit()).as("Edit is Phase 8").isFalse();
-        assertThat(actions.canDuplicate()).as("Duplicate needs the Phase 8 form: no link that leads nowhere").isFalse();
+        assertThat(actions.canEdit()).as("the edit form exists since Phase 8").isTrue();
+        assertThat(actions.canDuplicate()).as("so does the duplicate form: the link leads to a form").isTrue();
         assertThat(actions.canDelete()).isTrue();
         assertThat(actions.deleteHref()).isEqualTo("/admin/parcel/" + parcels[3] + "/delete");
     }
@@ -507,9 +514,11 @@ class ConsoleRecordPagesTest {
     }
 
     @Test
-    void openingTheDetailPageAndTheDuplicateRouteDeletesNothing() {
+    void openingTheDetailPageAndTheFormsDeletesAndCreatesNothing() {
         open("parcel", parcels[3]);
-        controller.copy("parcel", String.valueOf(parcels[3]), request());
+        forms.newRecord("parcel", String.valueOf(parcels[3]), request());
+        forms.edit("parcel", String.valueOf(parcels[3]), request());
+        forms.newRecord("parcel", null, request());
 
         assertThat(count(Parcel.class)).isEqualTo(61);
     }
@@ -643,41 +652,77 @@ class ConsoleRecordPagesTest {
         assertThat(exists(Vault.class, vaultId)).isTrue();
     }
 
-    // ---- the duplicate route's checks ----------------------------------------------------------------------------------------------
+    // ---- the duplicate form: its checks and what it starts from ----------------------------------------------------------------------------------------------
 
     @Test
-    void aValidCopySourceRedirectsToTheSourceRecordWithANoticeAndCreatesNothing() {
+    void aValidCopySourceRendersTheCreateFormFilledWithTheCopyableValuesAndCreatesNothing() {
         MockHttpServletRequest request = request();
 
-        ModelAndView result = controller.copy("parcel", String.valueOf(parcels[3]), request);
+        ModelAndView result = forms.newRecord("parcel", String.valueOf(parcels[3]), request);
 
-        assertThat(location(result)).isEqualTo("/admin/parcel/" + parcels[3]);
-        assertThat(ConsoleFlash.take(request).get(0).level()).isEqualTo(PageChrome.FlashMessage.Level.INFO);
-        assertThat(count(Parcel.class)).isEqualTo(61);
+        assertThat(((Page) result.getView()).template()).isEqualTo(FormView.TEMPLATE);
+        FormView form = (FormView) result.getModel().get(PageChrome.VIEW_ATTRIBUTE);
+        assertThat(form.mode()).isEqualTo(FormView.Mode.CREATE);
+        assertThat(form.recordId()).as("a copy is a new record").isNull();
+        assertThat(form.actionHref()).isEqualTo("/admin/parcel");
+        assertThat(form.cancelHref()).isEqualTo("/admin/parcel");
+        assertThat(form.title()).isEqualTo("New parcel");
+        Map<String, FormView.Field> fields = new java.util.LinkedHashMap<>();
+        form.fields().forEach(f -> fields.put(f.key(), f));
+        assertThat(fields.get("reference").value()).isEqualTo("REF-3");
+        assertThat(fields.get("notes").value()).isEqualTo("Parcel number 3");
+        assertThat(fields.get("depot").value()).isEqualTo(String.valueOf(depotId));
+        // Never copied: the identifier, a hidden field, a collection, a secret, a relation whose target is hidden.
+        assertThat(fields).doesNotContainKeys("id", "internalCode", "items", "vault", "picture", "dimensions");
+        assertThat(fields.get("memo").inputType()).isEqualTo(FormView.Field.InputType.MASKED);
+        assertThat(fields.get("memo").value()).isNull();
+        assertThat(fields.get("accessToken").value()).isNull();
+        assertThat(form.toString()).doesNotContain(SECRET);
+        PageChrome.FlashMessage notice = chromeOf(result).flash().get(0);
+        assertThat(notice.level()).isEqualTo(PageChrome.FlashMessage.Level.INFO);
+        assertThat(notice.text()).contains("copy of parcel #" + parcels[3]).doesNotContain(SECRET);
+        assertThat(count(Parcel.class)).as("a GET creates nothing").isEqualTo(61);
+    }
+
+    @Test
+    void aPlainNewRecordIsAnEmptyCreateFormWithNoCopyNotice() {
+        ModelAndView result = forms.newRecord("parcel", null, request());
+
+        FormView form = (FormView) result.getModel().get(PageChrome.VIEW_ATTRIBUTE);
+        assertThat(form.mode()).isEqualTo(FormView.Mode.CREATE);
+        assertThat(form.recordId()).isNull();
+        assertThat(form.title()).isEqualTo("New parcel");
+        assertThat(chromeOf(result).flash()).isEmpty();
+        assertThat(chromeOf(result).breadcrumbs()).containsExactly(new PageChrome.Breadcrumb("Dashboard", "/admin"),
+                new PageChrome.Breadcrumb("Parcels", "/admin/parcel"), new PageChrome.Breadcrumb("New record", null));
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"987654321", "abc", "1 or 1=1", "../x", "", "-1", "007"})
     void anUnknownOrMalformedCopySourceIsTheConsoleNotFound(String copyFrom) {
-        ResponseStatusException refused = refusal(() -> controller.copy("parcel", copyFrom, request()));
+        ResponseStatusException refused = refusal(() -> forms.newRecord("parcel", copyFrom, request()));
 
         assertThat(refused.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(refused.getReason()).isNull();
     }
 
     @Test
-    void aMissingCopySourceAHiddenEntityAndASensitiveIdentifierAreTheConsoleNotFound() {
-        assertThat(refusal(() -> controller.copy("parcel", null, request())).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        assertThat(refusal(() -> controller.copy("vault", String.valueOf(vaultId), request())).getStatusCode())
+    void aHiddenEntityAnUnknownEntityAndASensitiveIdentifierAreTheConsoleNotFound() {
+        assertThat(refusal(() -> forms.newRecord("vault", String.valueOf(vaultId), request())).getStatusCode())
                 .isEqualTo(HttpStatus.NOT_FOUND);
-        assertThat(refusal(() -> controller.copy("nosuchthing", "1", request())).getStatusCode())
+        assertThat(refusal(() -> forms.newRecord("vault", null, request())).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(refusal(() -> forms.newRecord("nosuchthing", "1", request())).getStatusCode())
                 .isEqualTo(HttpStatus.NOT_FOUND);
-        assertThat(refusal(() -> controller.copy("pass", "77", request())).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(refusal(() -> forms.newRecord("pass", "77", request())).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
     @Test
-    void nothingCanBeCreatedInAReadOnlyEntitySoItsCopyRouteIsForbidden() {
-        assertThat(refusal(() -> controller.copy("archive", String.valueOf(archiveId), request())).getStatusCode())
+    void nothingCanBeCreatedInAReadOnlyEntitySoItsNewAndCopyRoutesAreForbidden() {
+        assertThat(refusal(() -> forms.newRecord("archive", String.valueOf(archiveId), request())).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(refusal(() -> forms.newRecord("archive", null, request())).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(refusal(() -> forms.newRecord("archive", "987654321", request())).getStatusCode())
+                .as("the flags come first: a forbidden entity learns nothing from a bad copyFrom")
                 .isEqualTo(HttpStatus.FORBIDDEN);
     }
 

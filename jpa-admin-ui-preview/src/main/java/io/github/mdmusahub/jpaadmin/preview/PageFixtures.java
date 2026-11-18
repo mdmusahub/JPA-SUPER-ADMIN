@@ -4,6 +4,7 @@ import io.github.mdmusahub.jpaadmin.web.ErrorViews;
 import io.github.mdmusahub.jpaadmin.web.view.DashboardView;
 import io.github.mdmusahub.jpaadmin.web.view.DetailView;
 import io.github.mdmusahub.jpaadmin.web.view.ErrorView;
+import io.github.mdmusahub.jpaadmin.web.view.FormView;
 import io.github.mdmusahub.jpaadmin.web.view.ListView;
 import io.github.mdmusahub.jpaadmin.web.view.LoginView;
 import io.github.mdmusahub.jpaadmin.web.view.PageChrome.NavGroup;
@@ -99,6 +100,11 @@ final class PageFixtures {
         return RecordFixtures.detail(state, basePath);
     }
 
+    /** The create or edit form for {@code state} (task U5), with its links under {@code basePath}. */
+    static Optional<FormView> form(String state, String basePath) {
+        return FormFixtures.form(state, basePath);
+    }
+
     /** The dashboard groups that match the default sidebar, with the counts the sidebar shows. */
     private static List<DashboardView.Group> groups() {
         return groups(count -> count);
@@ -139,6 +145,7 @@ final class PageFixtures {
         listStates.addAll(RecordFixtures.listStates());
         catalog.put("list", listStates);
         catalog.put("detail", RecordFixtures.detailStates());
+        catalog.put("form", FormFixtures.states());
         catalog.put("error", ERROR.keySet());
         return catalog;
     }

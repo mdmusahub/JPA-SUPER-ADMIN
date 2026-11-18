@@ -328,8 +328,6 @@ public class ListQueryService {
                              List<FilterNote> notes) {
     }
 
-    private record Choices(List<FormView.Option> options, Map<String, Object> ids, boolean overTheBound) {
-    }
 
     /**
      * The controls on offer and the filters that stay in force. A relation choice is checked against the target's
@@ -352,7 +350,7 @@ public class ListQueryService {
                 case BOOLEAN -> controls.add(new FilterControl(field.key(), field.label(), field.kind(),
                         List.of(new FormView.Option("true", "Yes"), new FormView.Option("false", "No"))));
                 case RELATION -> {
-                    Choices choices = choices(builder, planned.relation());
+                    RelationChoices choices = choices(builder, planned.relation());
                     if (choices.overTheBound()) {
                         notes.add(new FilterNote("The " + field.label() + " filter is not available: it would have more than "
                                 + MAX_RELATION_OPTIONS + " choices.", false));
@@ -381,30 +379,9 @@ public class ListQueryService {
         return new Filtering(effective, specs, controls, notes);
     }
 
-    /**
-     * The target's records as choices: identifier and label attribute only, ordered by label (missing labels last) and then
-     * identifier, at most {@value #MAX_RELATION_OPTIONS} of them. One row more is read to find out whether there are more.
-     */
-    private Choices choices(CriteriaBuilder builder, Relation relation) {
-        CriteriaQuery<Tuple> select = builder.createTupleQuery();
-        Root<?> target = select.from(relation.targetType());
-        Path<?> id = target.get(relation.idAttribute());
-        Path<?> label = target.get(relation.labelAttribute());
-        select.multiselect(id, label);
-        select.orderBy(builder.asc(label, Nulls.LAST), builder.asc(id));
-        List<Tuple> found = entityManager.createQuery(select).setMaxResults(MAX_RELATION_OPTIONS + 1).getResultList();
-        if (found.size() > MAX_RELATION_OPTIONS) {
-            return new Choices(List.of(), Map.of(), true);
-        }
-        List<FormView.Option> options = new ArrayList<>(found.size());
-        Map<String, Object> ids = new HashMap<>();
-        for (Tuple row : found) {
-            Object value = row.get(0);
-            String text = CellFormatter.id(value);
-            options.add(new FormView.Option(text, CellFormatter.relation(row.get(1), value).display()));
-            ids.put(text, value);
-        }
-        return new Choices(options, ids, false);
+    /** The target's records as choices (see {@link RelationChoices}): at most {@value #MAX_RELATION_OPTIONS}. */
+    private RelationChoices choices(CriteriaBuilder builder, Relation relation) {
+        return RelationChoices.read(entityManager, relation);
     }
 
     // ---- what an entity's list is made of ---------------------------------------------------------------------

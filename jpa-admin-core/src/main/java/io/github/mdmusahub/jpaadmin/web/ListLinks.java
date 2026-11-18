@@ -68,6 +68,42 @@ final class ListLinks {
         return to(deletedSomething ? state.withPage(0) : state);
     }
 
+    // ---- links of the create and edit forms (Phase 8): same writer, same encoding ---------------------------------
+
+    /** The name of the query parameter that carries the version a form was opened with (see {@link #update}). */
+    static final String VERSION_PARAMETER = "jpa-admin-version";
+
+    /** The address the create form posts to: the entity's collection. */
+    String create() {
+        return path;
+    }
+
+    /**
+     * The address the edit form posts to: the record, and for an entity with a {@code @Version} the version the form was
+     * opened with, so a save can tell that the form is stale. {@code null} as for {@link #detail} when the id has no address.
+     */
+    String update(String id, String version) {
+        if (!addressable(id)) {
+            return null;
+        }
+        String record = path + "/" + encode(id);
+        return version == null ? record : record + "?" + VERSION_PARAMETER + "=" + encode(version);
+    }
+
+    /**
+     * Where the visitor goes after a record was created: the list, from its first page (what the list holds changed, the
+     * rule of D-62), with the search, filters, sort and page size of {@code state}. Never taken from the request (D-65).
+     */
+    String afterSave(ListQuery state) {
+        return to(state.withPage(0));
+    }
+
+    /** Where the visitor goes after a record was changed: its page, or the list when the id has no address. */
+    String afterEdit(String id) {
+        String record = detail(id, ListQuery.defaults());
+        return record != null ? record : to(ListQuery.defaults());
+    }
+
     /**
      * Whether an id can be written into a path segment that a server will deliver back unchanged: not empty, no slash
      * (Tomcat refuses an encoded one), not {@code .} or {@code ..}, no control character. An id for which this is false
