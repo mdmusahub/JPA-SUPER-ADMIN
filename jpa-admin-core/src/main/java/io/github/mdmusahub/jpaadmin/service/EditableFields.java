@@ -72,11 +72,25 @@ final class EditableFields {
         }
     }
 
-    /** The editable fields of {@code entity}, in display order (the identifier of a create form first, then by name). */
+    /** The editable fields of {@code entity} when nothing is known about uploads: an upload field is then not editable. */
     static List<Editable> of(AdminEntity entity, AdminEntityRegistry registry, EntityManager entityManager) {
+        return of(entity, registry, entityManager, UploadFiles.none());
+    }
+
+    /**
+     * The editable fields of {@code entity}, in display order (the identifier of a create form first, then by name).
+     *
+     * @param uploads says which upload fields can be used: an {@code @AdminUpload} field is an {@link InputType#UPLOAD} input
+     *                only when it is a {@code String}, is not sensitive, can be written and has a usable upload target; any
+     *                other upload field is not a form field at all, so a plain text input can never store an arbitrary string
+     *                in it
+     */
+    static List<Editable> of(AdminEntity entity, AdminEntityRegistry registry, EntityManager entityManager,
+                             UploadFiles uploads) {
         List<Editable> editable = new ArrayList<>();
         for (AdminField field : entity.visibleFields()) {
-            Editable candidate = candidate(entity, registry, entityManager, field);
+            Editable candidate = field.isUpload() ? upload(entity, field, uploads)
+                    : candidate(entity, registry, entityManager, field);
             if (candidate != null) {
                 editable.add(candidate);
             }
@@ -86,10 +100,7 @@ final class EditableFields {
 
     private static Editable candidate(AdminEntity entity, AdminEntityRegistry registry, EntityManager entityManager,
                                       AdminField field) {
-        // An upload field is written only through the upload endpoint and a form that carries a ticket (Phase 9b). Until
-        // that exists the generic form must not offer a plain text input for it, or any text could be stored as a file
-        // address.
-        if (field.version() || field.isUpload() || !Members.writable(entity.type(), field.name())) {
+        if (field.version() || !Members.writable(entity.type(), field.name())) {
             return null;
         }
         boolean createOnly = false;
@@ -115,7 +126,20 @@ final class EditableFields {
         };
     }
 
-    private static Editable relation(AdminEntityRegistry registry, EntityManager entityManager, AdminField field) {
+    /**
+ * An upload field: its value is an address, written only from the form's hidden input after the console's own storage
+ * has confirmed it, never a text the visitor typed.
+ */
+private static Editable upload(AdminEntity entity, AdminField field, UploadFiles uploads) {
+    if (field.version() || field.id() || field.sensitive() || field.javaType() != String.class
+            || !Members.writable(entity.type(), field.name())
+            || uploads.settings(entity.urlName(), field.name()).isEmpty()) {
+        return null;
+    }
+    return new Editable(field, InputType.UPLOAD, columnLength(entity, field), false, null);
+}
+
+private static Editable relation(AdminEntityRegistry registry, EntityManager entityManager, AdminField field) {
         if (field.sensitive() || field.targetEntity() == null) {
             return null;
         }

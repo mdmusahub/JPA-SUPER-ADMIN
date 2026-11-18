@@ -361,8 +361,8 @@ final class ListFixtures {
                 new Cell(Cell.Type.ENUM, "Unknown", Cell.Tone.NONE, null, null),
                 relation("Ava Stone", basePath + "/member/1"), relation("Ben Carter", null),
                 new Cell(Cell.Type.DATE, "2026-11-01", Cell.Tone.NONE, null, "2026-11-01T10:15:30"),
-                new Cell(Cell.Type.IMAGE, "cover.png", Cell.Tone.NONE, basePath + "/files/cover.png", null),
-                new Cell(Cell.Type.FILE, "report.pdf", Cell.Tone.NONE, basePath + "/files/report.pdf", null),
+                new Cell(Cell.Type.IMAGE, "Image", Cell.Tone.NONE, basePath + "/files/cover.png", null),
+                new Cell(Cell.Type.FILE, "File (PDF)", Cell.Tone.NONE, basePath + "/files/report.pdf", "0123456789abcdef0123456789abcdef.pdf"),
                 Cell.masked(), Cell.empty());
         return build(basePath, "article", ARTICLES, columns, List.of(new ListView.Row("1", cells)), 1,
                 ListQuery.defaults(), NO_ACTIONS);

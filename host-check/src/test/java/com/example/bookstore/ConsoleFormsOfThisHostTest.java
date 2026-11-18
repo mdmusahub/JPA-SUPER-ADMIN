@@ -81,7 +81,7 @@ class ConsoleFormsOfThisHostTest {
     }
 
     private static String action(String html) {
-        Matcher form = Pattern.compile("(?s)<form class=\"card form-card\"[^>]*?\\saction=\"([^\"]+)\"").matcher(html);
+        Matcher form = Pattern.compile("(?s)<form id=\"record-form\"[^>]*?\\saction=\"([^\"]+)\"").matcher(html);
         assertThat(form.find()).isTrue();
         return form.group(1).replace("&amp;", "&");
     }

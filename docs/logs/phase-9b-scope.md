@@ -1,5 +1,7 @@
 # Phase 9b scope: forms and UI for uploads
 
+> **Delivered 2026-11-18** (D-95 to D-100). `docs/logs/phase-9b-report.md` says what was built, what was tested and what is left (the browser pass). The text below is the scope as written at the end of Phase 9a.
+
 Written at the end of Phase 9a (2026-11-18). **Nothing in this file is implemented.** It is items 7 to 9 of `docs/logs/phase-9-scope.md`,
 with what 9a delivered and what 9b can rely on. Documents only; 9b starts with its own plan and approval (AI-2).
 

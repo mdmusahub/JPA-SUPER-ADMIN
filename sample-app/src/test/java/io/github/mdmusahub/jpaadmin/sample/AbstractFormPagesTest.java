@@ -44,7 +44,7 @@ abstract class AbstractFormPagesTest {
     private static final String NOTE = "TEST-FORM";
     private static final String TYPED_SECRET = "needle-typed-secret-4711";
     private static final String CREATED_AT = "2026-01-01T10:00";
-    private static final Pattern FORM_ACTION = Pattern.compile("(?s)<form class=\"card form-card\"[^>]*?\\saction=\"([^\"]+)\"");
+    private static final Pattern FORM_ACTION = Pattern.compile("(?s)<form id=\"record-form\"[^>]*?\\saction=\"([^\"]+)\"");
 
     @Autowired
     protected MockMvc mvc;
