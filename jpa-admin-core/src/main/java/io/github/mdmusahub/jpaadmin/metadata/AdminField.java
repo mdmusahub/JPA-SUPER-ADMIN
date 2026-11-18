@@ -22,10 +22,24 @@ import java.util.Objects;
  * @param required      whether a value must be given when a record is created or changed
  * @param sensitive     whether the value is masked everywhere (SEC-1)
  * @param hidden        whether the field is removed from the console completely (SEC-2)
+ * @param upload        what {@code @AdminUpload} says, or {@code null} when the field is not an upload field (Phase 9)
  */
 public record AdminField(String name, String label, Class<?> javaType, Kind kind, List<String> enumValues,
                          String targetEntity, boolean id, boolean version, boolean nullable, boolean required,
-                         boolean sensitive, boolean hidden) {
+                         boolean sensitive, boolean hidden, UploadSpec upload) {
+
+    /** A field that is not an upload field: the shape every field had before Phase 9. */
+    public AdminField(String name, String label, Class<?> javaType, Kind kind, List<String> enumValues,
+                      String targetEntity, boolean id, boolean version, boolean nullable, boolean required,
+                      boolean sensitive, boolean hidden) {
+        this(name, label, javaType, kind, enumValues, targetEntity, id, version, nullable, required, sensitive, hidden,
+                null);
+    }
+
+    /** Whether the field holds the address of an uploaded file ({@code @AdminUpload}). */
+    public boolean isUpload() {
+        return upload != null;
+    }
 
     public AdminField {
         Objects.requireNonNull(name, "name");

@@ -113,8 +113,10 @@ abstract class AbstractSortProofTest {
                     col("id", "ID", (Category c) -> c.getId()),
                     col("createdAt", "Created at", (Category c) -> c.getCreatedAt()),
                     col("description", "Description", (Category c) -> c.getDescription()),
+                    col("image", "Image", (Category c) -> c.getImage()),
                     col("name", "Name", (Category c) -> c.getName())),
-                    List.of(text((Category c) -> c.getName()), text((Category c) -> c.getDescription())), "s", List.of()),
+                    List.of(text((Category c) -> c.getName()), text((Category c) -> c.getDescription()),
+                            text((Category c) -> c.getImage())), "s", List.of()),
             new Subject("customer", Customer.class, entity -> ((Customer) entity).getId(), List.of(
                     col("id", "ID", (Customer c) -> c.getId()),
                     col("active", "Active", (Customer c) -> c.isActive()),
@@ -442,7 +444,7 @@ abstract class AbstractSortProofTest {
     void anEmptySearchNamesTheTextColumnsThatWereSearchedAndNeverAMaskedOne() throws Exception {
         Map<String, String> expected = Map.of(
                 "product", "Name, Sku",
-                "category", "Description, Name",
+                "category", "Description, Image, Name",
                 "customer", "Email, Full name",
                 "order", "Note",
                 "tag", "Name");

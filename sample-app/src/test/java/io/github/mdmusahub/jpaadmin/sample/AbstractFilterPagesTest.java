@@ -134,7 +134,7 @@ abstract class AbstractFilterPagesTest {
         assertThat(controls(page("/admin/customer"))).containsExactly("filter.active", "filter.createdAt.from", "filter.createdAt.to",
                 "filter.email", "filter.fullName");
         assertThat(controls(page("/admin/category"))).containsExactly("filter.createdAt.from", "filter.createdAt.to", "filter.description",
-                "filter.name");
+                "filter.image", "filter.name");
         assertThat(controls(page("/admin/tag"))).containsExactly("filter.name");
     }
 

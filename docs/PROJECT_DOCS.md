@@ -267,6 +267,34 @@ Reproduce the property table from `docs/PLAN.md` section 5, with a sentence per 
 
 **`jpa.admin.sensitive-fields`** (list, default `password, secret, token, apikey`). Field names whose values are always masked. The match ignores case, `_` and `-`, and is a substring match, so `password` also covers `userPassword` and `api_key` matches `apikey`. Because it is a substring match it masks a little too much on purpose: a field called `tokenizer` contains `token` and is masked. Narrow the list if that is not wanted. `@AdminSensitive` adds to this list and is never removed from it. Example: `jpa.admin.sensitive-fields[0]=password`.
 
+**Upload properties** (Phase 9a, D-86). All optional; the storage `default` exists without any of them.
+
+| Property | Default | Meaning |
+|---|---|---|
+| `jpa.admin.storage.<name>.type` | `local` | The kind of storage. Only `local` (a folder on this server's disk) exists in v0.1; any other type stops startup. S3 is planned for v0.2 |
+| `jpa.admin.storage.<name>.directory` | `./uploads` | The folder. A relative path starts at the working directory. Created, and checked for write access, at startup when an upload field uses the storage. Must be outside the web root (not under `src/main/resources`, `src/main/webapp`, `target/classes` or the servlet context's folder), or startup stops |
+| `jpa.admin.storage.<name>.max-size` | `5MB` | The largest file of the storage: more than 0 and at most 100MB. A field's `maxSize` may lower it, never raise it |
+| `jpa.admin.storage.<name>.public-path` | none | A path such as `/files`. When set, the storage's files are also served to everyone, without a session, at `{public-path}/{key}`, and a file's stored address is the public one. Off by default. Not the console path, not inside it, not containing it, not shared with another storage |
+| `jpa.admin.upload.signing-key` | random per start | Signs the upload tickets. At least 32 characters; an unset `${...}` variable stops startup. Unset: a random key is made at every start and a WARN says that a restart invalidates the forms that are open. Set it when you run more than one instance |
+
+`<name>` is a lower-case word of letters, digits and `-` (at most 32 characters). A field uses a storage other than `default` with `@AdminUpload(storage = "name")`. Every wrong value stops startup with one report that names the property and never prints the value. Example:
+
+```yaml
+jpa:
+  admin:
+    storage:
+      default:
+        directory: /var/lib/shop/uploads
+        max-size: 8MB
+    upload:
+      signing-key: ${UPLOAD_SIGNING_KEY}      # 32 characters or more
+spring:
+  servlet:
+    multipart:
+      max-file-size: 8MB                      # the host's own limits, see "File uploads"
+      max-request-size: 9MB
+```
+
 ## B5. Using the console (draft outline)
 
 Sign in, sidebar and groups, dashboard and chart, browsing records, readable values, search and sort, filters, saved views, display options, bulk actions (delete, Phase 7), export, viewing a record (Phase 7), creating and editing, validation, uploads, keyboard shortcuts, themes, what is stored in the browser. Add a screenshot for each section.
@@ -275,13 +303,41 @@ Sign in, sidebar and groups, dashboard and chart, browsing records, readable val
 
 One section per annotation with a short example and a table of options with defaults and status (Supported, Partial, Not yet). Include examples for hiding an entity, marking a field sensitive, setting a group and icon, making an entity read-only, coloured badges, choosing a relation label, and an upload field.
 
-## B7. File uploads (draft outline)
+## B7. File uploads (draft; the backend is Phase 9a, the page that shows an uploader is Phase 9b)
 
-How uploads work, `@AdminUpload` options, local storage configuration, serving and visibility, size and type limits, what is validated, known limits (one file per field, old files are kept on replace, no server-side thumbnails), upload tickets, and the S3 provider as "not yet" (planned for v0.2).
+**How it works.** Put `@AdminUpload` on a `String` field. A file goes to the upload endpoint, `POST {path}/uploads`, which checks it and stores it through the storage provider under a random name in `folder/yyyy/MM/`, and answers with the file's address. The form then saves that address in the field (Phase 9b; until then the generic create and edit forms do not offer an upload field at all, so no plain text can be stored in one). The console shows the address; the file is served by `GET {path}/files/{storage}/{key}`.
+
+**What is validated, in this order, before anything is stored** (UPL-1, UPL-2, UPL-2a, UPL-5):
+
+1. a signed **upload ticket**, issued with the form page, valid for about 10 minutes, bound to the entity, the field and the largest size; an expired, tampered, foreign or malformed ticket is refused with 403. A ticket is not a session: the endpoint also needs the signed-in admin and the CSRF token (the `X-CSRF-TOKEN` header from script, or the hidden `_csrf` field of a plain form);
+2. the **size**: the claimed size, and then the bytes that really arrive, against the lowest of the ticket's size, the field's `maxSize` and the storage's `max-size` (never above 100MB);
+3. the **real type**, from the file's first bytes: PNG, JPEG, GIF, WebP or PDF. The file name and the `Content-Type` the browser sends are never believed: the declared type may be missing or `application/octet-stream`, and any other value must equal the real type;
+4. the type must be in the field's `accept` list;
+5. no **hidden markup**: a file that contains `<script`, `<html`, `<?php`, `<iframe`, `<svg` or `<!doctype html` anywhere (a polyglot) is refused;
+6. the file is not empty.
+
+SVG and HTML are never accepted in v0.1, even when listed in `accept`: they have no reliable signature and can carry script, and a field that lists a type the console cannot recognise does not start. Adding a type means adding a row to the signature table (`FileSignatures`) with a test.
+
+**`@AdminUpload` options** (all optional):
+
+| Option | Default | Meaning |
+|---|---|---|
+| `storage` | `"default"` | The storage, configured with `jpa.admin.storage.<name>.*` |
+| `folder` | `""` | A sub-folder, such as `avatars` or `docs/invoices`: parts of letters, digits, `-` and `_`, at most 4 parts. Anything else stops startup |
+| `accept` | `image/png`, `image/jpeg`, `image/gif`, `image/webp`, `application/pdf` | The accepted MIME types (only those five can be recognised) |
+| `maxSize` | the storage's `max-size` | A size such as `512KB` or `2MB`; lowers the limit, never raises it |
+
+**Startup rules** (UPL-8). Startup stops, with one list of the fields (or storages) and the reason, when: a field names a storage that is not configured; a storage has a type other than `local`; a field is not a `String`; a folder, an `accept` entry or a `maxSize` is wrong; or the folder of a storage that a field uses cannot be created or written to, is a file, or lies inside the web root. The defaults alone pass. A host with no upload field touches no disk. The absolute folder of each storage in use is logged once at INFO.
+
+**Serving rules** (UPL-6, UPL-7). The console route needs the signed-in admin. Every answer carries `X-Content-Type-Options: nosniff` and `Content-Security-Policy: default-src 'none'; sandbox`; a success carries the content type detected from the file's first bytes; an image is shown inline and everything else (a PDF, or an HTML file that reached the folder some other way) is a download named by its stored name. Any path with `..`, an encoded dot or slash, a backslash, a `;`, a missing part or an unknown storage is the console's 404. With a `public-path`, the same files are served at that path with the same headers to everyone, and **the host's own security applies to that path** (with Spring Boot's default security the files still need the host's login unless the host permits the path).
+
+**The host's multipart limits.** The console never changes `spring.servlet.multipart.*`. In Spring Boot 4.1 the defaults are `max-file-size` 1MB and `max-request-size` 10MB, below the console's 5MB default, and they apply first. To accept larger files raise both in the host (`max-file-size` and `max-request-size`). A file over the host's limit is answered with a plain message that names the two properties (HTTP 413); a startup WARN says when a field allows more than the host does. `spring.servlet.multipart.enabled=false` switches file uploads off for the whole application, the console's included. One limit: a plain form (no script) that is over the host's limit gets the server's own 413 page, because the limit is hit while the security chain is still reading the form; the script flow gets the console's message.
+
+**Known limits.** One file per field. Replacing or removing a file keeps the old file on disk in v0.1 (UPL-9): files whose address no record holds any more pile up, and a cleanup is planned (Phase 14). No server-side thumbnails or resizing: an image is the original, scaled by CSS. The check reads the whole file once, so a PDF that holds the plain text of a tag such as `<script` in an uncompressed stream is refused. A host entity whose console address is exactly `uploads` is not supported (the address belongs to the endpoint). Hibernate's own logging is the host's: with `org.hibernate.orm.jdbc.bind` at TRACE every value of an insert or update, the stored address included, is in Hibernate's log. Back up the storage folder with the database. The S3 provider is "not yet" (planned for v0.2); a host can write its own `StorageProvider` bean.
 
 ## B8. Security (draft outline)
 
-Sign-in and sessions (the console uses Spring Boot's default session cookie settings; host apps should set `Secure` and `SameSite` themselves; the console keeps its login, CSRF token and saved page under its own names in the shared session; signing out removes only the console's own session data and ends the session only when nothing else is in it, so a host login in the same browser stays; a startup warning under `prod` over plain HTTP, and the reverse-proxy settings that silence it), response headers (including a strict Content-Security-Policy, and why the console sends no HSTS), what is protected, built-in safeguards, the `prod` profile password check (at least 12 characters, not a common password), limits to know (single admin, no audit log, no login rate limiting yet), and a hardening checklist: password from a secret, HTTPS, restrict network access, hide or read-only sensitive entities, private upload storage, disable demo settings in production.
+Sign-in and sessions (the console uses Spring Boot's default session cookie settings; host apps should set `Secure` and `SameSite` themselves; the console keeps its login, CSRF token and saved page under its own names in the shared session; signing out removes only the console's own session data and ends the session only when nothing else is in it, so a host login in the same browser stays; a startup warning under `prod` over plain HTTP, and the reverse-proxy settings that silence it), response headers (including a strict Content-Security-Policy, and why the console sends no HSTS), what is protected, built-in safeguards, the `prod` profile password check (at least 12 characters, not a common password), limits to know (single admin, no audit log, no login rate limiting yet), and a hardening checklist: password from a secret, HTTPS, restrict network access, hide or read-only sensitive entities, private upload storage, disable demo settings in production. Uploads (Phase 9a): a file is trusted for what its first bytes say and for nothing else; it needs the signed-in admin, the CSRF token and a signed ticket; it is stored under a random name that is never the client's, below a folder that is outside the web root and that no link or traversal can leave; it is served with `nosniff`, a sandboxing policy and as a download unless it is an image; a `public-path` is an explicit opt-in that the host's own security governs; set `jpa.admin.upload.signing-key` from a secret; back up the storage folder.
 
 ## B9. Annotations reference (draft outline)
 
@@ -291,19 +347,25 @@ Table per annotation: option, type, default, status, description. Implemented in
 - **`@AdminSensitive`** — on a field. The value is masked everywhere (SEC-1), whatever the field is called. It adds to `jpa.admin.sensitive-fields`.
 - **`@AdminResource`** (on an entity class, Phase 7, D-68) — options `readOnly` (default `false`; the console only shows the records: no create, no edit, no delete), `creatable` (default `true`; `false` forbids creating and duplicating only), `updatable` (default `true`; `false` forbids editing only) and `deletable` (default `true`; `false` forbids deleting only). `creatable`, `updatable` and `deletable` are ignored when `readOnly`. Enforced in the service layer, not only by hiding a button (SEC-11): a forged request answers 403 for a visible entity and 404 for a hidden one. Inherited by subclasses. The other options named in the project plan (display and plural names, group, icon, order, exportable, default sort, page size) arrive with the phases that use them.
 
-The other annotations of `docs/PLAN.md` section 6 (`@AdminField`, `@AdminBadge`, `@AdminLookup`, `@AdminUpload`) arrive in later phases.
+- **`@AdminUpload`** (on a `String` field or its getter, Phase 9a, D-85) — marks the field as the address of an uploaded file. Options: `storage` (default `"default"`), `folder` (default empty), `accept` (default `image/png`, `image/jpeg`, `image/gif`, `image/webp`, `application/pdf`; only those five can be recognised, so SVG, HTML and every other type stop startup), `maxSize` (default the storage's `max-size`, for example `"2MB"`; lowers the limit, never raises it). A field that is not a `String`, a storage that is not configured or a wrong folder, type or size stops startup with the field named. Status: supported in the backend; the upload input in the forms and the image cells arrive in Phase 9b. See "File uploads".
+
+The other annotations of `docs/PLAN.md` section 6 (`@AdminField`, `@AdminBadge`, `@AdminLookup`) arrive in later phases.
 
 ## B10. Endpoints reference (draft outline)
 
 Routes from `docs/PLAN.md` section 9, with parameters, responses and error codes. State that the endpoints serve the console and are not a stable public API in v0.1.
 
+Upload routes (Phase 9a). `POST {path}/uploads`, `multipart/form-data`, parts `file`, `ticket`, `entity`, `field` and, for the plain form, `record` (the id of the record being edited, used only to build the way back). Needs the signed-in admin and the CSRF token. With `Accept: application/json`: status 200 and `{"url":"...","name":"...","size":N,"error":null}`, or the refusal's status and `{"url":null,"name":null,"size":0,"error":"..."}`; statuses: 400 nothing to store or not multipart, 403 bad, expired or missing ticket, 413 too large (the field's, the storage's or the host's limit), 415 wrong content, 500 not stored. Without that header: 303 to the form page with a one-time message, or the console's error page with the refusal's status. `GET {path}/files/{storage}/{key}` serves a stored file to the signed-in admin (404 for anything that is not one); with a `public-path`, `GET {public-path}/{key}` serves it to everyone.
+
 ## B11. Deployment and troubleshooting (draft outline)
 
-Running behind a reverse proxy, HTTPS, multiple instances (set `jpa.admin.upload.signing-key` so upload tickets validate on every instance), file storage volumes, common errors (a 500 from the console with the log line "did not pass through the console's security chain", most often because of a servlet path prefix, `spring.mvc.servlet.path`, which v0.1 does not support; startup failure on missing properties, including a username or password variable that is not set; a weak password under the `prod` profile; unconfigured storage, 404 for unknown entity, lazy-loading message, blocked uploads) with fixes.
+Running behind a reverse proxy, HTTPS, multiple instances (set `jpa.admin.upload.signing-key` so upload tickets validate on every instance), file storage volumes, common errors (a 500 from the console with the log line "did not pass through the console's security chain", most often because of a servlet path prefix, `spring.mvc.servlet.path`, which v0.1 does not support; startup failure on missing properties, including a username or password variable that is not set; a weak password under the `prod` profile; unconfigured storage, 404 for unknown entity, lazy-loading message, blocked uploads) with fixes. Upload problems (Phase 9a): "startup stops and lists upload fields" (the storage is not configured, the type is not `local`, the folder cannot be created or written to or is inside the web root, a type cannot be recognised: read the list, it names each field and why); "413 / larger than this server accepts" (raise `spring.servlet.multipart.max-file-size` and `max-request-size` in the host, Boot's defaults are 1MB and 10MB); "403 / no longer valid" (the form was open more than 10 minutes, the application restarted without a configured `jpa.admin.upload.signing-key`, or the request went to another instance with another key: open the form page again, and set the key when you run several instances); "the file has page or script markup hidden inside it" (export a clean copy); "public files ask for a login" (the host's own security protects the `public-path`: permit the path in the host's configuration).
 
 ## B12. Limitations and roadmap (draft)
 
 Current limits: single admin account, a servlet path prefix is not supported in v0.1 (`spring.mvc.servlet.path` must be unset; otherwise the console answers 500 and logs why, D-41), password at most 72 bytes, console templates are cached and not reloaded at run time (D-40), no audit log, no login rate limiting, no inline child rows, one file per upload field, no image resizing, English only, saved views stored per browser, CSV only, servlet applications only.
+
+Upload limits (Phase 9a, see "File uploads"): replacing or removing a file keeps the old file on disk (UPL-9; a cleanup is planned for Phase 14), the host's multipart limits (Spring Boot 4.1 default: 1MB per file, 10MB per request) apply before the console's and the console never changes them, only the five types PNG, JPEG, GIF, WebP and PDF can be stored (SVG and HTML never), a plain form over the host's limit gets the server's own 413 page, an entity whose console address is `uploads` is not supported, the `public-path` is protected only by the host's own security, and Hibernate's own SQL logging at TRACE would show the stored address.
 
 Discovery limits (Phase 3): an entity with a composite primary key (`@EmbeddedId` or `@IdClass`) is not supported and is left out of the console, with a one-line startup warning (entities need a single-column id in v0.1). The console reads one `EntityManagerFactory`: if the host has several and marks none `@Primary`, the console lists no entities and logs a warning rather than guessing which database it would show. Sensitive-field name matching is a case-insensitive substring match, so it can mask a field nobody meant it to (for example `tokenizer`, which contains `token`); narrow `jpa.admin.sensitive-fields` to avoid it.
 

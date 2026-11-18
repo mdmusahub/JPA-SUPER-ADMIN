@@ -90,6 +90,29 @@ final class ListLinks {
         return version == null ? record : record + "?" + VERSION_PARAMETER + "=" + encode(version);
     }
 
+    // ---- links back to a form after an upload (Phase 9a): same writer, same encoding -----------------------------------
+
+    /** The create form of this entity. */
+    String newForm() {
+        return path + "/new";
+    }
+
+    /** The edit form of one record. {@code null} as for {@link #detail} when the id has no address. */
+    String editForm(String id) {
+        return addressable(id) ? path + "/" + encode(id) + "/edit" : null;
+    }
+
+    /**
+     * Where the visitor goes after a file was uploaded with a plain form (option A, no script): back to the form the upload
+     * was for, the edit form when {@code recordId} is an id with an address and the create form otherwise. Built here, from the
+     * entity of the console's own metadata and an id that passed {@link #addressable}; nothing in a request is ever a redirect
+     * target (D-65).
+     */
+    String afterUpload(String recordId) {
+        String edit = recordId == null ? null : editForm(recordId);
+        return edit != null ? edit : newForm();
+    }
+
     /**
      * Where the visitor goes after a record was created: the list, from its first page (what the list holds changed, the
      * rule of D-62), with the search, filters, sort and page size of {@code state}. Never taken from the request (D-65).
