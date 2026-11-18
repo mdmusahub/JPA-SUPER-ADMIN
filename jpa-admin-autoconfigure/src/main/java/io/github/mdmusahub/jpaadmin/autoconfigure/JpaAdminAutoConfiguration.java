@@ -8,6 +8,11 @@ import io.github.mdmusahub.jpaadmin.service.DetailQueryService;
 import io.github.mdmusahub.jpaadmin.service.FormQueryService;
 import io.github.mdmusahub.jpaadmin.service.ListQueryService;
 import io.github.mdmusahub.jpaadmin.service.RecordWriteService;
+import io.github.mdmusahub.jpaadmin.storage.LocalStorageProvider;
+import io.github.mdmusahub.jpaadmin.storage.StorageProvider;
+import io.github.mdmusahub.jpaadmin.storage.UploadService;
+import io.github.mdmusahub.jpaadmin.storage.UploadTargets;
+import io.github.mdmusahub.jpaadmin.storage.UploadTicketService;
 import io.github.mdmusahub.jpaadmin.web.BasePath;
 import io.github.mdmusahub.jpaadmin.web.ConsoleChromeFactory;
 import io.github.mdmusahub.jpaadmin.web.ConsoleController;
@@ -18,11 +23,22 @@ import io.github.mdmusahub.jpaadmin.web.ConsoleViewFactory;
 import io.github.mdmusahub.jpaadmin.web.ConsoleViews;
 import io.github.mdmusahub.jpaadmin.web.CsrfTokens;
 import io.github.mdmusahub.jpaadmin.web.EntityController;
+import io.github.mdmusahub.jpaadmin.web.FileController;
 import io.github.mdmusahub.jpaadmin.web.FormController;
+import io.github.mdmusahub.jpaadmin.web.PublicFileHandler;
 import io.github.mdmusahub.jpaadmin.web.RecordController;
 import io.github.mdmusahub.jpaadmin.web.ThemeController;
+import io.github.mdmusahub.jpaadmin.web.UploadController;
 import jakarta.persistence.EntityManagerFactory;
+import jakarta.servlet.MultipartConfigElement;
+import jakarta.servlet.ServletContext;
+import java.nio.file.Path;
+import java.security.SecureRandom;
 import java.time.Clock;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -35,11 +51,15 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.core.Ordered;
 import org.springframework.core.env.Environment;
 import org.springframework.orm.jpa.SharedEntityManagerCreator;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.servlet.handler.SimpleUrlHandlerMapping;
+import org.springframework.web.util.pattern.PathPatternParser;
 
 /**
  * Registers the console. It is active only in a servlet web application with Spring MVC, JPA, Spring Security and
@@ -151,6 +171,85 @@ public class JpaAdminAutoConfiguration {
         EntityManagerFactory factory = consoleEntityManagerFactory(factories);
         return factory == null ? AdminEntityRegistry.empty()
                 : EntityScanner.scan(factory.getMetamodel(), properties.discoverySettings());
+    }
+
+    /**
+     * Where uploaded files live. The local provider unless the host defines its own {@link StorageProvider} (UPL-10). It serves
+     * the storages of {@code jpa.admin.storage.*} and creates no folder until the startup check asks for one.
+     */
+    @Bean
+    @ConditionalOnMissingBean(StorageProvider.class)
+    StorageProvider jpaAdminStorageProvider(JpaAdminProperties properties, BasePath basePath,
+                                            ObjectProvider<ServletContext> servletContext, ObjectProvider<Clock> clocks) {
+        return new LocalStorageProvider(properties.storageSettings(), basePath.link("/files"),
+                webRoots(servletContext.getIfAvailable()), new SecureRandom(), clocks.getIfAvailable(Clock::systemUTC));
+    }
+
+    /**
+     * The folders a web server may serve files from: the servlet context's own folder, and the places a build tool puts static
+     * resources. A storage inside one is refused at startup (UPL-4). A folder that holds the working directory is ignored: it
+     * would make every relative storage path "inside the web root", and no real web root contains the application's own working
+     * directory.
+     */
+    private static List<Path> webRoots(ServletContext context) {
+        Path workingDirectory = Path.of("").toAbsolutePath().normalize();
+        List<Path> roots = new ArrayList<>();
+        if (context != null) {
+            String real = null;
+            try {
+                real = context.getRealPath("/");
+            } catch (RuntimeException ignored) {
+                // A container that cannot map the context to a folder has no web root to protect.
+            }
+            if (real != null && !real.isBlank()) {
+                roots.add(Path.of(real).toAbsolutePath().normalize());
+            }
+        }
+        for (String relative : List.of("src/main/resources", "src/main/webapp", "target/classes", "build/resources",
+                "build/classes")) {
+            roots.add(workingDirectory.resolve(relative).normalize());
+        }
+        roots.removeIf(root -> workingDirectory.startsWith(root));
+        return roots;
+    }
+
+    /**
+     * Checks the upload declarations and the storages once at startup (UPL-8). Only when the console has entities. Eager, because
+     * nothing injects it.
+     */
+    @Bean
+    @Lazy(false)
+    @ConditionalOnBean(AdminEntityRegistry.class)
+    JpaAdminUploadCheck jpaAdminUploadCheck(AdminEntityRegistry registry, JpaAdminProperties properties,
+                                            StorageProvider provider, ObjectProvider<MultipartConfigElement> multipart) {
+        return new JpaAdminUploadCheck(registry, properties, provider, multipart.getIfAvailable());
+    }
+
+    /**
+     * The upload fields of the console, resolved once against the configured storages (ARCH-1). Empty when the host has no entity
+     * manager factory or no upload field. Not replaceable: it is a rule (UPL-8), not a choice.
+     */
+    @Bean
+    UploadTargets jpaAdminUploadTargets(ObjectProvider<AdminEntityRegistry> registries, JpaAdminProperties properties) {
+        AdminEntityRegistry registry = registries.getIfAvailable(AdminEntityRegistry::empty);
+        return UploadTargets.of(registry, properties.storageSettings());
+    }
+
+    /**
+     * Issues and checks the upload tickets. The key is {@code jpa.admin.upload.signing-key}, else 32 random bytes made now, so a
+     * restart invalidates every open form's tickets (the startup check warns about that). Not replaceable (UPL-2a).
+     */
+    @Bean
+    UploadTicketService jpaAdminUploadTickets(JpaAdminProperties properties, ObjectProvider<Clock> clocks) {
+        Clock clock = clocks.getIfAvailable(Clock::systemUTC);
+        String key = properties.signingKey();
+        return key == null ? UploadTicketService.withRandomKey(clock) : UploadTicketService.withKey(key, clock);
+    }
+
+    /** Checks and stores uploads. Not replaceable: it holds the file checks (UPL-1, UPL-2, UPL-5). */
+    @Bean
+    UploadService jpaAdminUploadService(UploadTargets targets, UploadTicketService tickets, StorageProvider provider) {
+        return new UploadService(targets, tickets, provider);
     }
 
     /**
@@ -327,6 +426,40 @@ public class JpaAdminAutoConfiguration {
         return new FormController(chromeFactory, views, navigation, forms.getIfAvailable(FormQueryService::unavailable),
                 details.getIfAvailable(DetailQueryService::unavailable),
                 writes.getIfAvailable(RecordWriteService::unavailable), basePath);
+    }
+
+    /** {@code POST {path}/uploads}: takes one file for one upload field. */
+    @Bean
+    @ConditionalOnMissingBean
+    UploadController jpaAdminUploadController(UploadService uploads, ConsoleChromeFactory chromeFactory, ConsoleViews views,
+                                              BasePath basePath) {
+        return new UploadController(uploads, chromeFactory, views, basePath);
+    }
+
+    /** {@code GET {path}/files/**}: serves a stored file to the signed-in admin (UPL-6, UPL-7). */
+    @Bean
+    @ConditionalOnMissingBean
+    FileController jpaAdminFileController(StorageProvider provider, BasePath basePath) {
+        return new FileController(provider, basePath);
+    }
+
+    /**
+     * The public path of a storage (UPL-7): its files are also served, without a session, at the path it names. Registered only
+     * when some storage has a {@code public-path}; with none, the console adds nothing outside its own path (SEC-4). It comes
+     * after the host's controllers and before its static resources, so a host route at the same path keeps working.
+     */
+    @Bean
+    @Conditional(PublicPathConfigured.class)
+    SimpleUrlHandlerMapping jpaAdminPublicFilesMapping(JpaAdminProperties properties, StorageProvider provider) {
+        Map<String, Object> routes = new LinkedHashMap<>();
+        properties.storageSettings().forEach((name, storage) -> {
+            if (storage.publicPath() != null && storage.supportedType()) {
+                routes.put(storage.publicPath() + "/**", new PublicFileHandler(name, storage.publicPath(), provider));
+            }
+        });
+        SimpleUrlHandlerMapping mapping = new SimpleUrlHandlerMapping(routes, Ordered.LOWEST_PRECEDENCE - 100);
+        mapping.setPatternParser(PathPatternParser.defaultInstance);
+        return mapping;
     }
 
     /** {@code {path}/theme.css}: the accent colour as one CSS variable (SEC-15). */

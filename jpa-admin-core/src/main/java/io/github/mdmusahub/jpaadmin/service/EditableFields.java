@@ -86,7 +86,10 @@ final class EditableFields {
 
     private static Editable candidate(AdminEntity entity, AdminEntityRegistry registry, EntityManager entityManager,
                                       AdminField field) {
-        if (field.version() || !Members.writable(entity.type(), field.name())) {
+        // An upload field is written only through the upload endpoint and a form that carries a ticket (Phase 9b). Until
+        // that exists the generic form must not offer a plain text input for it, or any text could be stored as a file
+        // address.
+        if (field.version() || field.isUpload() || !Members.writable(entity.type(), field.name())) {
             return null;
         }
         boolean createOnly = false;
