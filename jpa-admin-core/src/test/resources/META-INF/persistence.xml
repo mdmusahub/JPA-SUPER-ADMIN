@@ -83,4 +83,28 @@
       <property name="hibernate.show_sql" value="false"/>
     </properties>
   </persistence-unit>
+  <!-- The chart tests' own unit: one neutral entity for each type of creation field and the ones the rule rules out. -->
+  <persistence-unit name="stats-test" transaction-type="RESOURCE_LOCAL">
+    <class>io.github.mdmusahub.jpaadmin.testsupport.statsmodel.StatsEntities$Journal</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.statsmodel.StatsEntities$Beacon</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.statsmodel.StatsEntities$Voucher</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.statsmodel.StatsEntities$Stub</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.statsmodel.StatsEntities$Relic</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.statsmodel.StatsEntities$Plain</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.statsmodel.StatsEntities$Masked</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.statsmodel.StatsEntities$Fallback</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.statsmodel.StatsEntities$Veiled</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.statsmodel.StatsEntities$Shadow</class>
+    <exclude-unlisted-classes>true</exclude-unlisted-classes>
+    <properties>
+      <property name="jakarta.persistence.jdbc.url" value="jdbc:h2:mem:jpa-admin-core-stats-test;DB_CLOSE_DELAY=-1"/>
+      <property name="jakarta.persistence.jdbc.driver" value="org.h2.Driver"/>
+      <property name="jakarta.persistence.jdbc.user" value="sa"/>
+      <property name="jakarta.persistence.jdbc.password" value=""/>
+      <property name="jakarta.persistence.schema-generation.database.action" value="drop-and-create"/>
+      <property name="hibernate.show_sql" value="false"/>
+      <property name="hibernate.session_factory.statement_inspector"
+                value="io.github.mdmusahub.jpaadmin.testsupport.RecordingStatementInspector"/>
+    </properties>
+  </persistence-unit>
 </persistence>

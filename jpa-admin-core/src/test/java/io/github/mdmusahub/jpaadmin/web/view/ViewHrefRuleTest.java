@@ -49,6 +49,7 @@ class ViewHrefRuleTest {
     private static final List<Place> PLACES = List.of(
             place("Cell.href", h -> new Cell(Cell.Type.RELATION, "x", Cell.Tone.NONE, h, null)),
             place("Breadcrumb.href", h -> new PageChrome.Breadcrumb("x", h)),
+            place("RangeLink.href", h -> new DashboardView.RangeLink(30, true, h)),
             place("PageChrome.basePath", h -> new PageChrome("t", h, PageChrome.Theme.SYSTEM, List.of(), null,
                     List.of(), List.of(), "admin", Samples.csrf())),
             place("Filters.clearAllHref", h -> new ListView.Filters(List.of(), List.of(), h)),
@@ -207,7 +208,7 @@ class ViewHrefRuleTest {
 
         assertThat(unchecked).as("link components without a Hrefs check").isEmpty();
         assertThat(found).containsExactlyInAnyOrderEntriesOf(Map.ofEntries(
-                Map.entry("href", 3L), Map.entry("sortHref", 1L), Map.entry("clearAllHref", 1L),
+                Map.entry("href", 4L), Map.entry("sortHref", 1L), Map.entry("clearAllHref", 1L),
                 Map.entry("removeHref", 1L), Map.entry("firstHref", 1L), Map.entry("prevHref", 1L),
                 Map.entry("nextHref", 1L), Map.entry("lastHref", 1L), Map.entry("exportHref", 1L),
                 Map.entry("bulkDeleteHref", 1L), Map.entry("deleteHref", 1L),

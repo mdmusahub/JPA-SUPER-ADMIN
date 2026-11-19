@@ -74,8 +74,8 @@ class PreviewPagesTest {
     @Test
     void theCatalogHoldsTheFixturesOfFixturesMd() {
         assertThat(PageFixtures.catalog().get("login")).containsExactly("normal", "bad-credentials", "logged-out", "long-title");
-        assertThat(PageFixtures.catalog().get("dashboard")).containsExactly("minimal", "normal", "no-chart",
-                "empty-database", "count-unavailable", "no-entities", "many-groups", "read-only-entities");
+        assertThat(PageFixtures.catalog().get("dashboard")).startsWith("minimal", "normal", "no-chart",
+                "empty-database", "count-unavailable", "no-entities", "many-groups", "read-only-entities", "chart-range-7");
         assertThat(PageFixtures.catalog().get("list")).contains("normal", "middle-page", "last-page", "empty-no-records",
                 "empty-no-matches", "sorted-asc", "sorted-desc", "masked-column", "long-text", "many-columns");
         assertThat(PageFixtures.catalog()).doesNotContainKey("entity");

@@ -1556,3 +1556,260 @@ select.input {
     transition: border-color 0.15s ease, background-color 0.15s ease;
   }
 }
+
+/* ---- dashboard chart: records created (task U7) ---------------------------------------------------------------- */
+
+/*
+ * Drawn by the server as an inline SVG of stacked bars; the card needs no script. Every colour comes from --ac (the
+ * accent) mixed with the theme's own ink and panel colours, so both themes work and nothing is set inline. Eight tones,
+ * then they repeat; the legend and the daily table always name the entity, so colour is never the only carrier.
+ */
+
+.chart-card {
+  margin-top: var(--s4);
+  display: grid;
+  gap: var(--s4);
+  min-width: 0;
+}
+
+.chart-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s3) var(--s4);
+}
+
+.chart-heading {
+  min-width: 0;
+}
+
+.chart-sub {
+  margin-top: var(--s1);
+}
+
+.range-switch {
+  display: inline-flex;
+  max-width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--panel-alt);
+  overflow: hidden;
+}
+
+.range-link {
+  padding: var(--s2) var(--s4);
+  color: var(--ink);
+  font-size: var(--text);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.range-link + .range-link {
+  border-left: 1px solid var(--line-strong);
+}
+
+.range-link:hover {
+  background: var(--hover);
+}
+
+.range-link.is-current {
+  background: var(--accent-strong);
+  color: var(--on-accent);
+}
+
+.range-link:focus-visible {
+  outline-offset: -2px;
+}
+
+.chart-notes {
+  display: grid;
+  gap: var(--s2);
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--amber-line);
+  border-radius: var(--radius);
+  background: var(--amber-tint);
+  color: var(--amber);
+  font-size: var(--text);
+  list-style: none;
+}
+
+.chart-notes li {
+  overflow-wrap: anywhere;
+}
+
+.chart-state {
+  padding: var(--s6) var(--s4);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  color: var(--muted);
+  text-align: center;
+}
+
+.chart-figure {
+  display: grid;
+  gap: var(--s2);
+  margin: 0;
+  min-width: 0;
+}
+
+.chart-plot {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--s2);
+  align-items: stretch;
+}
+
+.chart-y {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.chart-svg {
+  display: block;
+  width: 100%;
+  height: 220px;
+  overflow: visible;
+}
+
+.chart-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.chart-grid-base {
+  stroke: var(--line-strong);
+}
+
+.chart-seg {
+  stroke: var(--panel);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.chart-bar:hover .chart-seg {
+  opacity: 0.8;
+}
+
+.chart-axis {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s2);
+  margin-left: var(--s8);
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.chart-tone-0 { fill: var(--ac); background: var(--ac); }
+.chart-tone-1 { fill: color-mix(in srgb, var(--ac) 55%, var(--ink)); background: color-mix(in srgb, var(--ac) 55%, var(--ink)); }
+.chart-tone-2 { fill: color-mix(in srgb, var(--ac) 50%, var(--panel)); background: color-mix(in srgb, var(--ac) 50%, var(--panel)); }
+.chart-tone-3 { fill: color-mix(in srgb, var(--ac) 30%, var(--ink)); background: color-mix(in srgb, var(--ac) 30%, var(--ink)); }
+.chart-tone-4 { fill: color-mix(in srgb, var(--ac) 28%, var(--panel)); background: color-mix(in srgb, var(--ac) 28%, var(--panel)); }
+.chart-tone-5 { fill: color-mix(in srgb, var(--ac) 75%, var(--panel)); background: color-mix(in srgb, var(--ac) 75%, var(--panel)); }
+.chart-tone-6 { fill: color-mix(in srgb, var(--ac) 40%, var(--ink)); background: color-mix(in srgb, var(--ac) 40%, var(--ink)); }
+.chart-tone-7 { fill: color-mix(in srgb, var(--ac) 15%, var(--panel)); background: color-mix(in srgb, var(--ac) 15%, var(--panel)); }
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s5);
+  list-style: none;
+}
+
+.chart-legend-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+  min-width: 0;
+  font-size: var(--text);
+}
+
+.chart-swatch {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+}
+
+.chart-legend-name {
+  min-width: 0;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.chart-legend-total {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-unavailable {
+  color: var(--red);
+}
+
+.chart-legend-flag {
+  padding: 1px var(--s2);
+  border-radius: 999px;
+  background: var(--amber-tint);
+  color: var(--amber);
+  font-size: var(--text-sm);
+}
+
+.chart-leftout {
+  overflow-wrap: anywhere;
+}
+
+.chart-details > summary {
+  width: fit-content;
+  padding: var(--s1) 0;
+  color: var(--accent-text);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.chart-details[open] > summary {
+  margin-bottom: var(--s2);
+}
+
+.chart-table th,
+.chart-table td {
+  white-space: nowrap;
+}
+
+.chart-table tfoot th,
+.chart-table tfoot td {
+  border-top: 1px solid var(--line-strong);
+  font-weight: 650;
+}
+
+.chart-absent {
+  margin-top: var(--s4);
+}
+
+@media (max-width: 600px) {
+  .chart-svg {
+    height: 160px;
+  }
+
+  .range-switch {
+    width: 100%;
+  }
+
+  .range-link {
+    flex: 1;
+    padding-inline: var(--s2);
+    text-align: center;
+  }
+
+  .chart-axis {
+    margin-left: var(--s6);
+  }
+}

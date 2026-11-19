@@ -3,11 +3,13 @@ package io.github.mdmusahub.jpaadmin.autoconfigure;
 import io.github.mdmusahub.jpaadmin.metadata.AdminEntityRegistry;
 import io.github.mdmusahub.jpaadmin.metadata.EntityScanner;
 import io.github.mdmusahub.jpaadmin.service.CountService;
+import io.github.mdmusahub.jpaadmin.service.CreationDates;
 import io.github.mdmusahub.jpaadmin.service.DeleteService;
 import io.github.mdmusahub.jpaadmin.service.DetailQueryService;
 import io.github.mdmusahub.jpaadmin.service.FormQueryService;
 import io.github.mdmusahub.jpaadmin.service.ListQueryService;
 import io.github.mdmusahub.jpaadmin.service.RecordWriteService;
+import io.github.mdmusahub.jpaadmin.service.StatsService;
 import io.github.mdmusahub.jpaadmin.service.UploadFiles;
 import io.github.mdmusahub.jpaadmin.storage.LocalStorageProvider;
 import io.github.mdmusahub.jpaadmin.storage.StorageProvider;
@@ -24,11 +26,13 @@ import io.github.mdmusahub.jpaadmin.web.ConsoleSettings;
 import io.github.mdmusahub.jpaadmin.web.ConsoleViewFactory;
 import io.github.mdmusahub.jpaadmin.web.ConsoleViews;
 import io.github.mdmusahub.jpaadmin.web.CsrfTokens;
+import io.github.mdmusahub.jpaadmin.web.DashboardCharts;
 import io.github.mdmusahub.jpaadmin.web.EntityController;
 import io.github.mdmusahub.jpaadmin.web.FileController;
 import io.github.mdmusahub.jpaadmin.web.FormController;
 import io.github.mdmusahub.jpaadmin.web.PublicFileHandler;
 import io.github.mdmusahub.jpaadmin.web.RecordController;
+import io.github.mdmusahub.jpaadmin.web.StatsController;
 import io.github.mdmusahub.jpaadmin.web.ThemeController;
 import io.github.mdmusahub.jpaadmin.web.UploadController;
 import jakarta.persistence.EntityManagerFactory;
@@ -395,13 +399,56 @@ UploadFiles jpaAdminUploadFiles(UploadTargets targets, UploadTicketService ticke
         return new ConsoleViews(viewFactory);
     }
 
+    /**
+     * The chart's reader (Phase 10): one Criteria query per chart entity that selects only the creation column. Spring's
+     * shared, transaction-aware entity manager, so the reader's {@code @Transactional(readOnly = true)} method is a real
+     * read-only transaction of its own for every entity (ARCH-5) and one failing table cannot spoil the next read.
+     */
+    @Bean
+    @ConditionalOnBean(type = ENTITY_MANAGER_FACTORY)
+    @ConditionalOnMissingBean
+    CreationDates jpaAdminCreationDates(ObjectProvider<EntityManagerFactory> factories) {
+        EntityManagerFactory factory = consoleEntityManagerFactory(factories);
+        return factory == null ? CreationDates.unavailable()
+                : CreationDates.over(SharedEntityManagerCreator.createSharedEntityManager(factory));
+    }
+
+    /**
+     * The "Records created" chart's statistics, with the host's {@code Clock} when it has one and the system clock (so the
+     * server's default zone) when it has not. Always there, so the dashboard and the JSON endpoint share one cache: without
+     * JPA it simply has no chart entity.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    StatsService jpaAdminStatsService(ObjectProvider<CreationDates> dates, ObjectProvider<AdminEntityRegistry> registries,
+                                      ObjectProvider<Clock> clocks) {
+        Clock clock = clocks.getIfAvailable(Clock::systemDefaultZone);
+        AdminEntityRegistry registry = registries.getIfAvailable(AdminEntityRegistry::empty);
+        CreationDates reader = dates.getIfAvailable();
+        return reader == null ? StatsService.unavailable(registry, clock) : StatsService.over(reader, registry, clock);
+    }
+
+    /** The dashboard's chart card: range links, geometry and the entities left out. */
+    @Bean
+    @ConditionalOnMissingBean
+    DashboardCharts jpaAdminDashboardCharts(BasePath basePath, StatsService stats) {
+        return new DashboardCharts(basePath, stats);
+    }
+
+    /** {@code GET {path}/api/stats}: the chart's data as JSON. */
+    @Bean
+    @ConditionalOnMissingBean
+    StatsController jpaAdminStatsController(StatsService stats) {
+        return new StatsController(stats);
+    }
+
     /** The dashboard, the sign-in page and the "access denied" page. */
     @Bean
     @ConditionalOnMissingBean
     ConsoleController jpaAdminConsoleController(ConsoleChromeFactory chromeFactory, ConsoleViews views,
                                                 ConsoleSettings settings, BasePath basePath,
-                                                ConsoleNavigation navigation) {
-        return new ConsoleController(chromeFactory, views, settings, basePath, navigation);
+                                                ConsoleNavigation navigation, DashboardCharts charts) {
+        return new ConsoleController(chromeFactory, views, settings, basePath, navigation, charts);
     }
 
     /** One entity's list page at {@code {path}/{entity}}. */

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<body>
+<!--/*
+  The "Records created" chart card of the dashboard (task U7). It reads view.chart (DashboardView.Chart) and nothing else.
+
+  Everything is drawn by the server, so the card needs no script at all:
+  - The range switch is three plain links (view.chart.ranges); the backend builds them, the current one carries
+    aria-current. Following one reloads the dashboard with ?range=N.
+  - The chart is an inline SVG of stacked bars, one bar per day, oldest on the left. The backend computes every number
+    (x, y, height in a 1000-unit box, see DashboardView.Chart), so the template only prints them. The svg has a title
+    and a description, its bars are decoration (a title each, for the hover tooltip), and the same numbers are in the
+    legend (totals) and in the closed "Daily counts" table below, which is the text alternative.
+  - The colour of an entity is a CSS class (chart-tone-0 to chart-tone-7, then it repeats), mixed from the accent
+    variable and the theme's ink and panel colours in the stylesheet. Colour is never the only carrier: the legend and
+    the table name every entity.
+  - States: the notes (a range that was replaced, an entity that could not be read, counts that are incomplete), the
+    entities that are not in the chart because they have no creation date field, "nothing to draw" when no record was
+    created, and "could not be read" when no entity could be read. A number is printed with thousands separators.
+
+  No inline style, no inline script, no handler (UI-13). The only link targets are the backend's range links.
+*/-->
+<section th:fragment="chart" class="card chart-card" id="chart" aria-labelledby="chart-title">
+  <div class="chart-head">
+    <div class="chart-heading">
+      <h2 id="chart-title">Records created</h2>
+      <p class="muted chart-sub" th:text="'Last ' + ${view.chart.series.range} + ' days, per day'">Last 30 days, per day</p>
+    </div>
+    <nav class="range-switch" aria-label="Chart range">
+      <a th:each="range : ${view.chart.ranges}" class="range-link" th:classappend="${range.current} ? 'is-current'"
+         th:href="@{${range.href}}" th:attr="aria-current=${range.current} ? 'true'"
+         th:text="${range.days} + ' days'">30 days</a>
+    </nav>
+  </div>
+
+  <ul class="chart-notes" th:if="${!view.chart.series.notes.isEmpty()}">
+    <li th:each="note : ${view.chart.series.notes}" th:text="${note}">A note</li>
+  </ul>
+
+  <p class="chart-state" th:if="${!view.chart.anyAvailable()}">
+    The creation dates could not be read just now, so there is nothing to draw. Reload the page in a few seconds.
+  </p>
+  <p class="chart-state" th:if="${view.chart.anyAvailable() and view.chart.peak == 0}"
+     th:text="'Nothing to draw: no record was created in the last ' + ${view.chart.series.range} + ' days.'">
+    Nothing to draw: no record was created in the last 30 days.
+  </p>
+
+  <figure class="chart-figure" th:if="${view.chart.peak > 0}">
+    <div class="chart-plot">
+      <div class="chart-y" aria-hidden="true">
+        <span th:text="${#numbers.formatInteger(view.chart.peak, 1, 'COMMA')}">12</span>
+        <span>0</span>
+      </div>
+      <svg class="chart-svg" th:attr="viewBox='0 0 ' + ${view.chart.width} + ' 1000'" preserveAspectRatio="none"
+           role="img" aria-labelledby="chart-svg-title chart-svg-desc" focusable="false">
+        <title id="chart-svg-title">Records created per day</title>
+        <desc id="chart-svg-desc"
+              th:text="'Stacked bars for the last ' + ${view.chart.series.range} + ' days. The tallest day has ' + ${#numbers.formatInteger(view.chart.peak, 1, 'COMMA')} + ' records. The same numbers are in the daily counts table below.'">Stacked bars.</desc>
+        <line class="chart-grid" x1="0" y1="1" y2="1" th:attr="x2=${view.chart.width}"></line>
+        <line class="chart-grid" x1="0" y1="500" y2="500" th:attr="x2=${view.chart.width}"></line>
+        <line class="chart-grid chart-grid-base" x1="0" y1="999" y2="999" th:attr="x2=${view.chart.width}"></line>
+        <g th:each="bar : ${view.chart.bars}" class="chart-bar">
+          <title th:text="${bar.summary}">Nov 3: Orders 2</title>
+          <rect th:each="seg : ${bar.segments}" width="8" th:class="'chart-seg chart-tone-' + ${seg.entity % 8}"
+                th:attr="x=${bar.x}, y=${seg.y}, height=${seg.height}"></rect>
+        </g>
+      </svg>
+    </div>
+    <div class="chart-axis" aria-hidden="true">
+      <span th:each="label : ${view.chart.axis}" th:text="${label}">Nov 3</span>
+    </div>
+  </figure>
+
+  <ul class="chart-legend" aria-label="Entities in the chart">
+    <li class="chart-legend-item" th:each="entity, status : ${view.chart.series.entities}">
+      <span class="chart-swatch" th:classappend="'chart-tone-' + ${status.index % 8}" aria-hidden="true"></span>
+      <span class="chart-legend-name" th:text="${entity.label}">Orders</span>
+      <span class="chart-legend-total" th:if="${entity.available}"
+            th:text="${#numbers.formatInteger(entity.total, 1, 'COMMA')} + ' created'">12 created</span>
+      <span class="chart-legend-total chart-unavailable" th:unless="${entity.available}">unavailable</span>
+      <span class="chart-legend-flag" th:if="${entity.capped}">incomplete</span>
+    </li>
+  </ul>
+
+  <p class="muted chart-leftout" th:if="${!view.chart.leftOut.isEmpty()}">
+    Not in the chart: <span th:text="${#strings.listJoin(view.chart.leftOut, ', ')}">Tags</span>. They have no creation
+    date field.
+  </p>
+
+  <details class="chart-details" th:if="${!view.chart.series.entities.isEmpty()}">
+    <summary>Daily counts</summary>
+    <div class="table-scroll" tabindex="0" role="region" aria-label="Daily counts table">
+      <table class="data-table chart-table">
+        <caption class="visually-hidden"
+                 th:text="'Records created per day, last ' + ${view.chart.series.range} + ' days'">Records created per day</caption>
+        <thead>
+          <tr>
+            <th scope="col">Date</th>
+            <th scope="col" class="align-end" th:each="entity : ${view.chart.series.entities}" th:text="${entity.label}">Orders</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr th:each="day : ${view.chart.series.days}">
+            <th scope="row" th:text="${day.date}">2026-11-03</th>
+            <td class="align-end" th:each="count : ${day.counts}"
+                th:text="${#numbers.formatInteger(count, 1, 'COMMA')}">0</td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr>
+            <th scope="row">Total</th>
+            <td class="align-end" th:each="entity : ${view.chart.series.entities}"
+                th:text="${entity.available} ? ${#numbers.formatInteger(entity.total, 1, 'COMMA')} : 'unavailable'">12</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </details>
+</section>
+</body>
+</html>

@@ -101,7 +101,7 @@ final class UploadAnswers {
         return out.toString();
     }
 
-    private static String string(String value) {
+    static String string(String value) {
         if (value == null) {
             return "null";
         }
