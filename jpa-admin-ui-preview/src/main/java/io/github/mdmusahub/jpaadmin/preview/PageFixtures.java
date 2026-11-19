@@ -41,28 +41,36 @@ final class PageFixtures {
                 "Back office of the Example Company Regional Operations and Customer Support Team", null, false));
 
         // Zero values, like the dashboard of a console that found no entity at all.
-        DASHBOARD.put("minimal", new DashboardView(new DashboardView.Stats(0, 0, 0, null), List.of(), false));
+        DASHBOARD.put("minimal", new DashboardView(new DashboardView.Stats(0, 0, 0, null), List.of(), false, null));
         DASHBOARD.put("normal", new DashboardView(
                 new DashboardView.Stats(12_745, 8, 3, new DashboardView.LargestTable("Comments", 5_430)),
-                groups(), true));
+                groups(), true, ChartFixtures.chart("normal")));
         DASHBOARD.put("no-chart", new DashboardView(
                 new DashboardView.Stats(12_745, 8, 3, new DashboardView.LargestTable("Comments", 5_430)),
-                groups(), false));
+                groups(), false, null));
         // An empty database: entities are there, every count is zero, so there is no largest table.
         DASHBOARD.put("empty-database", new DashboardView(new DashboardView.Stats(0, 8, 3, null),
-                groups(count -> 0L), false));
+                groups(count -> 0L), false, null));
         // One count could not be read: the card says so and the entity is left out of the total.
         DASHBOARD.put("count-unavailable", new DashboardView(
                 new DashboardView.Stats(7_315, 8, 3, new DashboardView.LargestTable("Comments", 5_430)),
-                groups(count -> count == 1_204L ? null : count), false));
-        DASHBOARD.put("no-entities", new DashboardView(new DashboardView.Stats(0, 0, 0, null), List.of(), false));
+                groups(count -> count == 1_204L ? null : count), false, null));
+        DASHBOARD.put("no-entities", new DashboardView(new DashboardView.Stats(0, 0, 0, null), List.of(), false, null));
         DASHBOARD.put("many-groups", new DashboardView(
                 new DashboardView.Stats(3_456_789, ChromeFixtures.LONG_NAVIGATION_ENTITIES, 8,
                         new DashboardView.LargestTable("Entity 8", 1_000_000)),
-                manyGroups(), false));
+                manyGroups(), false, null));
         DASHBOARD.put("read-only-entities", new DashboardView(
                 new DashboardView.Stats(12_745, 8, 3, new DashboardView.LargestTable("Comments", 5_430)),
-                groups(), false));
+                groups(), false, null));
+        // The chart card in its states (docs/FIXTURES.md section 4): "chart-" plus the chart state.
+        for (String state : ChartFixtures.states()) {
+            if (!state.equals("normal")) {
+                DASHBOARD.put("chart-" + state, new DashboardView(
+                        new DashboardView.Stats(12_745, 8, 3, new DashboardView.LargestTable("Comments", 5_430)),
+                        groups(), true, ChartFixtures.chart(state)));
+            }
+        }
 
         ERROR.put("not-found", ErrorViews.forStatus(404));
         ERROR.put("forbidden", ErrorViews.forStatus(403));

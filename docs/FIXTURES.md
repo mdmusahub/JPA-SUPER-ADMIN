@@ -48,8 +48,8 @@ Used with any page through `&chrome=`.
 
 | Fixture | Fills | Covers | Task |
 |---|---|---|---|
-| `normal` | `DashboardView` with 3 groups, 8 entities, `chartAvailable` true | Stat cards, entity cards with counts and permissions, chart card placeholder | U1 |
-| `no-chart` | `chartAvailable` false | Chart card hidden | U1 |
+| `normal` | `DashboardView` with 3 groups, 8 entities, `chartAvailable` true | Stat cards, entity cards with counts and permissions, the 30-day chart card (section 4) | U1, U7 |
+| `no-chart` | `chartAvailable` false, `chart` null | Chart card hidden, one sentence under the stat cards says why | U1, U7 |
 | `empty-database` | All counts 0, `largestTable` null | Stat cards with zeros, empty-state hint | U1 |
 | `minimal` | `DashboardView` with zero stats, no groups, `chartAvailable` false (what the Phase 2 dashboard really shows) | Shell plus a welcome state, no data | U0 |
 | `no-entities` | `groups` empty, `entityCount` 0 | Empty state that explains how entities are discovered | U1 |
@@ -61,17 +61,26 @@ Used with any page through `&chrome=`.
 
 The Phase 3 entity page had no record of its own: the shell plus a "not available yet" notice. Phase 4 replaced it with the list page (section 5), and deleted the notice, the page `entity`, its fixture `not-available` and the chrome variant `entity-active`.
 
-## 4. Chart data (record: `ChartSeries`, JSON)
+## 4. Chart card (records: `DashboardView.Chart` and `ChartSeries`; task U7, delivered in Phase 10, D-101 to D-103)
 
-The preview serves these from a stub endpoint, so the chart can be built without the real statistics endpoint.
+The chart card is part of the dashboard page, so its fixtures are dashboard states: `/admin-preview/dashboard?state=chart-{name}` (and `normal`, which carries the 30-day card). Each card is built from made-up numbers by the real `DashboardCharts.chartOf`, so the geometry and the range links are the ones the console uses. The last day of every series is 2026-11-18. The JSON of `ChartSeries` has no preview endpoint: the card is drawn on the server and needs no script, and the real endpoint answers the same record.
 
-| Fixture | Fills | Covers | Task |
+| Fixture (state) | Fills | Covers | Task |
 |---|---|---|---|
-| `range-7`, `range-30`, `range-90` | `ChartSeries` for each range with 3 entities | Range switch, axis labels at each density | U7 |
-| `single-entity` | 1 entity | Legend with one item, no stacking | U7 |
-| `all-zero` | Every count 0 | Flat chart, empty-state text | U7 |
-| `spike` | One day with a very large count | Scaling, tooltip values | U7 |
-| `many-entities` | 12 entities | Legend wrapping, colour reuse | U7 |
+| `normal` | 30 days, 3 entities, one entity left out (Tags) | The whole card: range switch with 30 current, bars, legend with totals, the closed daily table, the left-out sentence | U7 |
+| `chart-range-7`, `chart-range-90` | 7 and 90 days, 3 entities | Range switch, bar density, axis labels | U7 |
+| `chart-single-entity` | 1 entity | Legend with one item, no colour reuse | U7 |
+| `chart-one-unavailable` | The middle entity cannot be read | "unavailable" in the legend and the table, a note, the others still drawn | U7 |
+| `chart-all-unavailable` | No entity can be read | "could not be read just now", nothing drawn | U7 |
+| `chart-all-zero` | Every count 0 | "Nothing to draw", no flat chart | U7 |
+| `chart-spike` | One day with 48,000 | Scaling, a thousands separator, tiny bars next to a tall one | U7 |
+| `chart-large-counts` | Counts in the millions | Thousands separators in the legend, the table and the scale | U7 |
+| `chart-long-labels` | Two very long entity labels and a long left-out label | Wrapping in the legend and the table, no sideways page scroll | U7 |
+| `chart-range-fallback` | The note that a range was replaced by 30 | The note box | U7 |
+| `chart-capped` | One entity with incomplete counts | The "incomplete" flag and the cap note | U7 |
+| `chart-many-entities` | 12 entities | Legend wrapping, the eight colours reused | U7 |
+| `chart-new-year` | A range across New Year | The axis labels carry the year | U7 |
+| `no-chart` (section 3) | `chartAvailable` false | The card is hidden and one sentence says why | U7 |
 
 ## 5. List (records: `ListView`, `Cell`)
 

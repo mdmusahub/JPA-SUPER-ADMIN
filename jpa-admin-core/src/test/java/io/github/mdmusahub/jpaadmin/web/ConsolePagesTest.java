@@ -162,7 +162,7 @@ class ConsolePagesTest {
             assertThat(type.getPackageName()).isEqualTo("io.github.mdmusahub.jpaadmin.web");
             assertThat(AnnotatedElementUtils.findMergedAnnotation(type, RequestMapping.class)).as("no class-level path").isNull();
         }
-        assertThat(ConsoleController.class.getMethod("dashboard", HttpServletRequest.class)
+        assertThat(ConsoleController.class.getMethod("dashboard", String.class, HttpServletRequest.class)
                 .getAnnotation(GetMapping.class).value()).isEmpty();
         assertThat(ConsoleController.class.getMethod("login", HttpServletRequest.class)
                 .getAnnotation(GetMapping.class).value()).containsExactly("/login");

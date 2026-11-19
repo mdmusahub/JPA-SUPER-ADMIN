@@ -299,6 +299,26 @@ spring:
 
 Sign in, sidebar and groups, dashboard and chart, browsing records, readable values, search and sort, filters, saved views, display options, bulk actions (delete, Phase 7), export, viewing a record (Phase 7), creating and editing, validation, uploads, keyboard shortcuts, themes, what is stored in the browser. Add a screenshot for each section.
 
+### The "Records created" chart (Phase 10, D-101 to D-104)
+
+The dashboard shows how many records of each entity were created on each of the last 7, 30 or 90 days, as stacked bars (one colour per entity), with a legend that gives each entity's total and a closed "Daily counts" table that holds the same numbers as text. The range switch is three plain links (`?range=7`, `?range=30`, `?range=90`); the card needs no script and works with JavaScript off.
+
+**Which entities are in the chart.** An entity is in the chart when it has a creation timestamp field: a field that is visible and not sensitive, of type `LocalDate`, `LocalDateTime`, `Instant`, `OffsetDateTime` or `ZonedDateTime`, and named one of the following (case is ignored, and so are `_` and `-`, so `created_at` and `CREATED-AT` match): `createdAt`, `createdDate`, `createdOn`, `creationDate`, `creationTime`, `createTime`, `createdDateTime`. When an entity has several, the first name in that list wins. A sensitive or hidden field is skipped, never read. `java.util.Date` and `java.sql.Timestamp` fields are not recognised. An entity with no such field is left out, and the card says which ones ("Not in the chart: ..."). When no entity has one, the card is hidden and one sentence under the stat cards says so.
+
+**The range.** Only 7, 30 and 90 are accepted. A missing `range` is 30. Any other value (`45`, `abc`, a repeated parameter) is replaced by 30 and the card says "That range is not available, so the last 30 days are shown". The range is today and the days before it, so 30 means today and the 29 days before.
+
+**What it costs a host.** One query per chart entity, built with the Criteria API, that selects only the creation column for the last 90 days (newest first, at most 50,000 rows) and counts the days in Java. No database function is used, so the same query runs on H2, PostgreSQL and MySQL. The answer is kept for 5 seconds: one dashboard load runs at most one such query per chart entity, a repeat, a change of range and the JSON endpoint inside those 5 seconds run none. An index on the creation column keeps the query cheap on a large table. Each entity is read in its own read-only transaction.
+
+**The row cap.** If an entity has more than 50,000 records in the last 90 days, only the newest 50,000 are counted. The legend marks it "incomplete" and a note names the day up to which the counts are incomplete. A shorter range that lies inside the complete part is not marked.
+
+**Time zone.** Days follow the `Clock` bean of the host application when it has one, otherwise the server's default time zone (set the JVM zone, `-Duser.timezone`, or define a `Clock` bean to change it). A `LocalDate` or `LocalDateTime` value is a calendar value and is counted on the day it holds; an `Instant`, `OffsetDateTime` or `ZonedDateTime` is counted on the day it falls on in that zone. Days are the server's, not the viewer's.
+
+**A table that cannot be read.** The entity is shown as "unavailable" with a plain message, one log line (without a stack trace) is written per 5 seconds at most, and the rest of the dashboard and the other entities are unaffected.
+
+**The JSON.** `GET {path}/api/stats?range=7|30|90` answers the same data as JSON: `range`, `entities` (`name`, `label`, `available`, `total`, `capped`), `days` (`date`, `counts` in the order of the entities) and `notes`. It needs the signed-in session (an anonymous request is sent to the sign-in page), answers GET only (a POST is refused), and holds no entity, no sensitive value and no hidden entity. It is for the console and is not a stable public API in v0.1.
+
+**Limits.** A 7-day view reads the same 90-day window as a 90-day one. Counts are incomplete beyond 50,000 records in 90 days. A creation column that is not the moment of creation (imported rows) shows what it holds. An entity whose URL name is `api` cannot open its record with the id `stats`.
+
 ## B6. Customizing entities (draft outline)
 
 One section per annotation with a short example and a table of options with defaults and status (Supported, Partial, Not yet). Include examples for hiding an entity, marking a field sensitive, setting a group and icon, making an entity read-only, coloured badges, choosing a relation label, and an upload field.
@@ -363,6 +383,8 @@ The other annotations of `docs/PLAN.md` section 6 (`@AdminField`, `@AdminBadge`,
 Routes from `docs/PLAN.md` section 9, with parameters, responses and error codes. State that the endpoints serve the console and are not a stable public API in v0.1.
 
 Upload routes (Phase 9a). `POST {path}/uploads`, `multipart/form-data`, parts `file`, `ticket`, `entity`, `field` and, for the plain form, `record` (the id of the record being edited, used only to build the way back). Needs the signed-in admin and the CSRF token. With `Accept: application/json`: status 200 and `{"url":"...","name":"...","size":N,"error":null}`, or the refusal's status and `{"url":null,"name":null,"size":0,"error":"..."}`; statuses: 400 nothing to store or not multipart, 403 bad, expired or missing ticket, 413 too large (the field's, the storage's or the host's limit), 415 wrong content, 500 not stored. Without that header: 303 to the form page with a one-time message, or the console's error page with the refusal's status. `GET {path}/files/{storage}/{key}` serves a stored file to the signed-in admin (404 for anything that is not one); with a `public-path`, `GET {public-path}/{key}` serves it to everyone.
+
+Chart route (Phase 10). `GET {path}/api/stats?range=7|30|90` returns the data of the dashboard chart as JSON (see "The Records created chart" under "Using the console"). It needs the signed-in admin, answers GET only (a POST is refused with the console's 404, or 403 without the CSRF token), reads only the creation column of the entities that have one, and replaces a `range` that is not 7, 30 or 90 by 30 and says so in `notes`. The body is written by the console itself, so the host's JSON settings do not change it.
 
 ## B11. Deployment and troubleshooting (draft outline)
 
@@ -451,6 +473,8 @@ Known limits and the phase that addresses each (re-scope, D-60). This list adds 
 - **A detail page for a very wide entity** prints every visible field; there is no field selection or hiding of columns until Phase 12.
 
 Roadmap: v0.2 rate limiting, S3 storage provider and multi-value filters, v0.3 audit log, v0.4 multiple admins with roles, v0.5 inline child rows, v0.6 galleries and thumbnails, v1.0 stable API, `@Embedded` and composite keys. A Spring Boot 3.5 compatibility build can be reconsidered if users ask.
+
+Chart limits (Phase 10, D-104): the chart reads up to 50,000 timestamps per chart entity every 5 seconds at most, whatever the range, so index the creation column of a very large table; counts are incomplete beyond 50,000 records in 90 days (the card says so); `java.util.Date` and `java.sql.Timestamp` creation fields are not recognised; days follow the server's time zone (or the host's `Clock`), not the viewer's; the one-transaction-per-entity isolation is proven on H2, and a PostgreSQL run is a Phase 14 item; the browser pass of the card (both themes, phone width, keyboard, script off) is a manual item.
 
 ## B13. Contributing pages (draft outline)
 

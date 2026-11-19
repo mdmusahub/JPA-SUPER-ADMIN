@@ -174,7 +174,7 @@ class ConsoleAtDefaultPathTest {
                 found++;
                 String address = matcher.group(1);
                 if (!address.equals("#main") && !address.equals("data:,")) {
-                    assertThat(address).satisfiesAnyOf(a -> assertThat(a).isEqualTo("/admin"), a -> assertThat(a).startsWith("/admin/"));
+                    assertThat(address).satisfiesAnyOf(a -> assertThat(a).isEqualTo("/admin"), a -> assertThat(a).startsWith("/admin/"), a -> assertThat(a).startsWith("/admin?"));
                 }
             }
             assertThat(found).isPositive();
