@@ -213,7 +213,8 @@ class ConsoleEntityPagesTest {
     void everythingButExportIsOfferedYetSoNoPageShowsAButtonThatLeadsNowhere() {
         DashboardView view = navigation.dashboard();
 
-        // Create and update are real since Phase 8, delete since Phase 7 (all these entities allow all three); export arrives in Phase 11.
+        // Create and update are real since Phase 8, delete since Phase 7 (all these entities allow all three); export is real since
+        // Phase 11 but this navigation is built with the older constructor, which does not switch it on (ExportControllerTest has the rest).
         assertThat(view.groups().stream().flatMap(group -> group.entities().stream())
                 .map(DashboardView.EntityCard::permissions).distinct())
                 .containsExactly(new DashboardView.Permissions(true, true, true, false));

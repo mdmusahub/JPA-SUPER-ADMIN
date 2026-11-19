@@ -86,8 +86,22 @@ final class FilterFixtures {
         return articles(basePath, controls(authors()), search, sort, dir, page, size, filters);
     }
 
+    /**
+     * The list with the export button (task U8): a search, a sort and a filter are in force, and the export link built by the real
+     * factory carries exactly those (and not the page or the size).
+     */
+    static ListView exportEnabled(String basePath) {
+        return articles(basePath, controls(authors()), "guide", "views", "desc", 1, 10,
+                List.of(ActiveFilter.of("status", Kind.ENUM, "PUBLISHED")), true);
+    }
+
     static ListView articles(String basePath, List<FilterControl> controls, String search, String sort, String dir,
                              int page, int size, List<ActiveFilter> filters) {
+        return articles(basePath, controls, search, sort, dir, page, size, filters, false);
+    }
+
+    private static ListView articles(String basePath, List<FilterControl> controls, String search, String sort, String dir,
+                                     int page, int size, List<ActiveFilter> filters, boolean export) {
         List<ListFixtures.Article> matching = new ArrayList<>();
         for (ListFixtures.Article article : ListFixtures.allArticles(false)) {
             boolean searched = search.isEmpty() || article.title().toLowerCase(Locale.ROOT).contains(search.toLowerCase(Locale.ROOT));
@@ -110,7 +124,8 @@ final class FilterFixtures {
         }
         ListQuery query = new ListQuery(search, sort, dir, shown, size, filters);
         return ListViewFactory.build(basePath, "article", ListFixtures.ARTICLES, new ListPage(COLUMNS, rows, matching.size(),
-                query, List.of("Title"), controls, List.of()), new ListView.Actions(false, false, false, null, null));
+                query, List.of("Title"), controls, List.of()), new ListView.Actions(false, false, false, null, null), false,
+                export);
     }
 
     private static boolean featured(ListFixtures.Article article) {

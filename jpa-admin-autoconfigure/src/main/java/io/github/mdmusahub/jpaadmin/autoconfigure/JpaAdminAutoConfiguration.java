@@ -6,6 +6,8 @@ import io.github.mdmusahub.jpaadmin.service.CountService;
 import io.github.mdmusahub.jpaadmin.service.CreationDates;
 import io.github.mdmusahub.jpaadmin.service.DeleteService;
 import io.github.mdmusahub.jpaadmin.service.DetailQueryService;
+import io.github.mdmusahub.jpaadmin.service.ExportService;
+import io.github.mdmusahub.jpaadmin.service.ExportSettings;
 import io.github.mdmusahub.jpaadmin.service.FormQueryService;
 import io.github.mdmusahub.jpaadmin.service.ListQueryService;
 import io.github.mdmusahub.jpaadmin.service.RecordWriteService;
@@ -28,6 +30,7 @@ import io.github.mdmusahub.jpaadmin.web.ConsoleViews;
 import io.github.mdmusahub.jpaadmin.web.CsrfTokens;
 import io.github.mdmusahub.jpaadmin.web.DashboardCharts;
 import io.github.mdmusahub.jpaadmin.web.EntityController;
+import io.github.mdmusahub.jpaadmin.web.ExportController;
 import io.github.mdmusahub.jpaadmin.web.FileController;
 import io.github.mdmusahub.jpaadmin.web.FormController;
 import io.github.mdmusahub.jpaadmin.web.PublicFileHandler;
@@ -371,10 +374,40 @@ UploadFiles jpaAdminUploadFiles(UploadTargets targets, UploadTicketService ticke
      */
     @Bean
     ConsoleNavigation jpaAdminNavigation(ObjectProvider<AdminEntityRegistry> registries,
-                                         ObjectProvider<CountService> counts) {
+                                         ObjectProvider<CountService> counts, JpaAdminProperties properties) {
         AdminEntityRegistry registry = registries.getIfAvailable(AdminEntityRegistry::empty);
         CountService service = counts.getIfAvailable(() -> CountService.unavailable(Clock.systemUTC()));
-        return new ConsoleNavigation(registry, service);
+        return new ConsoleNavigation(registry, service, properties.isExportEnabled());
+    }
+
+    /** What the three {@code jpa.admin.export-*} properties say, checked at startup (D-107). Not replaceable. */
+    @Bean
+    ExportSettings jpaAdminExportSettings(JpaAdminProperties properties) {
+        return properties.exportSettings();
+    }
+
+    /**
+     * The CSV export (Phase 11). It reads through the list's query service, a transactional proxy, so every page is a real
+     * read-only transaction of its own (ARCH-5), and it takes its date from the host's {@code Clock} or else the system
+     * clock. The switches of SEC-11 are checked inside it, not only by the page. Without an entity manager factory it offers
+     * nothing.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    ExportService jpaAdminExportService(ObjectProvider<ListQueryService> lists, ObjectProvider<AdminEntityRegistry> registries,
+                                        ExportSettings settings, ObjectProvider<Clock> clocks) {
+        ListQueryService service = lists.getIfAvailable();
+        return service == null ? ExportService.none()
+                : ExportService.over(service, registries.getIfAvailable(AdminEntityRegistry::empty), settings,
+                        clocks.getIfAvailable(Clock::systemDefaultZone));
+    }
+
+    /** {@code GET {path}/{entity}/export.csv}: the CSV file of a list. */
+    @Bean
+    @ConditionalOnMissingBean
+    ExportController jpaAdminExportController(ConsoleNavigation navigation, ObjectProvider<ListQueryService> lists,
+                                              ExportService exports) {
+        return new ExportController(navigation, lists.getIfAvailable(ListQueryService::unavailable), exports);
     }
 
     @Bean
@@ -456,9 +489,9 @@ UploadFiles jpaAdminUploadFiles(UploadTargets targets, UploadTicketService ticke
     @ConditionalOnMissingBean
     EntityController jpaAdminEntityController(ConsoleChromeFactory chromeFactory, ConsoleViews views,
                                               ConsoleNavigation navigation, ObjectProvider<ListQueryService> lists,
-                                              BasePath basePath) {
+                                              BasePath basePath, ExportService exports) {
         return new EntityController(chromeFactory, views, navigation,
-                lists.getIfAvailable(ListQueryService::unavailable), basePath);
+                lists.getIfAvailable(ListQueryService::unavailable), basePath, exports);
     }
 
     /**

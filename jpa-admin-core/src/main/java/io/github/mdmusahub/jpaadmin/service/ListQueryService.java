@@ -194,12 +194,61 @@ public class ListQueryService {
         Root<?> root = select.from(entity.type());
 
         // Selection 0 is the identifier. Every other selection is remembered by position, per column.
+        Projection projection = project(root, plan, true);
+        int[] valueAt = projection.valueAt();
+        int[] labelAt = projection.labelAt();
+        select.multiselect(projection.selections());
+
+        FilterPredicates.Built conditions = conditions(builder, root, plan, query, specs);
+        if (!conditions.predicates().isEmpty()) {
+            select.where(conditions.predicates().toArray(new Predicate[0]));
+        }
+        orderBy(builder, select, root, plan, query, projection.labelPaths());
+
+        TypedQuery<Tuple> typed = entityManager.createQuery(select);
+        bind(typed, conditions.bindings());
+        typed.setFirstResult((int) Math.min((long) query.page() * query.size(), Integer.MAX_VALUE));
+        typed.setMaxResults(query.size());
+
+        List<ListView.Row> rows = new ArrayList<>();
+        for (Tuple tuple : typed.getResultList()) {
+            List<Cell> cells = new ArrayList<>(plan.columns().size());
+            List<String> targets = new ArrayList<>(plan.columns().size());
+            for (int i = 0; i < plan.columns().size(); i++) {
+                PlannedColumn column = plan.columns().get(i);
+                cells.add(cell(column, tuple, valueAt[i], labelAt[i]));
+                Object target = column.relation() != null && valueAt[i] >= 0 ? tuple.get(valueAt[i]) : null;
+                targets.add(target == null ? null : CellFormatter.id(target));
+            }
+            rows.add(new ListView.Row(CellFormatter.id(tuple.get(0)), cells));
+            relationIds.add(targets);
+        }
+        return rows;
+    }
+
+    /**
+     * What a query selects for the columns of a plan, and where each column's value (and a relation's label) sits in a row of
+     * the result. The list and the export share it, so both select the same attributes the same way: a sensitive attribute is
+     * never selected (SEC-1), a to-one relation is one {@code LEFT JOIN} that also selects the label (ARCH-6), and nothing
+     * else (no entity, no collection, no embedded or binary value) is touched (ARCH-3, ARCH-4).
+     *
+     * @param labelPaths the label of each relation column, from the join the column already makes: a sort by that column
+     *                   orders by this path, so sorting adds neither a join nor a statement (D-60)
+     */
+    private record Projection(List<Selection<?>> selections, int[] valueAt, int[] labelAt, Map<String, Path<?>> labelPaths) {
+    }
+
+    /**
+     * @param selectId whether selection 0 is the identifier. The list needs it for the row; the export selects the
+     *                 identifier only when it is an exported column, so an identifier that is a sensitive field is never read.
+     */
+    private static Projection project(Root<?> root, Plan plan, boolean selectId) {
         List<Selection<?>> selections = new ArrayList<>();
-        selections.add(root.get(plan.idAttribute()));
+        if (selectId) {
+            selections.add(root.get(plan.idAttribute()));
+        }
         int[] valueAt = new int[plan.columns().size()];
         int[] labelAt = new int[plan.columns().size()];
-        // The label of each relation column, from the join the column already makes: a sort by that column orders by
-        // this path, so sorting adds neither a join nor a statement (D-60).
         Map<String, Path<?>> labelPaths = new HashMap<>();
         for (int i = 0; i < plan.columns().size(); i++) {
             PlannedColumn column = plan.columns().get(i);
@@ -223,33 +272,102 @@ public class ListQueryService {
                 selections.add(root.get(column.field().name()));
             }
         }
-        select.multiselect(selections);
+        return new Projection(selections, valueAt, labelAt, labelPaths);
+    }
 
-        FilterPredicates.Built conditions = conditions(builder, root, plan, query, specs);
+    // ---- the export: the same pipeline, read in pages ----------------------------------------------------------
+
+    /**
+     * Prepares an export of {@code entity}: checks the query exactly as the list does (an unknown, hidden or sensitive sort
+     * key, filter or relation choice is dropped, SEC-2), resolves the filters, and counts the records that match. Reads in a
+     * read-only transaction of its own (ARCH-5). The columns are the list's, minus the masked ones: a sensitive column is
+     * not in the header, the rows or the SQL.
+     *
+     * <p>This method does not check the export switches (SEC-11); {@link ExportService#open} does, and is the only caller
+     * outside tests.
+     *
+     * @param entity an entity from the registry
+     * @param query  the checked query; its page and size are ignored
+     * @throws IllegalStateException if the console has no entity manager
+     */
+    @Transactional(readOnly = true)
+    public ExportPlan exportPlan(AdminEntity entity, ListQuery query) {
+        Objects.requireNonNull(entity, "entity");
+        Objects.requireNonNull(query, "query");
+        requireEntityManager();
+        Plan plan = plans.computeIfAbsent(entity.urlName(), key -> plan(entity));
+        ListQuery checked = plan.checked(query);
+        CriteriaBuilder builder = entityManager.getCriteriaBuilder();
+        Filtering filtering = filtering(builder, plan, checked);
+        checked = filtering.query();
+        long total = count(builder, entity, plan, checked, filtering.specs());
+        List<ListColumn> columns = plan.columns().stream().filter(column -> !column.masked()).map(PlannedColumn::column)
+                .toList();
+        return new ExportPlan(entity, columns, total, checked, filtering.specs());
+    }
+
+    /**
+     * One page of an export, as cell text, one entry per exported column ({@code null} is an empty cell). The same
+     * selection, conditions, bound parameters and order as the list's page, cut with {@code setFirstResult} and
+     * {@code setMaxResults}; a read-only transaction of its own per call (ARCH-5), so no connection is held while a slow
+     * client takes the bytes.
+     *
+     * @param plan   from {@link #exportPlan}
+     * @param offset rows to skip, at least 0
+     * @param limit  rows to read, at least 1
+     */
+    @Transactional(readOnly = true)
+    public List<List<String>> exportRows(ExportPlan plan, int offset, int limit) {
+        Objects.requireNonNull(plan, "plan");
+        if (offset < 0 || limit < 1) {
+            throw new IllegalArgumentException("offset must not be negative and limit must be at least 1");
+        }
+        requireEntityManager();
+        AdminEntity entity = plan.entity();
+        Plan listPlan = plans.computeIfAbsent(entity.urlName(), key -> plan(entity));
+        CriteriaBuilder builder = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Tuple> select = builder.createTupleQuery();
+        Root<?> root = select.from(entity.type());
+        Projection projection = project(root, listPlan, false);
+        select.multiselect(projection.selections());
+        FilterPredicates.Built conditions = conditions(builder, root, listPlan, plan.query(), plan.specs());
         if (!conditions.predicates().isEmpty()) {
             select.where(conditions.predicates().toArray(new Predicate[0]));
         }
-        orderBy(builder, select, root, plan, query, labelPaths);
-
+        orderBy(builder, select, root, listPlan, plan.query(), projection.labelPaths());
         TypedQuery<Tuple> typed = entityManager.createQuery(select);
         bind(typed, conditions.bindings());
-        typed.setFirstResult((int) Math.min((long) query.page() * query.size(), Integer.MAX_VALUE));
-        typed.setMaxResults(query.size());
+        typed.setFirstResult(offset);
+        typed.setMaxResults(limit);
 
-        List<ListView.Row> rows = new ArrayList<>();
+        List<List<String>> rows = new ArrayList<>();
         for (Tuple tuple : typed.getResultList()) {
-            List<Cell> cells = new ArrayList<>(plan.columns().size());
-            List<String> targets = new ArrayList<>(plan.columns().size());
-            for (int i = 0; i < plan.columns().size(); i++) {
-                PlannedColumn column = plan.columns().get(i);
-                cells.add(cell(column, tuple, valueAt[i], labelAt[i]));
-                Object target = column.relation() != null && valueAt[i] >= 0 ? tuple.get(valueAt[i]) : null;
-                targets.add(target == null ? null : CellFormatter.id(target));
+            List<String> cells = new ArrayList<>(plan.columns().size());
+            for (int i = 0; i < listPlan.columns().size(); i++) {
+                PlannedColumn column = listPlan.columns().get(i);
+                if (column.masked()) {
+                    continue; // not in the header, so not in the row
+                }
+                int valueAt = projection.valueAt()[i];
+                int labelAt = projection.labelAt()[i];
+                if (valueAt < 0) {
+                    cells.add(null);
+                } else if (column.relation() != null) {
+                    cells.add(ExportValues.relation(labelAt < 0 ? null : tuple.get(labelAt), tuple.get(valueAt)));
+                } else {
+                    // An upload field exports its stored address text, like any other text (D-105).
+                    cells.add(ExportValues.text(column.column().type(), tuple.get(valueAt)));
+                }
             }
-            rows.add(new ListView.Row(CellFormatter.id(tuple.get(0)), cells));
-            relationIds.add(targets);
+            rows.add(cells);
         }
         return rows;
+    }
+
+    private void requireEntityManager() {
+        if (entityManager == null) {
+            throw new IllegalStateException("The console has no entity manager to read records with.");
+        }
     }
 
     private Cell cell(PlannedColumn column, Tuple tuple, int valueAt, int labelAt) {

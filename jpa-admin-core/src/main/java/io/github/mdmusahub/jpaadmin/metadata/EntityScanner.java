@@ -224,7 +224,7 @@ public final class EntityScanner {
             AdminResource resource = type.getAnnotation(AdminResource.class);
             return resource == null ? AdminEntity.Access.FULL
                     : new AdminEntity.Access(resource.readOnly(), resource.creatable(), resource.updatable(),
-                            resource.deletable());
+                            resource.deletable(), resource.exportable());
         }
 
         /** Why the identifier stops the console from managing this entity, or {@code null} when it does not. */
