@@ -33,13 +33,24 @@ final class Samples {
                 new DashboardView.Stats(3, 1, 1, new DashboardView.LargestTable("Items", 3)),
                 List.of(new DashboardView.Group("Catalog", List.of(new DashboardView.EntityCard(
                         "item", "Items", "box", 3L, new DashboardView.Permissions(true, true, true, true))))),
-                true);
+                true, dashboardChart());
+    }
+
+    static DashboardView.Chart dashboardChart() {
+        return new DashboardView.Chart(chart(),
+                List.of(new DashboardView.RangeLink(7, true, "/admin?range=7"),
+                        new DashboardView.RangeLink(30, false, "/admin?range=30"),
+                        new DashboardView.RangeLink(90, false, "/admin?range=90")),
+                List.of("Tags"), 1, 20, List.of("Oct 30", "Oct 31"),
+                List.of(new DashboardView.Bar("2026-10-30", "Oct 30", "Oct 30: Items 1", 1, 0,
+                                List.of(new DashboardView.Segment(0, 0, 1000))),
+                        new DashboardView.Bar("2026-10-31", "Oct 31", "Oct 31: no records", 0, 10, List.of())));
     }
 
     static ChartSeries chart() {
-        return new ChartSeries(7, List.of("Items"), List.of(
+        return new ChartSeries(7, List.of(new ChartSeries.Entity("item", "Items", true, 1, false)), List.of(
                 new ChartSeries.Day("2026-10-30", List.of(1L)),
-                new ChartSeries.Day("2026-10-31", List.of(0L))));
+                new ChartSeries.Day("2026-10-31", List.of(0L))), List.of());
     }
 
     static ListView.Column nameColumn() {

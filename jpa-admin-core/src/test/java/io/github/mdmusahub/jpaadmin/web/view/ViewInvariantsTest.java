@@ -237,20 +237,20 @@ class ViewInvariantsTest {
     @ParameterizedTest
     @ValueSource(ints = {0, 1, 8, 14, 31, 60, 91, 365})
     void chartRejectsUnsupportedRanges(int range) {
-        assertThatThrownBy(() -> new ChartSeries(range, List.of(), List.of()))
+        assertThatThrownBy(() -> new ChartSeries(range, List.of(), List.of(), List.of()))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @ParameterizedTest
     @ValueSource(ints = {7, 30, 90})
     void chartAcceptsSupportedRanges(int range) {
-        assertThat(new ChartSeries(range, List.of(), List.of()).range()).isEqualTo(range);
+        assertThat(new ChartSeries(range, List.of(), List.of(), List.of()).range()).isEqualTo(range);
     }
 
     @Test
     void chartDayNeedsOneCountPerEntity() {
-        assertThatThrownBy(() -> new ChartSeries(7, List.of("A", "B"),
-                List.of(new ChartSeries.Day("2026-11-01", List.of(1L)))))
+        assertThatThrownBy(() -> new ChartSeries(7, List.of(new ChartSeries.Entity("a", "A", true, 1, false), new ChartSeries.Entity("b", "B", true, 0, false)),
+                List.of(new ChartSeries.Day("2026-11-01", List.of(1L))), List.of()))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

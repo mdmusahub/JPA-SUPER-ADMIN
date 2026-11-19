@@ -153,6 +153,16 @@ public record AdminEntity(Class<?> type, String entityName, String urlName, Stri
         return visibleFields().stream().filter(field -> field.name().equals(name)).findFirst();
     }
 
+    /**
+     * The attribute that says when a record was created, for the dashboard chart: a visible, non-sensitive date or time
+     * attribute named {@code createdAt}, {@code createdDate}, {@code createdOn}, {@code creationDate},
+     * {@code creationTime}, {@code createTime} or {@code createdDateTime} (case, {@code _} and {@code -} ignored; the first
+     * name in that order wins). Empty when there is none, and then the entity is not in the chart (D-101).
+     */
+    public Optional<AdminField> creationField() {
+        return CreationFields.find(this);
+    }
+
     /** The identifier field, or empty for an unsupported entity. */
     public Optional<AdminField> idField() {
         return fields.stream().filter(AdminField::id).findFirst();

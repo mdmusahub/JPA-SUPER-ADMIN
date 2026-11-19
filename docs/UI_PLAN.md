@@ -49,8 +49,8 @@ Defined once, at the contract freeze (section 8). All fields are display-ready s
 |---|---|---|
 | `PageChrome` | Every page | `title`, `basePath`, `theme`, `nav` (groups with entity name, label, icon, count; a `null` count means "unavailable"), `activeEntity`, `breadcrumbs`, `flash` messages, `user` (signed-in name, `null` when nobody is), `csrf` (parameter name and token) |
 | `LoginView` | Login | `title`, `error`, `logoutNotice` |
-| `DashboardView` | Dashboard | `stats` (total records, entities, groups, largest table), `groups` (entities with count and permissions), `chartAvailable` |
-| `ChartSeries` (JSON) | Chart endpoint | `range`, `days` (date, count per entity), `entities` |
+| `DashboardView` | Dashboard | `stats` (total records, entities, groups, largest table), `groups` (entities with count and permissions), `chartAvailable`, `chart` (series, range links, entities left out, peak, width, axis labels, stacked bars; present exactly when `chartAvailable`, D-101) |
+| `ChartSeries` (JSON) | Chart endpoint and the chart card | `range`, `days` (date, count per entity), `entities` (name, label, available, total, capped), `notes` (D-101) |
 | `ListView` | List | `entity` (label, plural, icon), `columns` (key, label, type, sortable, sort link, sort state, align, visible, filterable), `rows` (id, cells), `search`, `sort`, `dir`, `filters` (definitions plus active chips, each with its link), `paging` (page, size, total, first, previous, next and last links, sizes each with a link), `actions` (can create, export, bulk delete, export link, bulk-delete link), `empty` (reason, hint) |
 | `Cell` | List, detail | `type` (text, number, boolean, enum, relation, date, image, file, masked, empty), `display`, `tone`, `href`, `title` (hover text) |
 | `DetailView` | Detail | `title`, `entityLabel`, `id`, `fields` (label, cell), `images`, `actions` (can edit, can duplicate, can delete, delete link) |
@@ -70,8 +70,8 @@ The records live in `jpa-admin-core/src/main/java/io/github/mdmusahub/jpaadmin/w
 |---|---|
 | `PageChrome` | `Theme`, `NavGroup`, `NavItem`, `Breadcrumb`, `FlashMessage` (`Level`), `Csrf` (parameter name, header name, token) |
 | `LoginView` | none |
-| `DashboardView` | `Stats`, `LargestTable`, `Group`, `EntityCard`, `Permissions` (create, update, delete, export) |
-| `ChartSeries` | `Day` (ISO date, counts in entity order). `range` is 7, 30 or 90 |
+| `DashboardView` | `Stats`, `LargestTable`, `Group`, `EntityCard`, `Permissions` (create, update, delete, export), `Chart`, `RangeLink`, `Bar`, `Segment` |
+| `ChartSeries` | `Entity` (name, label, available, total, capped), `Day` (ISO date, counts in entity order). `range` is 7, 30 or 90 |
 | `ListView` | `EntityInfo`, `Column` (`Align`, `SortState`), `Row`, `Filters` (`Definition` with `Kind`, `Chip`), `Paging` (`SizeOption`), `Actions`, `Empty` (`Reason`) |
 | `Cell` | `Type`, `Tone`, constant `MASK` |
 | `DetailView` | `Field`, `Image`, `Actions` |
@@ -196,7 +196,7 @@ UI tasks use the prefix **U**. A UI task is "done" when it works in the preview 
 | U4 | Detail page, confirm dialog, bulk bar, duplicate and delete flows, row checkboxes in the list, and relation cells as links (D-54). **Delivered 2026-11-17, see "U4 status" below** | 7 Detail and delete | Phase 7 |
 | U5 | Form page, all field inputs, validation display, unsaved-changes guard. **Delivered 2026-11-18, see "U5 status" below** | 8 Create and edit | Phase 8 |
 | U6 | Uploader component, previews, progress, errors, image cells. **Delivered 2026-11-18, see "U6 status" below** | 9 Uploads | Phase 9 |
-| U7 | Dashboard chart with range switch | 10 Charts | Phase 10 |
+| U7 | Dashboard chart with range switch. **Delivered 2026-11-19, see "U7 status" below** | 10 Charts | Phase 10 |
 | U8 | Export button states, saved views menu, column visibility | 11 Export, 12 Saved views | Phase 12 |
 | U9 | Accessibility, responsive and dark theme passes (including the manual phone-width pass of the list), keyboard shortcuts (`/` for the search box), sticky table header, docs screenshots | 13 Polish | Phase 13 |
 
@@ -263,6 +263,18 @@ Delivered and connected in the sample app (D-95 to D-100). **No record changed**
 **The page** (`form.html`, `fragments/field-input.html`, new `fragments/uploader.html`): the form card is a `div` that holds the record form (`id="record-form"`), one upload section per upload field, and the actions (Save belongs to the record form through its `form` attribute). An upload field prints only its hidden address inside the record form. Each section has its own plain `multipart/form-data` form with the hidden `_csrf`, `entity`, `field`, `ticket` and `record`; a labelled file input; the sentence; the current picture (alternative text: the field label) or link; a remove checkbox that works without script; the warning that a plain upload reloads the page; a progress element and a status paragraph; and "Replace file" and "Remove file" buttons that are hidden until the script shows them. `uploader.js` (about 350 lines with its comments, `defer`, stores nothing) and a change in `form-guard.js` (the actions are looked up on the document; a finished upload is a change). Styles: `pages.css`, tokens only.
 
 **Preview:** the form states `upload-states`, `upload-edit` and `upload-success-image`, `upload-success-file`, `upload-error-too-large`, `upload-error-type`, `upload-error-ticket-expired`, `upload-slow` (the field's ticket names the stub state), the detail state `upload-cells`, a stub endpoint `POST /admin-preview/uploads` with the six states of `docs/FIXTURES.md` section 8 (it stores nothing) and a stub that serves one picture and one document for the fixtures' addresses. `HtmlRules` checks that every `img` has alternative text. **Not done:** the browser pass for `uploader.js` and `form-guard.js` (drag and drop, progress, the disabled Save, focus, both themes, phone width) is a manual item, and the automated real-browser test is a Phase 14 item.
+
+### U7 status (2026-11-19, Phase 10)
+
+Delivered and connected in the sample app (D-101 to D-104). **Contract change, asked first and approved (D-101):** `ChartSeries` has `Entity` and `notes`, `DashboardView` has `chart` with `Chart`, `RangeLink`, `Bar` and `Segment`; fixtures and call sites changed on both sides in the same change.
+
+**The card** (new `fragments/chart.html`, used by `dashboard.html` between the stat cards and the group cards): a title, a range switch of three plain links built by the backend (the current one has `aria-current`), notes, a stacked-bar inline SVG with a title and a description (its bars are decoration, each with a tooltip title), a scale and three date labels, a legend with one swatch, name and total per entity, a closed "Daily counts" table (the text alternative, with a total row), and a sentence that names the entities left out. States: normal, unavailable entity, nothing readable, nothing created, replaced range, incomplete counts. When `chartAvailable` is false the card is hidden and one muted sentence under the stat cards says why. **No script was needed, so no `chart.js`** (D-103); the card works with JavaScript off.
+
+**Style** (`pages.css`): eight tone classes mixed with `color-mix` from `--ac` and the theme's ink and panel colours (the colour is never the only carrier), `vector-effect: non-scaling-stroke` for the gridlines, the SVG scales with the page width (220px high, 160px under 600px), the range switch fills the width on a phone, the legend wraps, the table scrolls inside its own box. No inline style, no new colour value.
+
+**Preview:** the dashboard states `chart-range-7`, `chart-range-90`, `chart-single-entity`, `chart-one-unavailable`, `chart-all-unavailable`, `chart-all-zero`, `chart-spike`, `chart-large-counts`, `chart-long-labels`, `chart-range-fallback`, `chart-capped`, `chart-many-entities`, `chart-new-year` (and `normal`, which carries the 30-day card), drawn by the real `DashboardCharts.chartOf`; `no-chart` is the card hidden. `PreviewChartPagesTest` (23) and `TemplateRulesTest` check them.
+
+**Not done:** the browser pass (both themes, phone width, keyboard, script off) is a manual item and a Phase 14 item (no browser driver, AI-8).
 
 ### U5 status (2026-11-18, Phase 8)
 

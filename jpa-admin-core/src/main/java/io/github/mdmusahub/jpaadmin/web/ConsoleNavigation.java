@@ -65,8 +65,17 @@ public final class ConsoleNavigation {
         return groups.entrySet().stream().map(group -> new NavGroup(group.getKey(), group.getValue())).toList();
     }
 
-    /** The dashboard: the stat cards and one card per group. */
+    /** The dashboard without a chart: the stat cards and one card per group. */
     public DashboardView dashboard() {
+        return dashboard(null);
+    }
+
+    /**
+     * The dashboard: the stat cards, one card per group, and the chart card when there is one.
+     *
+     * @param chart the chart card, or {@code null} when no entity has a creation field (the card is then hidden)
+     */
+    public DashboardView dashboard(DashboardView.Chart chart) {
         Map<String, OptionalLong> counted = count();
         Map<String, List<DashboardView.EntityCard>> groups = new LinkedHashMap<>();
         long total = 0;
@@ -87,8 +96,7 @@ public final class ConsoleNavigation {
         DashboardView.Stats stats = new DashboardView.Stats(total, registry.all().size(), groups.size(), largest);
         List<DashboardView.Group> cards = groups.entrySet().stream()
                 .map(group -> new DashboardView.Group(group.getKey(), group.getValue())).toList();
-        // The chart arrives in Phase 10, so no entity offers one yet.
-        return new DashboardView(stats, cards, false);
+        return new DashboardView(stats, cards, chart != null, chart);
     }
 
     private Map<String, OptionalLong> count() {

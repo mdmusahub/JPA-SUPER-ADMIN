@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.servlet.ModelAndView;
 
@@ -38,23 +39,42 @@ public class ConsoleController {
     private final BasePath basePath;
     private final ConsoleNavigation navigation;
 
+    private final DashboardCharts charts;
+
+    /** A console whose dashboard has no chart (the Phase 2 to 9 shape). */
     public ConsoleController(ConsoleChromeFactory chromeFactory, ConsoleViews views, ConsoleSettings settings,
                              BasePath basePath, ConsoleNavigation navigation) {
+        this(chromeFactory, views, settings, basePath, navigation, DashboardCharts.none(basePath));
+    }
+
+    public ConsoleController(ConsoleChromeFactory chromeFactory, ConsoleViews views, ConsoleSettings settings,
+                             BasePath basePath, ConsoleNavigation navigation, DashboardCharts charts) {
         this.chromeFactory = Objects.requireNonNull(chromeFactory, "chromeFactory");
         this.views = Objects.requireNonNull(views, "views");
         this.settings = Objects.requireNonNull(settings, "settings");
         this.basePath = Objects.requireNonNull(basePath, "basePath");
         this.navigation = Objects.requireNonNull(navigation, "navigation");
+        this.charts = Objects.requireNonNull(charts, "charts");
     }
 
     /**
-     * {@code GET {base path}}: the dashboard. The numbers come from the entity metadata and the cached record
-     * counts; a console that found no entity shows a welcome state instead of empty cards.
+     * {@code GET {base path}?range=7|30|90}: the dashboard. The numbers come from the entity metadata and the cached
+     * record counts; a console that found no entity shows a welcome state instead of empty cards. The chart card is
+     * there exactly when an entity has a creation field; any {@code range} but 7, 30 or 90 is replaced by 30 and the card
+     * says so.
+     *
+     * @param range the requested chart range as it came; untrusted
      */
     @GetMapping
-    public ModelAndView dashboard(HttpServletRequest request) {
+    public ModelAndView dashboard(@RequestParam(name = "range", required = false) String range,
+                                  HttpServletRequest request) {
         PageChrome chrome = chromeFactory.chrome(request, List.of(new Breadcrumb("Dashboard", null)));
-        return views.page(request, DashboardView.TEMPLATE, chrome, navigation.dashboard());
+        return views.page(request, DashboardView.TEMPLATE, chrome, navigation.dashboard(charts.chart(range).orElse(null)));
+    }
+
+    /** The dashboard with the default range. */
+    public ModelAndView dashboard(HttpServletRequest request) {
+        return dashboard(null, request);
     }
 
     /**
