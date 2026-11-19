@@ -10,7 +10,7 @@ A **fixture** is a named, fake instance of a view-model record. The preview app 
 - **Fake data only:** no real names, no real secrets. Masked values are never given a value, even in a fixture (SEC-1).
 - **Generic names:** fixtures use invented entities such as Article, Member and Invoice, never entity names from `sample-app` (ARCH-12).
 - **Links:** every link in a fixture is a local path under the chrome's base path (`docs/UI_PLAN.md` section 3, "Links"). Fixtures are built through the real record constructors, so a link that breaks the rule cannot be written. A fixture never contains an external link. Templates print the links the fixture gives them and never build sort, page, page-size, export or form links themselves.
-- **Status:** each fixture below belongs to the UI task that first needs it (U0 to U9, `docs/UI_PLAN.md` section 7). A fixture is part of "done" for that task. After Phase 4 the list fixtures of task U2 exist; those of U3 (filters) exist since Phase 6; those of U4 (detail, row links, checkboxes, the pages after a delete) exist since Phase 7; those of U5 (the form) exist since Phase 8; those of U6 (uploads) exist since Phase 9b and the export ones of U8 since Phase 11; those of U8 for saved views and column visibility do not yet.
+- **Status:** each fixture below belongs to the UI task that first needs it (U0 to U9, `docs/UI_PLAN.md` section 7). A fixture is part of "done" for that task. After Phase 4 the list fixtures of task U2 exist; those of U3 (filters) exist since Phase 6; those of U4 (detail, row links, checkboxes, the pages after a delete) exist since Phase 7; those of U5 (the form) exist since Phase 8; those of U6 (uploads) exist since Phase 9b and the export ones of U8 since Phase 11; those of U8 for column visibility and saved views exist since Phase 12 (section 5, the chrome variant `every-column-hidden` and the stored-JSON endpoint below).
 
 Fixture names are lower-case with hyphens. A fixture listed under "Covers" proves that the template handles that state.
 
@@ -32,6 +32,7 @@ Used with any page through `&chrome=`.
 | `member-active` | the Members entity active, breadcrumbs Dashboard and Members, no flash | The list of a second entity (the masked-column list fixture uses it by default) | U2 |
 | `search-cut` | the Articles entity active, one INFO flash message built by `ListViewFactory.searchCutNotice()` | The notice for a search cut at the limit (the `search-cut` list fixture uses it by default) | U2 |
 | `export-limited` | the Articles entity active, one INFO flash message built by `ListViewFactory.exportLimitNotice(120345, 50000)` | The notice for an export that would be cut at the cap (the `export-limited` list fixture uses it by default; Phase 11, D-110) | U8 |
+| `every-column-hidden` | the Articles entity active, one WARNING flash message built by `ListViewFactory.everyColumnHiddenNotice()` | The notice for a request that hid every column (the `every-column-hidden` list fixture uses it by default; Phase 12, D-112) | U8 |
 | `filters-ignored` | the Articles entity active, `flash` holds the notices built by `ListViewFactory.filterNotices(...)` from real `FilterNote`s: four WARNING notes and one INFO note | The notices for ignored and cut filters, above the content (the `filter-ignored` list fixture uses it by default) | U3 |
 | `article-detail` | the Articles entity active, breadcrumbs Dashboard, Articles (a link), "Guide on onboarding 7" (delivered, task U4) | The shell of a detail page (the `detail` fixtures use a chrome built from their own record and list state by default) | U4 |
 | `delete-done`, `delete-blocked`, `bulk-done`, `bulk-partial`, `bulk-over-cap`, `bulk-blocked`, `bulk-nothing-selected` | the Articles entity active, `flash` holds one message built by the real `DeleteMessages` (SUCCESS, ERROR, SUCCESS, WARNING, ERROR, ERROR, WARNING); the two on a record page carry the record's breadcrumbs (delivered, task U4) | The messages after a delete, shown once above the content: role `status` for success and information, role `alert` for a refusal or a warning; no SQL, table name or stack trace | U4 |
@@ -95,7 +96,8 @@ The chart card is part of the dashboard page, so its fixtures are dashboard stat
 | `empty-search-escaped` | `NO_MATCHES` with column labels that look like markup | The labels are printed as text, escaped (SEC-9) | U2 |
 | `search-cut` | A 100-character search, with the chrome variant `search-cut` whose `flash` holds the real cut notice | The INFO notice with the limit, above the content (Phase 5) | U2 |
 | `long-text` | Cells with 300-character values, long words without spaces, long column labels | Truncation, wrapping, `title` hover text | U2 |
-| `many-columns` | 20 columns (the 5 hidden ones belong to column visibility, U8) | Horizontal scroll on a phone, sticky first column, column visibility | U2 |
+| `many-columns` | 20 columns | Horizontal scroll on a phone, sticky first column | U2 |
+| `many-columns-hidden` | The same 20 columns with five of them (`field3`, `field6`, `field9`, `field12`, `field15`) hidden: the factory marks them not visible and their cells are empty (delivered, task U8, Phase 12) | The table skips the five columns in the header and every row (15 headers), the Columns panel lists 20 checkboxes with exactly those five ticked and a count of 5 on its summary | U8 |
 | `all-cell-types` | One column per `Cell.Type`: text, number, boolean, enum with each `Tone`, relation with `href`, date, image, file, masked, empty | Cell renderer for every type | U2 |
 | `masked-column` | A column of `MASKED` cells, `sortable` false and `sortHref` `null` | Dots only, no value, no tooltip, no sorting or filter control | U2 |
 | `search-active` | `search` set | Search box shows the term, empty-state wording | U2 |
@@ -126,7 +128,15 @@ The chart card is part of the dashboard page, so its fixtures are dashboard stat
 | `page-size-10` | page 2 of pages of 10, the 10 option `current` | Page-size control, range "21-30 of 94" | U2 |
 | `relation-cells` | Relation cells with and without an `href`, and an empty relation | Link or text, "No value" | U2 |
 | `unicode` | Titles in Turkish, Russian, Japanese, Greek and Arabic, an emoji with a combining mark, and a title that is markup | Text is shown as text and escaped | U2 |
-| `saved-views` | `ListView` with search, sort and filters set, plus page size 50 and hidden columns; every link keeps that state | Saved views menu applies and restores this exact state from the URL | U8 |
+| `saved-views` | `ListView` built by the real factory with the search `guide`, the filter Status = Published, sorted by Views descending, page size 50 and the columns Published and Featured hidden (delivered, task U8, Phase 12); every link (sort, page, size, export) keeps that state | The Saved views panel hands `views.js` the state address `?q=guide&filter.status=PUBLISHED&hide=published&hide=featured&sort=views&dir=desc&size=50` (never a page), the base, the column keys and the filter keys; "Save current view" stores exactly this; applying a stored view restores it from the URL | U8 |
+| `views-empty` | The plain list with every column shown and the filter controls on offer (delivered, task U8) | The Saved views panel with an empty store: "No saved views yet", the name field, "Save current view", the status line; the no-script sentence for a visitor without script | U8 |
+| `column-hidden` | The articles with the Views column hidden (delivered, task U8) | The Views header and cells are skipped, the box for Views is ticked and the others are not, the summary shows a count of 1, the export link carries `hide=views` | U8 |
+| `columns-hidden-most` | Author, Status, Views and Published hidden | Only ID, Title and Featured remain; four boxes ticked; every link keeps four `hide` parameters in column order | U8 |
+| `every-column-hidden` | The plain list with the chrome variant `every-column-hidden` | Every column shown, no box ticked, the real notice above the content | U8 |
+| `hidden-sorted-column` | Sorted by Views descending with Views hidden | The Views header is not there, the sort stays in every link (`sort=views&dir=desc`) | U8 |
+| `hidden-identifier` | Articles whose identifier column is hidden, with the identifier flag on the column (delivered, task U8) | The row link moves to the first visible text cell (`/article/1?hide=id`) and no other cell is a link | U8 |
+| `column-masked-absent` | Members with the Email column hidden and a masked Password column | The panel has boxes for ID, Name, Email and Joined only, no box and no key for Password, which is still shown as dots | U8 |
+| `hidden-middle-page` | Page 1 of pages of 10 with Author and Views hidden | The next and last links carry `hide=author&hide=views` and a page, the size links carry `hide` and no page, the state address has `size=10` and no page | U8 |
 | `bulk-delete` | 25 articles of 94 built by the real factory with bulk delete offered: the identifier cell and the author link, a checkbox column, the bulk bar, `bulkDeleteHref` (delivered, task U4) | A first column of checkboxes (name `ids`, a label per row such as "Select Article 1"), a header checkbox for this page (script only), a POST form with the CSRF token around the table and the bar, the GET search form closed before it, the bar with "Delete selected" and "Yes, delete selected" | U4 |
 | `bulk-delete-state` | search `guide`, sorted by title, page 2, size 10, bulk delete offered (delivered, task U4) | The bulk form's address carries `q`, `sort`, `dir`, `page` and `size`, built by `ListLinks`, so the answer returns to this list | U4 |
 | `row-links` | 8 articles, no bulk delete, size 10: every identifier a link, six authors links to members, a reviewer whose entity is hidden (text `#n`), two missing authors (delivered, task U4) | The row link carries `?size=10`; a relation to a hidden entity and an empty relation have no link; no checkbox column | U4 |
@@ -207,11 +217,26 @@ The preview serves these from a stub upload endpoint (`POST /admin-preview/uploa
 
 These reuse the fixtures above and are part of the acceptance checklist in `docs/UI_PLAN.md` section 10.
 
+### Stored views (task U8, Phase 12)
+
+What a browser would hold for the saved views of the article list, served by the preview at `/admin-preview/stored-views?state=` with the storage key in the `X-Storage-Key` header (`jpa-admin.views./admin-preview/article`). The preview never writes browser storage itself; put the text under that key (`localStorage.setItem(key, text)`) and open `list/saved-views`.
+
+| State | The text | Covers |
+|---|---|---|
+| `several` | Four valid views: a search with a filter, a sort and two hidden columns; a draft filter; a name that looks like markup and a search with spaces, a slash, an ampersand and an equals sign; a name in another script with three hidden columns | Four links, names printed as text, every value percent-encoded, no page in any link |
+| `empty` | `[]` | The empty menu |
+| `dropped` | One valid view among eight that must be dropped without a word: an unknown column, an unknown filter, a name of 61 characters, a direction that is not asc or desc, a direction with no sort, a page size of 30, something that is not an object, a repeated name | Only "Kept" is listed, no notice, the store is cleaned |
+| `invalid-json` | `{this is not json` | No views, no error, the store is reset |
+| `hides-every-column` | One view that hides all seven columns | Dropped |
+| `full` | Twenty valid views | The twenty-first is refused with a plain message; saving under an existing name replaces it |
+| `over-the-cap` | Twenty-two valid views | The last two are dropped and the store is cut to twenty |
+
+
 | Check | Fixtures used |
 |---|---|
 | Phone width, drawer sidebar | `long-sidebar` with `list/many-columns` |
 | Keyboard only, Escape closes dialogs | `detail/normal` (the delete question), `list/bulk-delete` (the bulk bar) |
-| `localStorage` unavailable | `list/saved-views`, `chrome/theme-system` |
+| `localStorage` unavailable | `list/saved-views`, `chrome/theme-system` (the stored-JSON endpoint below puts real text in storage; with storage blocked the panel says so and the rest of the page works) |
 | No sensitive value in HTML | `list/masked-column`, `detail/masked-field`, `form/masked-input` |
 | No external requests | every page |
 | Links come from the record | `list/middle-page`, `list/sorted-asc`, `list/export-enabled`, `form/edit-prefilled` with `chrome/custom-base-path`: every sort, page, page-size, export and form link starts with the custom base path. Also a search of the templates finds no `sort=`, `page=` or `size=` text |

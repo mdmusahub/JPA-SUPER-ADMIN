@@ -12,7 +12,8 @@ import java.util.List;
  * place that writes a query string, so the rule that <em>every value is percent-encoded</em> is kept in one spot.
  *
  * <p>A link is the entity's address plus the parts of the query that differ from the defaults, always in the same
- * order ({@code q}, the {@code filter.*} parameters in column order, {@code sort}, {@code dir}, {@code page}, {@code size}). The default page size and page 0 are left
+ * order ({@code q}, the {@code filter.*} parameters in column order, one {@code hide} for each hidden column in column order,
+ * {@code sort}, {@code dir}, {@code page}, {@code size}). The default page size and page 0 are left
  * out, so the first page of an unsorted list is the plain address. A value is encoded with every character outside
  * {@code A-Z a-z 0-9 - _ .} written as {@code %XX} bytes of UTF-8 (a space is {@code %20}, never a raw space or a
  * {@code +}), so a quote, a slash, a {@code #}, an {@code &}, a unicode letter or a pasted {@code http://x} can never
@@ -41,11 +42,11 @@ final class ListLinks {
      * The address of the CSV export of the list in {@code state}: the entity's {@code export.csv} with the search, the
      * filters and the sort, and nothing else. The page and the page size are left out because the file is not one page: it
      * holds every matching record up to the cap. Every value is percent-encoded by the same writer as the other links. The
-     * visible columns (Phase 12) will join the address when a view can hide one.
+     * hidden columns travel as well (Phase 12, D-113): the file holds exactly the columns the list shows.
      */
     String export(ListQuery state) {
         return link(path + "/export.csv", new ListQuery(state.search(), state.sort(), state.dir(), 0,
-                ListQuery.DEFAULT_SIZE, state.filters()));
+                ListQuery.DEFAULT_SIZE, state.filters(), state.hidden()));
     }
 
     // ---- links of the detail and delete pages (Phase 7, D-65): same writer, same encoding ---------------------------
@@ -163,6 +164,9 @@ final class ListLinks {
         }
         for (ActiveFilter filter : query.filters()) {
             addFilter(parameters, filter);
+        }
+        for (String column : query.hidden()) {
+            parameters.add("hide=" + encode(column));
         }
         if (query.sort() != null) {
             parameters.add("sort=" + encode(query.sort()));

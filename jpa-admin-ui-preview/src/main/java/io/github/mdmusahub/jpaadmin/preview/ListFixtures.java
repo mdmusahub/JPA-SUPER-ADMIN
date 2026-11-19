@@ -101,7 +101,27 @@ final class ListFixtures {
         FIXTURES.put("relation-cells", fixture("default", ListFixtures::relationCells));
         FIXTURES.put("long-text", fixture("default", ListFixtures::longText));
         FIXTURES.put("unicode", fixture("default", ListFixtures::unicode));
-        FIXTURES.put("many-columns", fixture("default", ListFixtures::manyColumns));
+        FIXTURES.put("many-columns", fixture("default", base -> manyColumns(base, List.of())));
+        // Task U8, column visibility and saved views (Phase 12). Built by the real factory, so the Columns panel state, the links that carry
+        // the hidden set and the notice are the real ones. The stored views a browser would hold are served by the stored-views endpoint.
+        FIXTURES.put("many-columns-hidden", fixture("default", base -> manyColumns(base,
+                List.of("field3", "field6", "field9", "field12", "field15"))));
+        FIXTURES.put("column-hidden", fixture("default", base -> FilterFixtures.articlesHidden(base, "", null, null, 0, 25,
+                List.of(), List.of("views"), true)));
+        FIXTURES.put("columns-hidden-most", fixture("default", base -> FilterFixtures.articlesHidden(base, "", null, null, 0, 25,
+                List.of(), List.of("author", "status", "views", "published"), true)));
+        FIXTURES.put("every-column-hidden", fixture("every-column-hidden", base -> FilterFixtures.articlesHidden(base, "", null,
+                null, 0, 25, List.of(), List.of(), true)));
+        FIXTURES.put("saved-views", fixture("default", ViewsFixtures::savedViews));
+        FIXTURES.put("views-empty", fixture("default", base -> FilterFixtures.articlesHidden(base, "", null, null, 0, 25,
+                List.of(), List.of(), true)));
+        FIXTURES.put("hidden-sorted-column", fixture("default", base -> FilterFixtures.articlesHidden(base, "", "views", "desc", 0,
+                25, List.of(), List.of("views"), true)));
+        FIXTURES.put("hidden-identifier", fixture("default", ViewsFixtures::hiddenIdentifier));
+        FIXTURES.put("column-masked-absent", fixture("member-active", base -> FilterFixtures.sensitiveAbsent(base,
+                List.of("email"))));
+        FIXTURES.put("hidden-middle-page", fixture("default", base -> FilterFixtures.articlesHidden(base, "", null, null, 1, 10,
+                List.of(), List.of("author", "views"), true)));
         FIXTURES.put("all-cell-types", fixture("default", ListFixtures::allCellTypes));
         // Task U3, the filters. Each is built by the real factory, so chips and links are the real ones.
         FIXTURES.put("filters-open", fixture("default", base -> FilterFixtures.articles(base, "", null, null, 0, 25, List.of())));
@@ -325,7 +345,7 @@ final class ListFixtures {
         return build(basePath, "article", ARTICLES, ARTICLE_COLUMNS, rows, rows.size(), ListQuery.defaults(), NO_ACTIONS);
     }
 
-    private static ListView manyColumns(String basePath) {
+    private static ListView manyColumns(String basePath, List<String> hidden) {
         List<ListColumn> columns = new ArrayList<>();
         columns.add(new ListColumn("id", "ID", Cell.Type.NUMBER, true, Align.END));
         for (int c = 1; c < 20; c++) {
@@ -342,7 +362,9 @@ final class ListFixtures {
             }
             rows.add(new ListView.Row(String.valueOf(r), cells));
         }
-        return build(basePath, "article", ARTICLES, columns, rows, rows.size(), ListQuery.defaults(), NO_ACTIONS);
+        rows = FilterFixtures.blank(rows, columns, hidden);
+        return build(basePath, "article", ARTICLES, columns, rows, rows.size(), new ListQuery("", null, null, 0, 25, List.of(), hidden),
+                NO_ACTIONS);
     }
 
     private static ListView allCellTypes(String basePath) {

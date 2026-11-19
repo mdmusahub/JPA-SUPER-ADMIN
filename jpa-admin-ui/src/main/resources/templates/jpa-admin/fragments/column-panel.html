@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<body>
+<!--/*
+  The column panel of the list page (task U8, Phase 12): one labelled checkbox for each column that can be hidden, inside
+  the list's own GET form (see list.html), so it works without JavaScript and the whole state is in the address.
+
+  A ticked box means "hide this column": its name is "hide" and its value is the column key, so the address says
+  hide=price&hide=created (repeated, one per column). The state of each box comes from view.columns[i].visible; the
+  template decides nothing. The form also carries the search, the filters, the sort and the page size (the hidden
+  fields and controls of list.html) and never the page number, so applying a choice starts again at the first page.
+
+  A masked column (a sensitive field) has no checkbox and its key is printed nowhere: it can never be hidden, because it
+  is always shown as dots. The backend decides what counts; it ignores any other name, and a request that would hide
+  every column is ignored as a whole and the page says so in a notice. The panel is not shown when there is nothing to
+  choose between (fewer than two columns that can be hidden).
+
+  The panel is a details element, so it opens and closes with the keyboard and the mouse and needs no script. Every
+  label is printed with th:text (escaped, SEC-9). Nothing here builds a link.
+*/-->
+<th:block th:fragment="panel"
+          th:with="hideable=${view.columns.?[type.name() != 'MASKED']}, hiddenCount=${view.columns.?[!visible].size()}">
+  <details class="filter-panel column-panel" th:if="${hideable.size() > 1}">
+    <summary class="btn filter-summary">
+      <span>Columns</span>
+      <span class="filter-count" th:if="${hiddenCount > 0}" th:text="${hiddenCount}"
+            th:attr="aria-label=${hiddenCount} + ' hidden'">2</span>
+    </summary>
+
+    <fieldset class="column-fieldset">
+      <legend class="filter-label">Hide these columns</legend>
+      <p class="column-hint muted">Tick a column to hide it. At least one column always stays. Hiding a column also leaves it out of the CSV export.</p>
+      <ul class="column-grid">
+        <li class="column-item" th:each="col, state : ${hideable}">
+          <input class="select-box" type="checkbox" name="hide" th:id="'hide-column-' + ${state.index}"
+                 th:value="${col.key}" th:checked="${!col.visible}">
+          <label th:for="'hide-column-' + ${state.index}" th:text="${col.label}">Title</label>
+        </li>
+      </ul>
+    </fieldset>
+
+    <div class="filter-actions">
+      <button type="submit" class="btn btn-primary">Apply columns</button>
+    </div>
+  </details>
+</th:block>
+</body>
+</html>

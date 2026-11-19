@@ -25,8 +25,9 @@ import org.springframework.web.server.ResponseStatusException;
 /**
  * {@code GET {base path}/{entity}/export.csv}: the CSV file of the list the visitor is looking at (Phase 11, D-105 to D-110).
  *
- * <p>The query parameters are the list's ({@code q}, {@code filter.*}, {@code sort}, {@code dir}) and are read with the list's
- * own parsers, so an unknown, hidden or sensitive name is ignored in exactly the same way (SEC-2). {@code page} and {@code size}
+ * <p>The query parameters are the list's ({@code q}, {@code filter.*}, {@code hide}, {@code sort}, {@code dir}) and are read with the list's
+ * own parsers, so an unknown, hidden or sensitive name is ignored in exactly the same way (SEC-2). {@code hide} drops the
+ * named columns from the file, as the list does not show them (Phase 12, D-113). {@code page} and {@code size}
  * mean nothing here: the file holds every matching record up to the cap. The controller is thin (ARCH-2): it parses, asks
  * {@link ExportService}, and writes.
  *
@@ -85,7 +86,8 @@ public class ExportController {
                 // No message: the exception's text would otherwise repeat what the visitor typed.
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         FilterParse filters = lists.parseFilters(found, EntityController.filterParameters(request));
-        ListQuery query = lists.parse(found, q, sort, dir, null, null).withParsedFilters(filters.filters());
+        ListQuery query = lists.parse(found, q, sort, dir, null, null).withParsedFilters(filters.filters())
+                .withParsedHidden(lists.parseHidden(found, EntityController.hideParameters(request)).hidden());
         ExportService.Export export;
         try {
             export = exports.open(found, query);

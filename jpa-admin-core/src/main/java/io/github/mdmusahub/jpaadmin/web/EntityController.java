@@ -4,6 +4,7 @@ import io.github.mdmusahub.jpaadmin.metadata.AdminEntity;
 import io.github.mdmusahub.jpaadmin.service.ExportService;
 import io.github.mdmusahub.jpaadmin.service.FilterNote;
 import io.github.mdmusahub.jpaadmin.service.FilterParse;
+import io.github.mdmusahub.jpaadmin.service.HiddenParse;
 import io.github.mdmusahub.jpaadmin.service.ListPage;
 import io.github.mdmusahub.jpaadmin.service.ListQuery;
 import io.github.mdmusahub.jpaadmin.service.ListQueryService;
@@ -42,6 +43,10 @@ import org.springframework.web.servlet.ModelAndView;
  * than the limit is cut (and the page says so in a notice), and a sort the entity cannot do is ignored (see
  * {@link ListQuery}). The page always renders.
  *
+ * <p>Columns are hidden with the repeated {@code hide} parameter, read by {@link ListQueryService#parseHidden}: only the key of
+ * a visible, non-sensitive column counts, anything else is ignored without a message, and a request that would hide every
+ * column is ignored as a whole and the page says so (Phase 12, D-112).
+ *
  * <p>Filters are read from the {@code filter.*} parameters by {@link ListQueryService#parseFilters}; a filter that is
  * not acceptable is ignored, never an error, and the page says which one and why (in the console's notices, plain text
  * that is escaped on output). The cut-search notice and the filter notices share the same area.
@@ -57,6 +62,9 @@ import org.springframework.web.servlet.ModelAndView;
  */
 @Controller
 public class EntityController {
+
+    /** The repeated parameter that names a column to hide (Phase 12, D-112). */
+    public static final String HIDE_PARAMETER = "hide";
 
     private final ConsoleChromeFactory chromeFactory;
     private final ConsoleViews views;
@@ -103,14 +111,16 @@ public class EntityController {
                 // No message: the exception's text would otherwise repeat what the visitor typed.
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         FilterParse filters = lists.parseFilters(found, filterParameters(request));
-        ListQuery query = lists.parse(found, q, sort, dir, page, size).withParsedFilters(filters.filters());
+        HiddenParse hidden = lists.parseHidden(found, hideParameters(request));
+        ListQuery query = lists.parse(found, q, sort, dir, page, size).withParsedFilters(filters.filters())
+                .withParsedHidden(hidden.hidden());
         ListPage listed = lists.list(found, query);
         ListView.EntityInfo info = new ListView.EntityInfo(found.label(), Plurals.of(found.label()), found.icon());
         boolean export = exports.offers(found);
         ListView view = ListViewFactory.build(basePath.value(), found.urlName(), info, listed,
                 new ListView.Actions(found.canCreate(), false, false, null, null),
                 found.canDelete(), export);
-        List<PageChrome.FlashMessage> notices = notices(q, filters, listed);
+        List<PageChrome.FlashMessage> notices = notices(q, filters, listed, hidden);
         if (export && listed.total() > exports.cap()) {
             // The file would be cut: say so on the page, before the download and after it (D-110).
             notices.add(ListViewFactory.exportLimitNotice(listed.total(), exports.cap()));
@@ -121,9 +131,13 @@ public class EntityController {
         return views.page(request, ListView.TEMPLATE, chrome, view);
     }
 
-    /** The cut-search notice and what to tell the visitor about the filters, in that order. */
-    private static List<PageChrome.FlashMessage> notices(String q, FilterParse filters, ListPage listed) {
+    /** The notice about a request that hid every column, the cut-search notice and the filter notices, in that order. */
+    private static List<PageChrome.FlashMessage> notices(String q, FilterParse filters, ListPage listed,
+                                                          HiddenParse hidden) {
         List<PageChrome.FlashMessage> notices = new ArrayList<>();
+        if (hidden.everyColumnHidden()) {
+            notices.add(ListViewFactory.everyColumnHiddenNotice());
+        }
         if (ListQuery.searchWasCut(q)) {
             notices.add(ListViewFactory.searchCutNotice());
         }
@@ -131,6 +145,12 @@ public class EntityController {
         notes.addAll(listed.notes());
         notices.addAll(ListViewFactory.filterNotices(notes));
         return notices;
+    }
+
+    /** The values of the repeated {@code hide} parameter, as sent (untrusted: the list parser checks every one). */
+    static List<String> hideParameters(HttpServletRequest request) {
+        String[] values = request.getParameterValues(HIDE_PARAMETER);
+        return values == null ? List.of() : List.of(values);
     }
 
     /** The request's {@code filter.*} parameters only; everything else is none of the filter code's business. */
