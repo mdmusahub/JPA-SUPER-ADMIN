@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<body>
+<!--/*
+  The saved views menu of the list page (task U8, Phase 12). A saved view is a name for a list address: the search, the
+  filters, the sort, the page size and the hidden columns. Views live in this browser only (localStorage, D-114): nothing
+  about a view is sent to or stored on the server, so this menu needs script and browser storage and says so plainly
+  when it has neither. The Columns and Filters panels next to it work without either.
+
+  What the page hands the script, all taken from the record and printed escaped:
+    data-views-base     the list's address under the console path (chrome.basePath and chrome.activeEntity)
+    data-views-state    the state of this page as the server validated it: the address of the current page-size option,
+                        which carries q, filter.*, hide, sort, dir and size, and never page. Saving stores this, never the
+                        raw address the visitor typed, so text the server did not accept cannot get into a view.
+    data-views-columns  the keys of the columns that can be hidden (the masked ones are not among them, and no sensitive
+                        key is printed anywhere)
+    data-views-filters  the keys of the filters on offer
+  views.js checks every stored view against these lists before it uses it, drops what does not fit, builds the links with
+  the same percent-encoding as the server and never writes a page number.
+
+  The panel sits inside the list's GET form without a form of its own (a form is never inside a form). Its controls have no
+  name, so they send nothing; the buttons are type=button and views.js handles Enter in the name fields. The list rows come
+  from the inert template below and are filled with textContent, so a view name is always text. Delete is a details
+  element with the question and the confirm button (UI-5), like every other destructive action in the console.
+*/-->
+<th:block th:fragment="panel"
+          th:with="stateHref=${view.paging.sizes.^[current].href}, columnKeys=${#strings.listJoin(view.columns.?[type.name() != 'MASKED'].![key], ' ')}, filterKeys=${#strings.listJoin(view.filters.definitions.![key], ' ')}">
+  <details class="filter-panel views-panel" data-views
+           th:attr="data-views-base=${chrome.basePath} + '/' + ${chrome.activeEntity},data-views-state=${stateHref},data-views-columns=${columnKeys},data-views-filters=${filterKeys}">
+    <summary class="btn filter-summary">
+      <span>Saved views</span>
+      <span class="filter-count js-only" data-views-count hidden>0</span>
+    </summary>
+
+    <div class="views-body">
+      <p class="views-nojs no-js-only">Saved views need JavaScript and browser storage, and neither is available here. Filters, columns, sorting and the address still work, and a bookmark keeps any of them.</p>
+
+      <div class="js-only views-script">
+        <p class="views-intro muted">A view remembers the search, filters, sort, page size and hidden columns of this list, in this browser only. Clearing the browser's site data removes your views.</p>
+        <p class="views-empty" data-views-empty>No saved views yet. Set up the list the way you want it, give it a name below and save it.</p>
+        <ul class="views-list" data-views-list></ul>
+
+        <div class="views-save" data-views-save-group>
+          <label class="filter-label" for="views-name">Name for the current view</label>
+          <div class="views-save-row">
+            <input class="input" id="views-name" type="text" maxlength="60" autocomplete="off" data-views-name>
+            <button type="button" class="btn btn-primary" data-views-save>Save current view</button>
+          </div>
+        </div>
+        <p class="views-status" role="status" aria-live="polite" data-views-status></p>
+      </div>
+
+      <template data-views-item>
+        <li class="views-item">
+          <a class="views-apply" data-views-apply></a>
+          <div class="views-item-actions">
+            <details class="confirm views-rename">
+              <summary class="btn btn-quiet" aria-label="Rename this view" data-views-rename-summary>Rename</summary>
+              <div class="confirm-panel">
+                <label class="visually-hidden" for="views-rename-name" data-views-rename-label>New name for this view</label>
+                <input class="input" id="views-rename-name" type="text" maxlength="60" autocomplete="off" data-views-rename-name>
+                <button type="button" class="btn btn-primary" data-views-rename>Rename view</button>
+              </div>
+            </details>
+            <details class="confirm views-delete">
+              <summary class="btn btn-danger" aria-label="Delete this view" data-views-delete-summary>Delete</summary>
+              <div class="confirm-panel">
+                <p data-views-delete-question>Delete this view?</p>
+                <button type="button" class="btn btn-danger" aria-label="Yes, delete this view" data-views-delete>Yes, delete view</button>
+              </div>
+            </details>
+          </div>
+        </li>
+      </template>
+    </div>
+  </details>
+</th:block>
+</body>
+</html>

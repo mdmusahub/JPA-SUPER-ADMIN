@@ -98,11 +98,12 @@ public final class ListViewFactory {
         for (int n = 0; n < page.rows().size(); n++) {
             ListView.Row row = page.rows().get(n);
             List<Cell> cells = new ArrayList<>(row.cells());
+            int rowLink = rowLinkColumn(page, cells, query);
             for (int i = 0; i < cells.size(); i++) {
                 ListColumn column = page.columns().get(i);
                 Cell cell = cells.get(i);
                 String href = null;
-                if (column.identifier() && cell.type() != Cell.Type.MASKED && cell.type() != Cell.Type.EMPTY) {
+                if (i == rowLink) {
                     href = links.detail(row.id(), query);
                 } else if (column.targetEntity() != null && cell.type() == Cell.Type.RELATION
                         && n < page.relationIds().size() && page.relationIds().get(n).get(i) != null) {
@@ -117,6 +118,36 @@ public final class ListViewFactory {
             rows.add(new ListView.Row(row.id(), cells));
         }
         return rows;
+    }
+
+    /**
+     * The column whose cell links to the record in this row: the identifier's, and when the identifier is hidden the first
+     * visible text or number cell that has a value (the cell types whose template can print a link), so a row is always a
+     * way to its record (D-112). {@code -1} when there is none. A masked or empty cell is never the link.
+     */
+    private static int rowLinkColumn(ListPage page, List<Cell> cells, ListQuery query) {
+        boolean identifierHidden = false;
+        for (int i = 0; i < cells.size(); i++) {
+            ListColumn column = page.columns().get(i);
+            if (column.identifier()) {
+                if (query.hidden().contains(column.key())) {
+                    identifierHidden = true;
+                    break;
+                }
+                return cells.get(i).type() == Cell.Type.MASKED || cells.get(i).type() == Cell.Type.EMPTY ? -1 : i;
+            }
+        }
+        if (!identifierHidden) {
+            return -1; // a page with no identifier column has no row link (the preview shows some)
+        }
+        for (int i = 0; i < cells.size(); i++) {
+            ListColumn column = page.columns().get(i);
+            Cell.Type type = cells.get(i).type();
+            if (!query.hidden().contains(column.key()) && (type == Cell.Type.TEXT || type == Cell.Type.NUMBER)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private static ListView.Filters filters(ListPage page, ListQuery query, ListLinks links) {
@@ -163,8 +194,8 @@ public final class ListViewFactory {
                     : ListQuery.ASC.equals(query.dir()) ? ListView.Column.SortState.ASCENDING
                     : ListView.Column.SortState.DESCENDING;
             columns.add(new ListView.Column(column.key(), column.label(), column.type(), column.sortable(),
-                    column.sortable() ? links.sortBy(query, column.key()) : null, state, column.align(), true,
-                    filterable.contains(column.key())));
+                    column.sortable() ? links.sortBy(query, column.key()) : null, state, column.align(),
+                    !query.hidden().contains(column.key()), filterable.contains(column.key())));
         }
         return columns;
     }
@@ -253,6 +284,15 @@ public final class ListViewFactory {
         return new PageChrome.FlashMessage(PageChrome.FlashMessage.Level.INFO,
                 String.format(java.util.Locale.ROOT, "Export is limited to the first %,d of %,d matching records. "
                         + "Narrow the search or the filters to export the rest.", cap, matching));
+    }
+
+    /**
+     * The notice for a request that asked to hide every column: the request was ignored as a whole and every column is shown.
+     * Plain text that repeats nothing the visitor typed; the page escapes it on output (SEC-9).
+     */
+    public static PageChrome.FlashMessage everyColumnHiddenNotice() {
+        return new PageChrome.FlashMessage(PageChrome.FlashMessage.Level.WARNING,
+                "Every column was hidden, so all columns are shown. A list needs at least one column.");
     }
 
     /**

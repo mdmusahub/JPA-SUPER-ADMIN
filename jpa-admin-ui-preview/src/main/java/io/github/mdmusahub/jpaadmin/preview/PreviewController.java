@@ -110,6 +110,20 @@ class PreviewController {
         return ResponseEntity.ok().contentType(CSS).body(THEME_CSS);
     }
 
+    /**
+     * The text a browser would hold in localStorage for the saved views of the article list, one state at a time (task U8, Phase 12).
+     * The preview never writes browser storage itself; a person or a script puts this text under the key named in the
+     * X-Storage-Key header and opens {@code list?state=saved-views}. An unknown state answers 404 with the valid names.
+     */
+    @GetMapping("/stored-views")
+    @ResponseBody
+    ResponseEntity<String> storedViews(@RequestParam(defaultValue = "several") String state) {
+        String body = ViewsFixtures.stored(state).orElseThrow(() -> new UnknownFixture("No stored views called '" + state
+                + "'. Valid states: " + ViewsFixtures.storedStates()));
+        return ResponseEntity.ok().contentType("invalid-json".equals(state) ? TEXT : MediaType.APPLICATION_JSON)
+                .header("X-Storage-Key", ViewsFixtures.STORAGE_KEY).body(body);
+    }
+
     /** The second console path of the {@code custom-base-path} variant needs a working stylesheet too. */
     @Controller
     @RequestMapping(ALTERNATE_BASE)
