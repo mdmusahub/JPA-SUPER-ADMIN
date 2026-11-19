@@ -97,11 +97,25 @@ final class FilterFixtures {
 
     static ListView articles(String basePath, List<FilterControl> controls, String search, String sort, String dir,
                              int page, int size, List<ActiveFilter> filters) {
-        return articles(basePath, controls, search, sort, dir, page, size, filters, false);
+        return articles(basePath, controls, search, sort, dir, page, size, filters, List.of(), false);
+    }
+
+    /**
+     * The articles with some columns hidden (Phase 12): the factory marks them not visible, the cells of a hidden column are empty as the
+     * console's query leaves them, and the export link and every other link carry the hidden set.
+     */
+    static ListView articlesHidden(String basePath, String search, String sort, String dir, int page, int size,
+                                   List<ActiveFilter> filters, List<String> hidden, boolean export) {
+        return articles(basePath, controls(authors()), search, sort, dir, page, size, filters, hidden, export);
     }
 
     private static ListView articles(String basePath, List<FilterControl> controls, String search, String sort, String dir,
                                      int page, int size, List<ActiveFilter> filters, boolean export) {
+        return articles(basePath, controls, search, sort, dir, page, size, filters, List.of(), export);
+    }
+
+    private static ListView articles(String basePath, List<FilterControl> controls, String search, String sort, String dir,
+                                     int page, int size, List<ActiveFilter> filters, List<String> hidden, boolean export) {
         List<ListFixtures.Article> matching = new ArrayList<>();
         for (ListFixtures.Article article : ListFixtures.allArticles(false)) {
             boolean searched = search.isEmpty() || article.title().toLowerCase(Locale.ROOT).contains(search.toLowerCase(Locale.ROOT));
@@ -116,13 +130,19 @@ final class FilterFixtures {
         for (int i = shown * size; i < Math.min(matching.size(), (shown + 1) * size); i++) {
             ListFixtures.Article article = matching.get(i);
             boolean featured = featured(article);
-            rows.add(new ListView.Row(String.valueOf(article.id()), List.of(ListFixtures.number(String.valueOf(article.id())),
+            List<Cell> cells = new ArrayList<>(List.of(ListFixtures.number(String.valueOf(article.id())),
                     Cell.text(article.title()), ListFixtures.relation(article.author(), null), ListFixtures.status(article.status()),
                     ListFixtures.number(String.format(Locale.ROOT, "%,d", article.views())),
                     new Cell(Cell.Type.DATE, article.published().toString(), Cell.Tone.NONE, null, null),
-                    new Cell(Cell.Type.BOOLEAN, featured ? "Yes" : "No", featured ? Cell.Tone.GREEN : Cell.Tone.NONE, null, null))));
+                    new Cell(Cell.Type.BOOLEAN, featured ? "Yes" : "No", featured ? Cell.Tone.GREEN : Cell.Tone.NONE, null, null)));
+            for (int c = 0; c < COLUMNS.size(); c++) {
+                if (hidden.contains(COLUMNS.get(c).key())) {
+                    cells.set(c, Cell.empty()); // the console does not query a hidden column (D-113)
+                }
+            }
+            rows.add(new ListView.Row(String.valueOf(article.id()), cells));
         }
-        ListQuery query = new ListQuery(search, sort, dir, shown, size, filters);
+        ListQuery query = new ListQuery(search, sort, dir, shown, size, filters, hidden);
         return ListViewFactory.build(basePath, "article", ListFixtures.ARTICLES, new ListPage(COLUMNS, rows, matching.size(),
                 query, List.of("Title"), controls, List.of()), new ListView.Actions(false, false, false, null, null), false,
                 export);
@@ -214,6 +234,11 @@ final class FilterFixtures {
 
     /** Members: a masked password column and no password filter; name and email are text filters, joined a date range. */
     static ListView sensitiveAbsent(String basePath) {
+        return sensitiveAbsent(basePath, List.of());
+    }
+
+    /** The same with some columns hidden: the masked password column has no checkbox in the column panel and is always shown. */
+    static ListView sensitiveAbsent(String basePath, List<String> hidden) {
         String[] names = {"Ava Stone", "Ben Carter", "Chloe Reed", "Dan Moore", "Eva Lane", "Finn Hale"};
         List<ListView.Row> rows = new ArrayList<>();
         for (int i = 0; i < names.length; i++) {
@@ -221,13 +246,32 @@ final class FilterFixtures {
                     Cell.text(names[i].toLowerCase(Locale.ROOT).replace(' ', '.') + "@example.test"), Cell.masked(),
                     new Cell(Cell.Type.DATE, "2026-0" + (i + 1) + "-15", Cell.Tone.NONE, null, null))));
         }
+        rows = blank(rows, ListFixtures.MEMBER_COLUMNS, hidden);
         List<FilterControl> controls = List.of(new FilterControl("name", "Name", Kind.TEXT, List.of()),
                 new FilterControl("email", "Email", Kind.TEXT, List.of()),
                 new FilterControl("joined", "Joined", Kind.DATE_RANGE, List.of()));
         ListQuery query = new ListQuery("", null, null, 0, 25, List.of(ActiveFilter.range("joined", Kind.DATE_RANGE,
-                "2026-01-01", "2026-06-30")));
+                "2026-01-01", "2026-06-30")), hidden);
         return ListViewFactory.build(basePath, "member", ListFixtures.MEMBERS, new ListPage(ListFixtures.MEMBER_COLUMNS, rows,
                 rows.size(), query, List.of("Name", "Email"), controls, List.of()), new ListView.Actions(false, false, false, null, null));
+    }
+
+    /** The rows with the cells of the hidden columns empty, as the console's query leaves them. */
+    static List<ListView.Row> blank(List<ListView.Row> rows, List<ListColumn> columns, List<String> hidden) {
+        if (hidden.isEmpty()) {
+            return rows;
+        }
+        List<ListView.Row> blanked = new ArrayList<>();
+        for (ListView.Row row : rows) {
+            List<Cell> cells = new ArrayList<>(row.cells());
+            for (int c = 0; c < columns.size(); c++) {
+                if (hidden.contains(columns.get(c).key())) {
+                    cells.set(c, Cell.empty());
+                }
+            }
+            blanked.add(new ListView.Row(row.id(), cells));
+        }
+        return blanked;
     }
 
     /** The notices the console raises for a request full of bad filters: built by the real factory from real notes. */

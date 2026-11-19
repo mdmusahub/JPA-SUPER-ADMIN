@@ -22,11 +22,13 @@ import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Selection;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -166,6 +168,19 @@ public class ListQueryService {
         return ListFilters.parse(entity, registry, params);
     }
 
+    /**
+     * Reads the {@code hide} parameters of a request against this entity's columns (see {@link HiddenColumns}): only the key
+     * of a visible, non-sensitive column is accepted, in column order, and the last column that can stay is never hidden.
+     * Never throws; whatever is not acceptable is ignored without a message, so a sensitive name cannot be told from an
+     * unknown one (SEC-1, SEC-2).
+     *
+     * @param entity an entity from the registry
+     * @param values the values of the repeated {@code hide} parameter, or {@code null}
+     */
+    public HiddenParse parseHidden(AdminEntity entity, List<String> values) {
+        return HiddenColumns.parse(ListColumns.of(entity, registry), values);
+    }
+
     // ---- the two queries ------------------------------------------------------------------------------------
 
     private long count(CriteriaBuilder builder, AdminEntity entity, Plan plan, ListQuery query,
@@ -194,7 +209,7 @@ public class ListQueryService {
         Root<?> root = select.from(entity.type());
 
         // Selection 0 is the identifier. Every other selection is remembered by position, per column.
-        Projection projection = project(root, plan, true);
+        Projection projection = project(root, plan, true, new HashSet<>(query.hidden()), query.sort());
         int[] valueAt = projection.valueAt();
         int[] labelAt = projection.labelAt();
         select.multiselect(projection.selections());
@@ -241,8 +256,12 @@ public class ListQueryService {
     /**
      * @param selectId whether selection 0 is the identifier. The list needs it for the row; the export selects the
      *                 identifier only when it is an exported column, so an identifier that is a sensitive field is never read.
+     * @param hidden   the keys of the columns the page does not show (Phase 12, D-113): such a column is neither selected nor
+     *                 joined, so hiding relation columns lowers the cost of a page. The one exception is a hidden relation
+     *                 column that is the sort key: it keeps its join for the {@code ORDER BY} only, nothing of it is selected
+     * @param sortKey  the key the query is sorted by, or {@code null}
      */
-    private static Projection project(Root<?> root, Plan plan, boolean selectId) {
+    private static Projection project(Root<?> root, Plan plan, boolean selectId, Set<String> hidden, String sortKey) {
         List<Selection<?>> selections = new ArrayList<>();
         if (selectId) {
             selections.add(root.get(plan.idAttribute()));
@@ -256,6 +275,15 @@ public class ListQueryService {
             labelAt[i] = -1;
             if (column.masked()) {
                 continue; // a sensitive attribute is never selected (SEC-1)
+            }
+            if (hidden.contains(column.column().key())) {
+                if (column.relation() != null && column.relation().labelAttribute() != null
+                        && column.column().key().equals(sortKey)) {
+                    // Sorted by but not shown: the join stays for the ORDER BY, and nothing is selected from it.
+                    labelPaths.put(column.column().key(), root.join(column.field().name(), JoinType.LEFT)
+                            .get(column.relation().labelAttribute()));
+                }
+                continue; // a hidden column is not selected and not joined (D-113)
             }
             if (column.relation() != null) {
                 Join<Object, Object> target = root.join(column.field().name(), JoinType.LEFT);
@@ -280,8 +308,8 @@ public class ListQueryService {
     /**
      * Prepares an export of {@code entity}: checks the query exactly as the list does (an unknown, hidden or sensitive sort
      * key, filter or relation choice is dropped, SEC-2), resolves the filters, and counts the records that match. Reads in a
-     * read-only transaction of its own (ARCH-5). The columns are the list's, minus the masked ones: a sensitive column is
-     * not in the header, the rows or the SQL.
+     * read-only transaction of its own (ARCH-5). The columns are the list's, minus the masked ones and minus the hidden ones
+     * (Phase 12): a sensitive or hidden column is not in the header, the rows or the SQL.
      *
      * <p>This method does not check the export switches (SEC-11); {@link ExportService#open} does, and is the only caller
      * outside tests.
@@ -301,8 +329,10 @@ public class ListQueryService {
         Filtering filtering = filtering(builder, plan, checked);
         checked = filtering.query();
         long total = count(builder, entity, plan, checked, filtering.specs());
-        List<ListColumn> columns = plan.columns().stream().filter(column -> !column.masked()).map(PlannedColumn::column)
-                .toList();
+        List<String> hidden = checked.hidden();
+        List<ListColumn> columns = plan.columns().stream()
+                .filter(column -> !column.masked() && !hidden.contains(column.column().key()))
+                .map(PlannedColumn::column).toList();
         return new ExportPlan(entity, columns, total, checked, filtering.specs());
     }
 
@@ -328,7 +358,8 @@ public class ListQueryService {
         CriteriaBuilder builder = entityManager.getCriteriaBuilder();
         CriteriaQuery<Tuple> select = builder.createTupleQuery();
         Root<?> root = select.from(entity.type());
-        Projection projection = project(root, listPlan, false);
+        Set<String> hidden = new HashSet<>(plan.query().hidden());
+        Projection projection = project(root, listPlan, false, hidden, plan.query().sort());
         select.multiselect(projection.selections());
         FilterPredicates.Built conditions = conditions(builder, root, listPlan, plan.query(), plan.specs());
         if (!conditions.predicates().isEmpty()) {
@@ -345,7 +376,7 @@ public class ListQueryService {
             List<String> cells = new ArrayList<>(plan.columns().size());
             for (int i = 0; i < listPlan.columns().size(); i++) {
                 PlannedColumn column = listPlan.columns().get(i);
-                if (column.masked()) {
+                if (column.masked() || hidden.contains(column.column().key())) {
                     continue; // not in the header, so not in the row
                 }
                 int valueAt = projection.valueAt()[i];
@@ -517,7 +548,8 @@ public class ListQueryService {
                         planned.relation() == null ? null : planned.relation().idAttribute(), relationId));
             }
         }
-        ListQuery effective = new ListQuery(query.search(), query.sort(), query.dir(), query.page(), query.size(), kept);
+        ListQuery effective = new ListQuery(query.search(), query.sort(), query.dir(), query.page(), query.size(), kept,
+                query.hidden());
         return new Filtering(effective, specs, controls, notes);
     }
 
@@ -589,8 +621,9 @@ public class ListQueryService {
         }
 
         /**
-         * The query with any sort or filter the entity cannot do removed (SEC-2), so only known names reach a query. The
-         * filters come out in column order, at most {@value ListQuery#MAX_FILTERS}.
+         * The query with any sort, filter or hidden column the entity cannot do removed (SEC-2), so only known names reach a
+         * query. The filters come out in column order, at most {@value ListQuery#MAX_FILTERS}; the hidden columns come out in
+         * column order and never include a masked column or the last column that can stay.
          */
         ListQuery checked(ListQuery query) {
             boolean sortable = query.sort() != null && columns.stream().anyMatch(column -> column.column().sortable()
@@ -605,7 +638,7 @@ public class ListQueryService {
                 }
             }
             return new ListQuery(query.search(), sortable ? query.sort() : null, sortable ? query.dir() : null,
-                    query.page(), query.size(), allowed);
+                    query.page(), query.size(), allowed, HiddenColumns.checked(listColumns(), query.hidden()));
         }
     }
 }

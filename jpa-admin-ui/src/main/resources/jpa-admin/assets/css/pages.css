@@ -828,6 +828,161 @@ html[data-theme-choice="dark"] [data-theme-toggle] .icon-moon {
   }
 }
 
+/* ---- list page: columns and saved views (task U8, Phase 12) ------------------------------------------------------ */
+
+/*
+ * The filter, column and saved-views panels share one row inside the search form. Closed, each is a button-sized box; the
+ * open one takes the whole row, so its controls have room and nothing else moves sideways.
+ */
+.toolbar-panels {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--s2);
+}
+
+.toolbar-panels > details {
+  flex: 0 0 auto;
+}
+
+.toolbar-panels > details[open] {
+  flex: 1 1 100%;
+}
+
+/* Columns: one checkbox and its label per column, in a grid that wraps by itself. */
+.column-fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: var(--s2) var(--s4) var(--s4);
+  border: 0;
+}
+
+.column-hint {
+  margin: var(--s1) 0 var(--s3);
+}
+
+.column-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: var(--s2) var(--s4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.column-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  min-width: 0;
+}
+
+.column-item label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Saved views: the intro, the list of views, the save row and the status line. */
+.views-body {
+  padding: var(--s2) var(--s4) var(--s4);
+}
+
+.views-intro,
+.views-empty,
+.views-nojs,
+.views-status {
+  margin: 0;
+}
+
+.views-script > * + * {
+  margin-top: var(--s3);
+}
+
+.views-list {
+  display: grid;
+  gap: var(--s2);
+  margin-left: 0;
+  margin-right: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.views-list:empty {
+  display: none;
+}
+
+.views-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2) var(--s3);
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-alt);
+}
+
+.views-apply {
+  flex: 1 1 10rem;
+  min-width: 0;
+  color: var(--accent-text);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.views-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--s2);
+}
+
+.views-item .confirm-panel {
+  max-width: 100%;
+}
+
+.views-rename .confirm-panel {
+  border-color: var(--line-strong);
+}
+
+.views-save-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+
+.views-save-row .input {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.views-status {
+  min-height: 1.4em;
+  color: var(--muted);
+}
+
+.column-panel .select-box:focus-visible,
+.views-panel .input:focus-visible,
+.views-apply:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+@media (max-width: 599px) {
+  .column-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .views-save-row .btn {
+    flex: 1 1 100%;
+  }
+
+  .views-item-actions {
+    width: 100%;
+  }
+}
+
 /* ---- list page: the table ----------------------------------------------------------------------------------- */
 
 .table-card {

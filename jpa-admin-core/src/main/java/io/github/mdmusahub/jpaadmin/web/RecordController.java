@@ -184,6 +184,7 @@ public class RecordController {
         FilterParse filters = lists.parseFilters(entity, EntityController.filterParameters(request));
         return lists.parse(entity, request.getParameter("q"), request.getParameter("sort"),
                 request.getParameter("dir"), request.getParameter("page"), request.getParameter("size"))
-                .withParsedFilters(filters.filters());
+                .withParsedFilters(filters.filters())
+                .withParsedHidden(lists.parseHidden(entity, EntityController.hideParameters(request)).hidden());
     }
 }

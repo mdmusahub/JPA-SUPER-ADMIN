@@ -59,6 +59,24 @@ class HtmlRulesTest {
         assertThat(HtmlRules.templateViolations("<p th:text=\"" + expression + "\"></p>")).isNotEmpty();
     }
 
+    // ---- templates: collection selection and projection (Phase 12) ----------------------------------------------
+
+    @ParameterizedTest
+    @ValueSource(strings = {"${view.columns.?[type.name() != 'MASKED']}", "${view.columns.?[!visible].size()}",
+            "${view.paging.sizes.^[current].href}", "${view.columns.![key]}",
+            "${#strings.listJoin(view.columns.?[type.name() != 'MASKED'].![key], ' ')}", "${view.rows.$[id == '1']}"})
+    void acceptsASelectionOrProjectionOfTheModelsOwnCollectionWhoseBracketsReadTheElementsProperties(String expression) {
+        assertThat(HtmlRules.templateViolations("<p th:text=\"" + expression + "\"></p>")).isEmpty();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"${cart.items.?[price > 1]}", "${items.![name]}", "${view.columns.?[visible] + other}",
+            "${secret.?[x]}", "${view.columns.?[#request.getParameter('x') != null]}", "${view.columns.?[T(java.lang.Runtime)]}",
+            "${view.columns.?[@bean.find()]}", "${view.columns.![new java.util.Date()]}"})
+    void stillCatchesAnExpressionThatReachesOutsideTheModelBeforeOrInsideASelection(String expression) {
+        assertThat(HtmlRules.templateViolations("<p th:text=\"" + expression + "\"></p>")).isNotEmpty();
+    }
+
     // ---- templates: good input passes ---------------------------------------------------------------------------
 
     @Test

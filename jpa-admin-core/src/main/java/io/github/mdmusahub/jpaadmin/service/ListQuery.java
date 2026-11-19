@@ -39,8 +39,11 @@ import java.util.stream.Collectors;
  * @param page   requested page, zero-based, not negative
  * @param size   rows per page, one of {@link #PAGE_SIZES}
  * @param filters the filters in force, in column order, at most {@value #MAX_FILTERS}
+ * @param hidden  the keys of the columns the list does not show, in column order, without repeats (Phase 12, D-112); the
+ *                names are checked against the entity's columns by {@code ListQueryService}, never trusted here
  */
-public record ListQuery(String search, String sort, String dir, int page, int size, List<ActiveFilter> filters) {
+public record ListQuery(String search, String sort, String dir, int page, int size, List<ActiveFilter> filters,
+                        List<String> hidden) {
 
     /** The page sizes the console offers (FR-10). */
     public static final List<Integer> PAGE_SIZES = List.of(10, 25, 50, 100);
@@ -60,14 +63,23 @@ public record ListQuery(String search, String sort, String dir, int page, int si
     /** Descending order. */
     public static final String DESC = "desc";
 
-    /** A query with no filters. */
+    /** A query with no filters and no hidden column. */
     public ListQuery(String search, String sort, String dir, int page, int size) {
-        this(search, sort, dir, page, size, List.of());
+        this(search, sort, dir, page, size, List.of(), List.of());
+    }
+
+    /** A query with filters and no hidden column. */
+    public ListQuery(String search, String sort, String dir, int page, int size, List<ActiveFilter> filters) {
+        this(search, sort, dir, page, size, filters, List.of());
     }
 
     public ListQuery {
         Objects.requireNonNull(search, "search");
         filters = List.copyOf(Objects.requireNonNull(filters, "filters"));
+        hidden = List.copyOf(Objects.requireNonNull(hidden, "hidden"));
+        if (hidden.stream().distinct().count() != hidden.size()) {
+            throw new IllegalArgumentException("a column is hidden once");
+        }
         if (filters.size() > MAX_FILTERS) {
             throw new IllegalArgumentException("at most " + MAX_FILTERS + " filters");
         }
@@ -115,22 +127,22 @@ public record ListQuery(String search, String sort, String dir, int page, int si
 
     /** The same query on another page. */
     public ListQuery withPage(int newPage) {
-        return new ListQuery(search, sort, dir, newPage, size, filters);
+        return new ListQuery(search, sort, dir, newPage, size, filters, hidden);
     }
 
     /** The same query with another page size, back on the first page (the old page number would mean other rows). */
     public ListQuery withSize(int newSize) {
-        return new ListQuery(search, sort, dir, 0, newSize, filters);
+        return new ListQuery(search, sort, dir, 0, newSize, filters, hidden);
     }
 
     /** The same search sorted by {@code key} and {@code direction}, back on the first page. */
     public ListQuery withSort(String key, String direction) {
-        return new ListQuery(search, key, direction, 0, size, filters);
+        return new ListQuery(search, key, direction, 0, size, filters, hidden);
     }
 
     /** The same query with these filters instead, back on the first page (the old page number would mean other rows). */
     public ListQuery withFilters(List<ActiveFilter> newFilters) {
-        return new ListQuery(search, sort, dir, 0, size, newFilters);
+        return new ListQuery(search, sort, dir, 0, size, newFilters, hidden);
     }
 
     /**
@@ -139,7 +151,29 @@ public record ListQuery(String search, String sort, String dir, int page, int si
      * working. Only a <em>change</em> of the filter set, made through {@link #withFilters}, starts again at page 0.
      */
     public ListQuery withParsedFilters(List<ActiveFilter> parsed) {
-        return new ListQuery(search, sort, dir, page, size, parsed);
+        return new ListQuery(search, sort, dir, page, size, parsed, hidden);
+    }
+
+    /**
+     * The same query hiding these columns instead, back on the first page: a change of the columns is a change of what the
+     * list shows, and the old page number would mean other rows (decision 9 of Phase 12, D-112).
+     */
+    public ListQuery withHidden(List<String> newHidden) {
+        return new ListQuery(search, sort, dir, 0, size, filters, newHidden);
+    }
+
+    /** The same query showing every column again, back on the first page. */
+    public ListQuery withoutHidden() {
+        return withHidden(List.of());
+    }
+
+    /**
+     * The same query with the hidden columns that were read from the same address. Unlike {@link #withHidden}, the page stays:
+     * the address that carries these columns also carries that page, and a link built for it (next page, Back) must keep
+     * working. Only a <em>change</em> of the hidden set, made through {@link #withHidden}, starts again at page 0.
+     */
+    public ListQuery withParsedHidden(List<String> parsed) {
+        return new ListQuery(search, sort, dir, page, size, filters, parsed);
     }
 
     /** The same query without the filter on {@code key}, back on the first page. */
