@@ -160,8 +160,9 @@ class ConsoleListPageTest {
     }
 
     @Test
-    void newRecordAndBulkDeleteAreOfferedButNotExportYet() {
-        // A parcel can be created and deleted (Phases 8 and 7); export is Phase 11.
+    void newRecordAndBulkDeleteAreOfferedAndAListBuiltWithoutAnExportServiceOffersNoExport() {
+        // A parcel can be created and deleted (Phases 8 and 7). This controller is built with the older constructor (no export
+        // service), so it offers no export; ExportControllerTest covers the list with one (Phase 11).
         assertThat(viewOf(open("parcel")).actions())
                 .isEqualTo(new ListView.Actions(true, false, true, null, "/admin/parcel/bulk-delete"));
     }

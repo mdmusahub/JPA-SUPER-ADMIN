@@ -63,15 +63,29 @@ public final class ListViewFactory {
      */
     public static ListView build(String basePath, String urlName, ListView.EntityInfo entity, ListPage page,
                                  ListView.Actions actions, boolean bulkDelete) {
+        return build(basePath, urlName, entity, page, actions, bulkDelete, false);
+    }
+
+    /**
+     * As the overload with {@code bulkDelete}, and when {@code export} is true also offers the CSV export: the
+     * {@code actions} you pass must not offer it yet, and the factory adds the flag together with the address of the file,
+     * which carries the search, the filters and the sort of this page (not its page number or size) and is built by
+     * {@link ListLinks} (Phase 11, D-28).
+     */
+    public static ListView build(String basePath, String urlName, ListView.EntityInfo entity, ListPage page,
+                                 ListView.Actions actions, boolean bulkDelete, boolean export) {
         Objects.requireNonNull(basePath, "basePath");
         Objects.requireNonNull(entity, "entity");
         Objects.requireNonNull(page, "page");
         Objects.requireNonNull(actions, "actions");
         ListLinks links = new ListLinks(basePath, urlName);
         ListQuery query = page.query();
-        ListView.Actions offered = bulkDelete && !actions.canBulkDelete()
-                ? new ListView.Actions(actions.canCreate(), actions.canExport(), true, actions.exportHref(),
-                        links.bulkDelete(query))
+        boolean addBulk = bulkDelete && !actions.canBulkDelete();
+        boolean addExport = export && !actions.canExport();
+        ListView.Actions offered = addBulk || addExport
+                ? new ListView.Actions(actions.canCreate(), actions.canExport() || addExport,
+                        actions.canBulkDelete() || addBulk, addExport ? links.export(query) : actions.exportHref(),
+                        addBulk ? links.bulkDelete(query) : actions.bulkDeleteHref())
                 : actions;
         return new ListView(entity, columns(page, query, links), linked(basePath, page, links, query), query.search(),
                 query.sort(), query.dir(), filters(page, query, links), paging(page, query, links), offered,
@@ -226,6 +240,19 @@ public final class ListViewFactory {
                     more + (more == 1 ? " more note about the filters is not shown." : " more notes about the filters are not shown.")));
         }
         return messages;
+    }
+
+    /**
+     * The notice for a list whose export would be cut at the cap (D-110): it is on the list page itself, before and after the
+     * download, because a download never replaces the page. Plain text; the page escapes it on output (SEC-9).
+     *
+     * @param matching how many records match the search and the filters
+     * @param cap      the most rows one file holds
+     */
+    public static PageChrome.FlashMessage exportLimitNotice(long matching, int cap) {
+        return new PageChrome.FlashMessage(PageChrome.FlashMessage.Level.INFO,
+                String.format(java.util.Locale.ROOT, "Export is limited to the first %,d of %,d matching records. "
+                        + "Narrow the search or the filters to export the rest.", cap, matching));
     }
 
     /**

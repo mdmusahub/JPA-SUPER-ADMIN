@@ -434,7 +434,7 @@ class PreviewListPagesTest {
     void theNormalFixtureOffersExportAndANewRecordThroughTheRecord() throws Exception {
         String html = render("normal");
 
-        assertThat(html).contains("href=\"/admin-preview/article/export.csv\">Export CSV</a>",
+        assertThat(html).contains("href=\"/admin-preview/article/export.csv\"", "<span>Export CSV</span></a>",
                 "href=\"/admin-preview/article/new\">New record</a>");
     }
 

@@ -591,6 +591,11 @@ html[data-theme-choice="dark"] [data-theme-toggle] .icon-moon {
   gap: var(--s2);
 }
 
+/* The export button (task U8): an icon and its words. The icon never shrinks when the row is tight at phone width. */
+.export-link .icon {
+  flex: none;
+}
+
 .list-toolbar {
   display: grid;
   gap: var(--s3);

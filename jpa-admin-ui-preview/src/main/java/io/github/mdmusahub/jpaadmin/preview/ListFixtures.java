@@ -90,6 +90,13 @@ final class ListFixtures {
         FIXTURES.put("empty-search-escaped", fixture("default", ListFixtures::escapedColumnLabels));
         FIXTURES.put("search-cut", fixture("search-cut", base -> articles(base, "a".repeat(ListQuery.MAX_SEARCH_LENGTH), null, null, 0, 25, true)));
         FIXTURES.put("read-only", fixture("default", base -> articles(base, "", null, null, 0, 25, false)));
+        // Task U8, the export button (Phase 11). The link is built by the real factory from the search, filters and sort.
+        FIXTURES.put("export-enabled", fixture("default", base -> FilterFixtures.exportEnabled(base)));
+        // Export switched off (jpa.admin.export-enabled=false or exportable=false): no button, the other actions stay (D-57).
+        FIXTURES.put("export-disabled", fixture("default", base -> articles(base, "", null, null, 0, 25,
+                new ListView.Actions(true, false, false, null, null), false)));
+        // More records match than one file holds: the notice (the real one) is in the chrome, the button stays (D-110).
+        FIXTURES.put("export-limited", fixture("export-limited", base -> articles(base, "", null, null, 0, 25, true)));
         FIXTURES.put("masked-column", fixture("member-active", ListFixtures::maskedColumn));
         FIXTURES.put("relation-cells", fixture("default", ListFixtures::relationCells));
         FIXTURES.put("long-text", fixture("default", ListFixtures::longText));
@@ -176,6 +183,11 @@ final class ListFixtures {
     /** {@code unassigned}: every ninth article has no author, to show where missing values sort (last). */
     private static ListView articles(String basePath, String search, String sort, String dir, int page, int size,
                                      boolean offersActions, boolean unassigned) {
+        return articles(basePath, search, sort, dir, page, size, actions(basePath, offersActions), unassigned);
+    }
+
+    private static ListView articles(String basePath, String search, String sort, String dir, int page, int size,
+                                     ListView.Actions actions, boolean unassigned) {
         List<Article> matching = new ArrayList<>();
         for (Article article : allArticles(unassigned)) {
             if (search.isEmpty() || article.title().toLowerCase(Locale.ROOT).contains(search.toLowerCase(Locale.ROOT))) {
@@ -195,7 +207,7 @@ final class ListFixtures {
                     new Cell(Cell.Type.DATE, article.published().toString(), Cell.Tone.NONE, null, null))));
         }
         return build(basePath, "article", ARTICLES, ARTICLE_COLUMNS, rows, matching.size(),
-                new ListQuery(search, sort, dir, shown, size), actions(basePath, offersActions));
+                new ListQuery(search, sort, dir, shown, size), actions);
     }
 
     private static Comparator<Article> comparator(String sort, String dir) {
@@ -376,7 +388,13 @@ final class ListFixtures {
         // title only, but the message is about the rule, so it names every text column.
         List<String> searched = columns.stream().filter(column -> column.type() == Cell.Type.TEXT)
                 .map(ListColumn::label).toList();
-        return ListViewFactory.build(basePath, urlName, info, new ListPage(columns, rows, total, query, searched), actions);
+        // The export link is the real one: the factory builds it (and encodes the search, filters and sort) like the console does.
+        boolean export = actions.canExport();
+        ListView.Actions withoutLink = export
+                ? new ListView.Actions(actions.canCreate(), false, actions.canBulkDelete(), null, actions.bulkDeleteHref())
+                : actions;
+        return ListViewFactory.build(basePath, urlName, info, new ListPage(columns, rows, total, query, searched), withoutLink,
+                false, export);
     }
 
     static Cell number(String text) {

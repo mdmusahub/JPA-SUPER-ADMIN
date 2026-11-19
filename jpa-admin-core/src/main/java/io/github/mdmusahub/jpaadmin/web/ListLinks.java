@@ -37,6 +37,17 @@ final class ListLinks {
         return link(path, query);
     }
 
+    /**
+     * The address of the CSV export of the list in {@code state}: the entity's {@code export.csv} with the search, the
+     * filters and the sort, and nothing else. The page and the page size are left out because the file is not one page: it
+     * holds every matching record up to the cap. Every value is percent-encoded by the same writer as the other links. The
+     * visible columns (Phase 12) will join the address when a view can hide one.
+     */
+    String export(ListQuery state) {
+        return link(path + "/export.csv", new ListQuery(state.search(), state.sort(), state.dir(), 0,
+                ListQuery.DEFAULT_SIZE, state.filters()));
+    }
+
     // ---- links of the detail and delete pages (Phase 7, D-65): same writer, same encoding ---------------------------
 
     /**

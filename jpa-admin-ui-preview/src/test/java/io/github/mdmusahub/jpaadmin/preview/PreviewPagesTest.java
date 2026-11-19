@@ -84,7 +84,7 @@ class PreviewPagesTest {
         assertThat(PageFixtures.catalog().get("error")).contains("not-found", "forbidden", "server-error", "bad-request", "long-hint");
         assertThat(ChromeFixtures.names()).containsExactly("default", "empty-sidebar", "no-active-entity", "deep-breadcrumbs",
                 "flash-all-levels", "theme-dark", "theme-light", "theme-system", "custom-base-path", "long-sidebar",
-                "no-user", "search-cut", "filters-ignored", "article-detail", "delete-done", "delete-blocked", "bulk-done",
+                "no-user", "search-cut", "export-limited", "filters-ignored", "article-detail", "delete-done", "delete-blocked", "bulk-done",
                 "bulk-partial", "bulk-over-cap", "bulk-blocked", "bulk-nothing-selected", "member-active");
     }
 

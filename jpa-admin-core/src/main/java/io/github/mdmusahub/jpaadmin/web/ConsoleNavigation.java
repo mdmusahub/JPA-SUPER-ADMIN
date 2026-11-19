@@ -29,14 +29,26 @@ public final class ConsoleNavigation {
 
     private final AdminEntityRegistry registry;
     private final CountService counts;
+    private final boolean exportEnabled;
 
     /**
      * @param registry the entities the console manages
      * @param counts   the record counts
      */
     public ConsoleNavigation(AdminEntityRegistry registry, CountService counts) {
+        this(registry, counts, false);
+    }
+
+    /**
+     * @param registry      the entities the console manages
+     * @param counts        the record counts
+     * @param exportEnabled whether the CSV export is switched on ({@code jpa.admin.export-enabled}); the dashboard's
+     *                      {@code Permissions.export} is this and the entity's own {@code exportable} option
+     */
+    public ConsoleNavigation(AdminEntityRegistry registry, CountService counts, boolean exportEnabled) {
         this.registry = Objects.requireNonNull(registry, "registry");
         this.counts = Objects.requireNonNull(counts, "counts");
+        this.exportEnabled = exportEnabled;
     }
 
     /** A console with no entities: no entity manager factory, or every entity hidden. */
@@ -108,11 +120,12 @@ public final class ConsoleNavigation {
     }
 
     /**
-     * What the console offers for an entity today: creating, changing and deleting, when {@code @AdminResource} allows it
-     * (each flag is also enforced in its service, SEC-11). Exporting arrives in Phase 11, so it is not offered yet and no
-     * page shows a button that would lead nowhere.
+     * What the console offers for an entity: creating, changing, deleting and exporting, when {@code @AdminResource} and the
+     * properties allow it (each flag is also enforced in its service, SEC-11). Exporting is offered when it is switched on and
+     * the entity is exportable; the list page additionally needs a column to export ({@code ExportService#offers}).
      */
-    private static DashboardView.Permissions permissions(AdminEntity entity) {
-        return new DashboardView.Permissions(entity.canCreate(), entity.canUpdate(), entity.canDelete(), false);
+    private DashboardView.Permissions permissions(AdminEntity entity) {
+        return new DashboardView.Permissions(entity.canCreate(), entity.canUpdate(), entity.canDelete(),
+                exportEnabled && entity.canExport());
     }
 }

@@ -42,15 +42,22 @@ public record AdminEntity(Class<?> type, String entityName, String urlName, Stri
      * @param creatable whether records can be created; ignored when {@code readOnly}
      * @param updatable whether records can be changed; ignored when {@code readOnly}
      * @param deletable whether records can be deleted; ignored when {@code readOnly}
+     * @param exportable whether the records can be exported as CSV (D-106). Not affected by {@code readOnly}: an export only
+     *                  reads
      */
-    public record Access(boolean readOnly, boolean creatable, boolean updatable, boolean deletable) {
+    public record Access(boolean readOnly, boolean creatable, boolean updatable, boolean deletable, boolean exportable) {
 
         /** No annotation: nothing is forbidden. */
-        public static final Access FULL = new Access(false, true, true, true);
+        public static final Access FULL = new Access(false, true, true, true, true);
 
         /** Read-only and deletable only: the pair of options Phase 7 had. Creating and changing stay allowed. */
         public Access(boolean readOnly, boolean deletable) {
-            this(readOnly, true, true, deletable);
+            this(readOnly, true, true, deletable, true);
+        }
+
+        /** The four options that existed before Phase 11; the entity can be exported. */
+        public Access(boolean readOnly, boolean creatable, boolean updatable, boolean deletable) {
+            this(readOnly, creatable, updatable, deletable, true);
         }
 
         /** Whether records can be created. */
@@ -66,6 +73,11 @@ public record AdminEntity(Class<?> type, String entityName, String urlName, Stri
         /** Whether records can be deleted. */
         public boolean canDelete() {
             return !readOnly && deletable;
+        }
+
+        /** Whether the records can be exported: {@code exportable}, whatever {@code readOnly} says (an export only reads). */
+        public boolean canExport() {
+            return exportable;
         }
     }
 
@@ -131,6 +143,15 @@ public record AdminEntity(Class<?> type, String entityName, String urlName, Stri
      */
     public boolean canUpdate() {
         return addressable() && access.canUpdate();
+    }
+
+    /**
+     * Whether the console may export this entity's records as CSV: supported and not switched off with
+     * {@code @AdminResource(exportable = false)} (SEC-11, D-106). It does not look at {@code jpa.admin.export-enabled}, which
+     * is the service's business, and a read-only entity can be exported.
+     */
+    public boolean canExport() {
+        return supported() && access.canExport();
     }
 
     /** The entity class name, for logs and for the {@code excluded-entities} property. */
