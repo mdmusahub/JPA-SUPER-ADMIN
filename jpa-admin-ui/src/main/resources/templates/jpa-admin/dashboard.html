@@ -2,8 +2,9 @@
 <html lang="en"
       th:replace="~{jpa-admin/layout :: layout('Dashboard', ~{::main}, true)}">
 <!--/*
-  The dashboard: four stat cards and one card per entity group (task U1). The chart card arrives with task U7, so
-  nothing is drawn for it while view.chartAvailable is false.
+  The dashboard: four stat cards, the "Records created" chart card (task U7, fragments/chart.html) and one card per
+  entity group (task U1). The chart card is there exactly when view.chartAvailable is true; when it is false the card
+  is hidden and one muted sentence says why and how an entity gets into the chart. The chart needs no script.
 
   A console that found no entity shows a welcome state instead of empty cards, and says where entities come from and
   why one might be missing. Counts are printed with thousands separators; a count the console could not read says
@@ -52,6 +53,15 @@
         <p class="stat-note" th:if="${view.stats.largestTable == null}">No record has been counted yet</p>
       </section>
     </div>
+
+    <th:block th:if="${view.chartAvailable}">
+      <th:block th:replace="~{jpa-admin/fragments/chart :: chart}"></th:block>
+    </th:block>
+    <p th:unless="${view.chartAvailable}" class="muted chart-absent" id="chart-absent">
+      There is no chart: no entity has a creation date field. A date or time field named <code>createdAt</code>,
+      <code>createdDate</code>, <code>createdOn</code>, <code>creationDate</code>, <code>creationTime</code>,
+      <code>createTime</code> or <code>createdDateTime</code> adds its entity to the "Records created" chart.
+    </p>
 
     <div class="group-cards">
       <section class="card group-card" th:each="group : ${view.groups}">
