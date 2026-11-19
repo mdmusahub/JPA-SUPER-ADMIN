@@ -17,6 +17,13 @@
   (D-28); the template prints them. The names of the controls are derived from the key and the kind: filter.key for a
   single value, filter.key.min and .max for a number range, filter.key.from and .to for a date range.
 
+  Columns and saved views (task U8, Phase 12): the Columns panel (fragments/column-panel.html) is part of the same GET form, one
+  checkbox per column that can be hidden (name "hide", ticked = hidden, taken from view.columns[i].visible), so a column choice,
+  a search and the filters travel together and never carry the page number. The table skips every column whose visible flag is
+  false. The Saved views panel (fragments/views-panel.html) is script-only: views live in this browser (views.js) and are plain
+  links to this list's address; it sits in the same form without a form of its own. The panels share one row and the open one
+  takes the whole row.
+
   Actions the console does not offer are simply not in the record: nothing here is a disabled button (D-57). "New record" and
   the export button appear only when view.actions says so.
 
@@ -70,7 +77,11 @@
        th:href="@{${chrome.basePath} + '/' + ${chrome.activeEntity}}"
        th:text="${view.filters.chips.isEmpty()} ? 'Clear search' : 'Clear search and filters'">Clear search</a>
     </div>
-    <th:block th:replace="~{jpa-admin/fragments/filter-panel :: panel}"></th:block>
+    <div class="toolbar-panels">
+      <th:block th:replace="~{jpa-admin/fragments/filter-panel :: panel}"></th:block>
+      <th:block th:replace="~{jpa-admin/fragments/column-panel :: panel}"></th:block>
+      <th:block th:replace="~{jpa-admin/fragments/views-panel :: panel}"></th:block>
+    </div>
   </form>
 
   <th:block th:replace="~{jpa-admin/fragments/filter-chips :: chips}"></th:block>

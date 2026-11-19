@@ -88,7 +88,7 @@ final class HtmlRules {
                             + "', which reaches outside the model (UI-12)");
                 }
             }
-            Matcher roots = ROOT_IDENTIFIER.matcher(code);
+            Matcher roots = ROOT_IDENTIFIER.matcher(withoutSelections(code));
             while (roots.find()) {
                 String name = roots.group(1);
                 if (!KEYWORDS.contains(name) && !MODEL_ROOTS.contains(name) && !locals.contains(name)) {
@@ -97,6 +97,37 @@ final class HtmlRules {
                 }
             }
         }
+    }
+
+    /**
+     * SpEL collection selection and projection ({@code .?[...]}, {@code .^[...]}, {@code .$[...]}, {@code .![...]}) evaluate their
+     * brackets against each <em>element</em> of the collection, so a bare name inside them is a property of the element, not a
+     * variable of the model. The collection itself is still checked: it is what stands before the dot. The brackets are replaced by a
+     * property name, so what is left is the path that the root check reads. The forbidden-text check above has already seen the
+     * whole expression, brackets included.
+     */
+    private static String withoutSelections(String code) {
+        StringBuilder out = new StringBuilder();
+        int i = 0;
+        while (i < code.length()) {
+            if (i + 2 < code.length() && code.charAt(i) == '.' && "?^$!".indexOf(code.charAt(i + 1)) >= 0
+                    && code.charAt(i + 2) == '[') {
+                int depth = 0;
+                int j = i + 2;
+                for (; j < code.length(); j++) {
+                    if (code.charAt(j) == '[') {
+                        depth++;
+                    } else if (code.charAt(j) == ']' && --depth == 0) {
+                        break;
+                    }
+                }
+                out.append(".element");
+                i = j + 1;
+            } else {
+                out.append(code.charAt(i++));
+            }
+        }
+        return out.toString();
     }
 
     /** Variables a template declares for itself: th:each names, th:with names and fragment parameters. */

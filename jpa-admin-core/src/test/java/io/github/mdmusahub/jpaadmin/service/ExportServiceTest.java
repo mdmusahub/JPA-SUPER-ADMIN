@@ -114,8 +114,8 @@ class ExportServiceTest {
                 parcel.setInternalCode("internal-" + i);
                 parcel.setPicture(new byte[] {1, 2, 3});
                 Dimensions size = new Dimensions();
-                size.setWidth(1000 + i);
-                size.setHeight(2000 + i);
+                size.setWidth(7_700_000 + i);
+                size.setHeight(7_800_000 + i);
                 parcel.setDimensions(size);
                 special(parcel, i);
                 em.persist(parcel);
@@ -256,7 +256,7 @@ class ExportServiceTest {
 
         assertThat(text).doesNotContain(SECRET, "memo-secret", "internal-", "item-secret", "BADGE-SECRET", "DEPOT-KEY-SECRET",
                 "Deep vault name");
-        assertThat(text).doesNotContain("1001", "2001").as("the embedded width and height");
+        assertThat(text).as("the embedded width and height").doesNotContain("77000", "78000");
         String selected = RecordingStatementInspector.selects().stream().map(ExportServiceTest::normalised)
                 .reduce("", (a, b) -> a + "\n" + b);
         assertThat(selected).doesNotContain("accesstoken", "memo", "internalcode", "picture", "width", "height",
@@ -674,6 +674,115 @@ class ExportServiceTest {
         assertThat(text).doesNotContain("987654321");
         String selectList = normalised(RecordingStatementInspector.selects().get(RecordingStatementInspector.selects().size() - 1));
         assertThat(selectList.substring(0, selectList.indexOf(" from "))).doesNotContain("accesstoken");
+    }
+
+    // ---- hidden columns (Phase 12, D-113): the export follows the list's visible columns -------------------------------------
+
+    private static ListQuery hiding(String... keys) {
+        return new ListQuery("", null, null, 0, 25, List.of(), List.of(keys));
+    }
+
+    /** The headers of the columns the list shows for {@code query}: not masked, not hidden, in list order. */
+    private List<String> listedHeaders(ListQuery query) {
+        ListPage page = lists.list(PARCEL, query);
+        return page.columns().stream()
+                .filter(column -> column.type() != Cell.Type.MASKED && !page.query().hidden().contains(column.key()))
+                .map(ListColumn::label).toList();
+    }
+
+    @Test
+    void theFilesHeaderIsExactlyTheColumnsTheListShowsWhenSomeAreHidden() throws IOException {
+        ListQuery query = hiding("weight", "depot", "notes");
+
+        List<List<String>> table = table(PARCEL, query);
+
+        assertThat(table.get(0)).containsExactlyElementsOf(listedHeaders(query));
+        assertThat(table.get(0)).doesNotContain("Weight", "Depot", "Notes").contains("Reference", "ID", "Courier", "Status");
+        assertThat(table).as("the same records, fewer columns").hasSize(1 + PARCELS);
+        assertThat(table).allSatisfy(row -> assertThat(row).hasSameSizeAs(table.get(0)));
+    }
+
+    @Test
+    void theRowsOfTheFileAreTheRowsOfTheListWithoutTheHiddenColumns() throws IOException {
+        ListQuery query = hiding("weight", "status", "createdAt");
+        List<List<String>> plain = table(PARCEL, hiding());
+
+        List<List<String>> hidden = table(PARCEL, query);
+
+        assertThat(hidden.get(0)).hasSize(plain.get(0).size() - 3);
+        for (String header : hidden.get(0)) {
+            assertThat(values(hidden, header)).as("the %s column is unchanged", header).isEqualTo(values(plain, header));
+        }
+    }
+
+    @Test
+    void aHiddenColumnIsNeitherSelectedNorJoinedByTheExport() throws IOException {
+        file(PARCEL, hiding("weight", "notes", "depot", "courier"));
+        String page = normalised(RecordingStatementInspector.selects().get(RecordingStatementInspector.selects().size() - 1));
+        String selectList = page.substring(0, page.indexOf(" from "));
+
+        assertThat(selectList).doesNotContain(".weight", ".notes", "callsign", ".name");
+        assertThat(selectList).contains(".reference");
+        assertThat(page.split(" left join ").length - 1).as("only crate and vault are still joined").isEqualTo(2);
+    }
+
+    @Test
+    void aHiddenValueIsNotInTheFile() throws IOException {
+        String text = file(PARCEL, hiding("notes", "depot", "reference"));
+
+        assertThat(text).doesNotContain("Handle with care", "North hub", "South hub", "PKG-0");
+    }
+
+    @Test
+    void theIdentifierCanBeHiddenAndTheFileLosesItsIdColumn() throws IOException {
+        List<List<String>> table = table(PARCEL, hiding("id"));
+
+        assertThat(table.get(0)).doesNotContain("ID").contains("Reference");
+        assertThat(table).hasSize(1 + PARCELS);
+        assertThat(lists.exportPlan(PARCEL, hiding("id")).columns()).extracting(ListColumn::key).doesNotContain("id");
+    }
+
+    @Test
+    void aSensitiveNameBuiltIntoTheQueryChangesNothingAndStaysOutOfTheFile() throws IOException {
+        String plain = file(PARCEL, hiding());
+
+        String text = file(PARCEL, hiding("accessToken", "memo", "internalCode", "nothing"));
+
+        assertThat(text).isEqualTo(plain);
+        assertThat(text).doesNotContain(SECRET, "memo-secret", "internal-");
+    }
+
+    @Test
+    void allButOneColumnHiddenLeavesAOneColumnFile() throws IOException {
+        List<String> all = new ArrayList<>(List.of("id", "reference", "notes", "weight", "pieces", "fragile", "status",
+                "shippedOn", "createdAt", "depot", "courier", "crate", "vault"));
+        all.remove("pieces");
+
+        List<List<String>> table = table(PARCEL, hiding(all.toArray(new String[0])));
+
+        assertThat(table.get(0)).containsExactly("Pieces");
+        assertThat(table).hasSize(1 + PARCELS);
+    }
+
+    @Test
+    void aQueryThatHidesEveryColumnIsRefusedByTheSecondCheckAndTheFileHasEveryColumn() throws IOException {
+        List<List<String>> plain = table(PARCEL, hiding());
+
+        List<List<String>> table = table(PARCEL, hiding("id", "reference", "notes", "weight", "pieces", "fragile", "status",
+                "shippedOn", "createdAt", "depot", "courier", "crate", "vault"));
+
+        assertThat(table.get(0)).isEqualTo(plain.get(0));
+    }
+
+    @Test
+    void hidingColumnsKeepsTheSearchTheFiltersAndTheSortOfTheFile() throws IOException {
+        ListQuery query = lists.parse(PARCEL, "care #1", "pieces", "desc", null, null).withParsedHidden(List.of("pieces"));
+
+        List<List<String>> table = table(PARCEL, query);
+
+        assertThat(table.get(0)).doesNotContain("Pieces");
+        assertThat(values(table, "Reference")).as("parcels 1 and 10 to 19 match, except 13 whose notes were replaced").hasSize(10);
+        assertThat(values(table, "Reference")).contains("PKG-010");
     }
 
     // ---- failure ----------------------------------------------------------------------------------------------------------------
