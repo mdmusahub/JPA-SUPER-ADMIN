@@ -17,8 +17,14 @@
   (D-28); the template prints them. The names of the controls are derived from the key and the kind: filter.key for a
   single value, filter.key.min and .max for a number range, filter.key.from and .to for a date range.
 
-  Actions that do not exist yet are simply not in the record: nothing here is a disabled button. "New record" and the
-  export button appear only when view.actions says so.
+  Actions the console does not offer are simply not in the record: nothing here is a disabled button (D-57). "New record" and
+  the export button appear only when view.actions says so.
+
+  Export (task U8, Phase 11): view.actions.exportHref is a plain link to the CSV file. It carries the search, the filters and
+  the sort of this page, never the page number or the size (the file is every matching record up to the cap). It is a link, so
+  it works without JavaScript, and a click starts a download without leaving the page. When the file would be cut at the cap
+  the page says so in a notice (chrome.flash), before the download and after it (D-110); the template does nothing for that.
+  The button is absent when the export is switched off for the console or for this entity.
 
   Bulk delete (task U4): when view.actions.canBulkDelete is true the table has a checkbox column and sits, with the bulk
   bar, in a POST form of its own (view.actions.bulkDeleteHref; the address carries the list state, so the answer returns
@@ -37,7 +43,10 @@
          th:text="${#numbers.formatInteger(view.paging.total, 1, 'COMMA')} + (${view.paging.total == 1} ? ' record' : ' records')">0 records</p>
     </div>
     <div class="list-actions" th:if="${view.actions.canExport or view.actions.canCreate}">
-      <a class="btn" th:if="${view.actions.canExport}" th:href="@{${view.actions.exportHref}}">Export CSV</a>
+      <a class="btn export-link" th:if="${view.actions.canExport}" th:href="@{${view.actions.exportHref}}"
+         aria-label="Export CSV of the matching records"
+         title="Download the records that match the current search and filters as a CSV file"><th:block
+            th:replace="~{jpa-admin/fragments/icons :: download}"></th:block><span>Export CSV</span></a>
       <a class="btn btn-primary" th:if="${view.actions.canCreate}"
          th:href="@{${chrome.basePath} + '/' + ${chrome.activeEntity} + '/new'}">New record</a>
     </div>

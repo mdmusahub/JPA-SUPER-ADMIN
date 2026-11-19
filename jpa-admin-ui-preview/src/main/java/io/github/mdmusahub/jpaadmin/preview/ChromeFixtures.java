@@ -76,6 +76,10 @@ final class ChromeFixtures {
         VARIANTS.put("search-cut", () -> chrome(BASE, Theme.SYSTEM, navigation(), "article",
                 List.of(new Breadcrumb("Dashboard", BASE), new Breadcrumb("Articles", null)),
                 List.of(ListViewFactory.searchCutNotice())));
+        // A list whose export would be cut at the cap: the notice is the real one, built by the real factory (D-110).
+        VARIANTS.put("export-limited", () -> chrome(BASE, Theme.SYSTEM, navigation(), "article",
+                List.of(new Breadcrumb("Dashboard", BASE), new Breadcrumb("Articles", null)),
+                List.of(ListViewFactory.exportLimitNotice(120_345, 50_000))));
         // A list whose address carried filters the console ignored: the notices are the real ones, built by the real factory.
         VARIANTS.put("filters-ignored", () -> chrome(BASE, Theme.SYSTEM, navigation(), "article",
                 List.of(new Breadcrumb("Dashboard", BASE), new Breadcrumb("Articles", null)), FilterFixtures.ignoredNotices()));

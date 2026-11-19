@@ -1,6 +1,7 @@
 package io.github.mdmusahub.jpaadmin.web;
 
 import io.github.mdmusahub.jpaadmin.metadata.AdminEntity;
+import io.github.mdmusahub.jpaadmin.service.ExportService;
 import io.github.mdmusahub.jpaadmin.service.FilterNote;
 import io.github.mdmusahub.jpaadmin.service.FilterParse;
 import io.github.mdmusahub.jpaadmin.service.ListPage;
@@ -47,8 +48,10 @@ import org.springframework.web.servlet.ModelAndView;
  *
  * <p>The list offers bulk delete (row checkboxes and the bulk bar) exactly when the entity can be deleted
  * ({@link AdminEntity#canDelete}, from {@code @AdminResource}); every row's identifier links to its detail page and a
- * relation cell links to the related record (D-65, D-70). "New record" is offered exactly when the entity can be created in (Phase 8, SEC-11) and CSV export arrives with
- * Phase 11. An action that is not offered is absent, not disabled, so no button leads nowhere.
+ * relation cell links to the related record (D-65, D-70). "New record" is offered exactly when the entity can be created in
+ * (Phase 8, SEC-11), and the CSV export exactly when {@link ExportService#offers} says so (Phase 11): the export is switched on,
+ * the entity is exportable and it has a column to export. When the export would be cut at the cap the page says so in a notice
+ * (D-110). An action that is not offered is absent, not disabled, so no button leads nowhere.
  *
  * <p>Internal, not stable API. Public only so the auto-configuration module can create it.
  */
@@ -60,14 +63,23 @@ public class EntityController {
     private final ConsoleNavigation navigation;
     private final ListQueryService lists;
     private final BasePath basePath;
+    private final ExportService exports;
 
+    /** A list page that offers no export (the console with the export switched off, or a test). */
     public EntityController(ConsoleChromeFactory chromeFactory, ConsoleViews views, ConsoleNavigation navigation,
                             ListQueryService lists, BasePath basePath) {
+        this(chromeFactory, views, navigation, lists, basePath, ExportService.none());
+    }
+
+    /** @param exports decides whether the list offers the CSV export and what its cap is (Phase 11) */
+    public EntityController(ConsoleChromeFactory chromeFactory, ConsoleViews views, ConsoleNavigation navigation,
+                            ListQueryService lists, BasePath basePath, ExportService exports) {
         this.chromeFactory = Objects.requireNonNull(chromeFactory, "chromeFactory");
         this.views = Objects.requireNonNull(views, "views");
         this.navigation = Objects.requireNonNull(navigation, "navigation");
         this.lists = Objects.requireNonNull(lists, "lists");
         this.basePath = Objects.requireNonNull(basePath, "basePath");
+        this.exports = Objects.requireNonNull(exports, "exports");
     }
 
     /**
@@ -94,12 +106,18 @@ public class EntityController {
         ListQuery query = lists.parse(found, q, sort, dir, page, size).withParsedFilters(filters.filters());
         ListPage listed = lists.list(found, query);
         ListView.EntityInfo info = new ListView.EntityInfo(found.label(), Plurals.of(found.label()), found.icon());
+        boolean export = exports.offers(found);
         ListView view = ListViewFactory.build(basePath.value(), found.urlName(), info, listed,
                 new ListView.Actions(found.canCreate(), false, false, null, null),
-                found.canDelete());
+                found.canDelete(), export);
+        List<PageChrome.FlashMessage> notices = notices(q, filters, listed);
+        if (export && listed.total() > exports.cap()) {
+            // The file would be cut: say so on the page, before the download and after it (D-110).
+            notices.add(ListViewFactory.exportLimitNotice(listed.total(), exports.cap()));
+        }
         PageChrome chrome = chromeFactory.chrome(request,
                 List.of(new Breadcrumb("Dashboard", basePath.value()), new Breadcrumb(info.plural(), null)),
-                found.urlName(), notices(q, filters, listed));
+                found.urlName(), notices);
         return views.page(request, ListView.TEMPLATE, chrome, view);
     }
 

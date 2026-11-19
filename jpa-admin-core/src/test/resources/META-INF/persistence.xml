@@ -57,6 +57,7 @@
     <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Folio</class>
     <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Frozen</class>
     <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Sealed</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Shielded</class>
     <exclude-unlisted-classes>true</exclude-unlisted-classes>
     <properties>
       <property name="jakarta.persistence.jdbc.url" value="jdbc:h2:mem:jpa-admin-core-list-test;DB_CLOSE_DELAY=-1"/>

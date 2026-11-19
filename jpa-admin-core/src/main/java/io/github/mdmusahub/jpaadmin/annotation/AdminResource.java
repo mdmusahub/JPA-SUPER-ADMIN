@@ -29,8 +29,14 @@ import java.lang.annotation.Target;
  * public class Invoice { ... }
  * }</pre>
  *
- * <p>This version of the console reads four options. The others named in the project plan (display names, group, icon,
- * order, exportable, default sort, page size) arrive with the phases that use them.
+ * <pre>{@code
+ * @Entity
+ * @AdminResource(exportable = false)     // no CSV export of these records, whatever jpa.admin.export-enabled says
+ * public class PaymentCard { ... }
+ * }</pre>
+ *
+ * <p>This version of the console reads five options. The others named in the project plan (display names, group, icon,
+ * order, default sort, page size) arrive with the phases that use them.
  *
  * <p>Part of the console's public API (ARCH-9): the options are small, documented and have defaults, so adding the annotation
  * never changes an entity that does not use it.
@@ -68,4 +74,13 @@ public @interface AdminResource {
      * {@link #readOnly()} is {@code true}.
      */
     boolean deletable() default true;
+
+    /**
+     * Whether the records of this entity can be exported as a CSV file from the list page. Default {@code true}. A
+     * read-only entity can still be exported, because an export only reads. {@code false} removes the export button and
+     * makes the export address answer 403 even when the page never offered it (SEC-11). The global switch
+     * {@code jpa.admin.export-enabled=false} turns the export off for every entity; this option can only turn it off for
+     * one.
+     */
+    boolean exportable() default true;
 }
