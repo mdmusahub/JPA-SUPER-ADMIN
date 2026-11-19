@@ -1,6 +1,7 @@
 package io.github.mdmusahub.jpaadmin.autoconfigure;
 
 import io.github.mdmusahub.jpaadmin.metadata.DiscoverySettings;
+import io.github.mdmusahub.jpaadmin.service.ExportSettings;
 import io.github.mdmusahub.jpaadmin.storage.StoragePaths;
 import io.github.mdmusahub.jpaadmin.storage.StorageSettings;
 import io.github.mdmusahub.jpaadmin.storage.UploadLimits;
@@ -80,6 +81,22 @@ public class JpaAdminProperties implements InitializingBean {
      * {@code @AdminUpload} field works without any property. Other names exist only when configured.
      */
     private Map<String, Storage> storage = new LinkedHashMap<>();
+
+    /** Whether the CSV export is available. When false, no list shows the export button and the export address answers 403. */
+    private boolean exportEnabled = true;
+
+    /**
+     * The most rows one CSV file holds. It can only lower the cap: 50000 is a fixed ceiling inside the console, and a value
+     * above it (or below 1) stops startup. When more records match, the file is cut at this number and the response says so.
+     */
+    // Long, not int, so an absurd number reaches the plain message below instead of a binding error.
+    private long exportMaxRows = ExportSettings.CEILING;
+
+    /**
+     * Whether a CSV file starts with a UTF-8 byte order mark. Off by default; turn it on when Excel opens the files in the
+     * wrong character set.
+     */
+    private boolean exportBom = false;
 
     /** Settings of the upload tickets. */
     private final Upload upload = new Upload();
@@ -233,6 +250,35 @@ public class JpaAdminProperties implements InitializingBean {
         return upload;
     }
 
+    public boolean isExportEnabled() {
+        return exportEnabled;
+    }
+
+    public void setExportEnabled(boolean exportEnabled) {
+        this.exportEnabled = exportEnabled;
+    }
+
+    public long getExportMaxRows() {
+        return exportMaxRows;
+    }
+
+    public void setExportMaxRows(long exportMaxRows) {
+        this.exportMaxRows = exportMaxRows;
+    }
+
+    public boolean isExportBom() {
+        return exportBom;
+    }
+
+    public void setExportBom(boolean exportBom) {
+        this.exportBom = exportBom;
+    }
+
+    /** The export settings as the core sees them. Called after {@link #validate()}, so the cap is usable. */
+    ExportSettings exportSettings() {
+        return new ExportSettings(exportEnabled, exportMaxRows, exportBom);
+    }
+
     /**
      * Every storage as the upload code sees it, the {@code default} one included (with its defaults when no property
      * names it). Called after {@link #validate()}, so every value is usable.
@@ -299,6 +345,12 @@ public class JpaAdminProperties implements InitializingBean {
                 + "jpa.admin.sensitive-fields[0]=password. Leave the property out to keep the defaults ("
                 + String.join(", ", DiscoverySettings.DEFAULT_SENSITIVE_FIELDS) + ").", problems);
         validateUploads(problems);
+        if (exportMaxRows < 1 || exportMaxRows > ExportSettings.CEILING) {
+            // The value is not repeated: the message says what is allowed, which is all the operator needs.
+            problems.add(PREFIX + ".export-max-rows must be a whole number from 1 to " + ExportSettings.CEILING
+                    + ". It can lower the number of rows in one CSV file but never raise it: " + ExportSettings.CEILING
+                    + " is the fixed ceiling. For example jpa.admin.export-max-rows=10000, or leave the property out.");
+        }
         if (!problems.isEmpty()) {
             throw new JpaAdminConfigurationException(problems);
         }

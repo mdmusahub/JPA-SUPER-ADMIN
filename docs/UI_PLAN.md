@@ -197,7 +197,7 @@ UI tasks use the prefix **U**. A UI task is "done" when it works in the preview 
 | U5 | Form page, all field inputs, validation display, unsaved-changes guard. **Delivered 2026-11-18, see "U5 status" below** | 8 Create and edit | Phase 8 |
 | U6 | Uploader component, previews, progress, errors, image cells. **Delivered 2026-11-18, see "U6 status" below** | 9 Uploads | Phase 9 |
 | U7 | Dashboard chart with range switch. **Delivered 2026-11-19, see "U7 status" below** | 10 Charts | Phase 10 |
-| U8 | Export button states, saved views menu, column visibility | 11 Export, 12 Saved views | Phase 12 |
+| U8 | Export button states, saved views menu, column visibility. **The export part was delivered and connected 2026-11-19, see "U8 status (export part)" below; the saved views menu and column visibility stay with Phase 12** | 11 Export, 12 Saved views | Phase 12 (export part: Phase 11) |
 | U9 | Accessibility, responsive and dark theme passes (including the manual phone-width pass of the list), keyboard shortcuts (`/` for the search box), sticky table header, docs screenshots | 13 Polish | Phase 13 |
 
 Phase 5 (re-scoped, D-60) has no UI task of its own: its four items change data the list templates already read (a relation header gains a sort link and `aria-sort`, the empty-state hint and a notice carry new text), so `list.html`, `table.html` and the stylesheets are expected to stay as they are. If one of them has to change, the change goes in with a note in this section. **Result (2026-11-17): none of them changed**; see "U2 refinements status" below. An automated real-browser test of the list belongs to Phase 14.
@@ -275,6 +275,18 @@ Delivered and connected in the sample app (D-101 to D-104). **Contract change, a
 **Preview:** the dashboard states `chart-range-7`, `chart-range-90`, `chart-single-entity`, `chart-one-unavailable`, `chart-all-unavailable`, `chart-all-zero`, `chart-spike`, `chart-large-counts`, `chart-long-labels`, `chart-range-fallback`, `chart-capped`, `chart-many-entities`, `chart-new-year` (and `normal`, which carries the 30-day card), drawn by the real `DashboardCharts.chartOf`; `no-chart` is the card hidden. `PreviewChartPagesTest` (23) and `TemplateRulesTest` check them.
 
 **Not done:** the browser pass (both themes, phone width, keyboard, script off) is a manual item and a Phase 14 item (no browser driver, AI-8).
+
+### U8 status, export part (2026-11-19, Phase 11)
+
+Delivered and connected in the sample app (D-105 to D-111). **No contract change**: `ListView.Actions.canExport` and `exportHref` (D-28) and `DashboardView.Permissions.export` already carried everything.
+
+**The button** (in `list.html`, the list header next to "New record"): a plain link to `view.actions.exportHref`, with a download icon (new `download` fragment in `icons.html`), the words "Export CSV", an `aria-label` that contains the visible words ("Export CSV of the matching records", so the accessible name matches what is seen) and a `title` that says what the file holds. The address carries the search, the filters and the sort of the page and never the page number or the size (the file is every matching record up to the cap). The backend builds it (`ListLinks.export`, percent-encoded, under the base path); the template only prints it. No script and no inline style; the keyboard focus is the shared `.btn` focus ring; `pages.css` only stops the icon from shrinking at phone width.
+
+**States.** *Idle:* the link. *Disabled:* the button is **absent**, not greyed (D-57: a disabled control with no explanation is worse than none): `jpa.admin.export-enabled=false` or `@AdminResource(exportable = false)` remove it while "New record" stays. *Busy:* there is none, because a link that starts a download never replaces the page and the browser shows the download itself; a busy state would need a script and a way to learn when the file ended. *Cut at the cap:* the page shows a plain INFO notice from the existing flash area (`chrome.flash`, escaped on output), "Export is limited to the first 50,000 of 120,345 matching records. Narrow the search or the filters to export the rest.", whenever export is offered and the total is above the cap (D-110). It is there before the download and still there after it; nothing is stored in the session.
+
+**Preview:** the list states `export-enabled` (a search, a filter and a sort in force: the link carries exactly those), `export-disabled` (no button, the other actions stay) and `export-limited` (the chrome variant of the same name carries the real notice), and every other list fixture with actions now gets its export link from the real factory. Tests: `PreviewExportPagesTest` (14).
+
+**Not done:** the browser pass (both themes, phone width, keyboard, script off) is a manual item and a Phase 14 item (no browser driver, AI-8). The saved views menu and column visibility are Phase 12.
 
 ### U5 status (2026-11-18, Phase 8)
 
