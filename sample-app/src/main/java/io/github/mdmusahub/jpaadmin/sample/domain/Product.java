@@ -1,5 +1,7 @@
 package io.github.mdmusahub.jpaadmin.sample.domain;
 
+import io.github.mdmusahub.jpaadmin.annotation.AdminBadge;
+import io.github.mdmusahub.jpaadmin.annotation.AdminLookup;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -47,9 +49,11 @@ public class Product {
     @Min(0)
     private int stock;
 
+    // The colours of the status badge are the host's choice (Phase 13): an archived product is quiet grey, not alarm red.
     @NotNull
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
+    @AdminBadge({"DRAFT=amber", "PUBLISHED=green", "ARCHIVED=grey"})
     private ProductStatus status = ProductStatus.DRAFT;
 
     private boolean featured;
@@ -57,6 +61,7 @@ public class Product {
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "category_id")
+    @AdminLookup("name")
     private Category category;
 
     @ManyToMany

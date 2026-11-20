@@ -145,7 +145,8 @@ abstract class AbstractListPagesTest {
         assertThat(headers(html)).containsExactly("ID", "Category", "Created at", "Featured", "Name", "Price", "Sku",
                 "Status", "Stock");
         assertThat(html).contains("href=\"/admin/product\" aria-current=\"page\"");
-        assertThat(html).doesNotContain("Tags").as("a collection is never a column (ARCH-4)");
+        // The sidebar names the Tag entity "Tags" (Phase 13), so the check is on the table: a collection is never a column (ARCH-4).
+        assertThat(html.substring(html.indexOf("<table"))).doesNotContain("Tags").as("a collection is never a column (ARCH-4)");
     }
 
     @Test
@@ -391,7 +392,7 @@ abstract class AbstractListPagesTest {
         int checked = 0;
         while (addresses.find()) {
             String address = addresses.group(1).replace("&amp;", "&");
-            if (address.equals("#main") || address.equals("data:,")) {
+            if (address.equals("#main") || address.equals("#list-search") || address.equals("data:,")) { // the two skip links are in-page fragments
                 continue;
             }
             checked++;

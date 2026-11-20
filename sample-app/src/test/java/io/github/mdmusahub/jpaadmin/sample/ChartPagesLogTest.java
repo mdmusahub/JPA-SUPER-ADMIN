@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.mdmusahub.jpaadmin.sample.domain.Customer;
 import java.util.Arrays;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +27,11 @@ import org.springframework.test.web.servlet.MockMvc;
 @Import(FixedClockConfiguration.class)
 @ExtendWith(OutputCaptureExtension.class)
 class ChartPagesLogTest {
+
+    @BeforeEach
+    void sqlLoggingIsOn() {
+        SqlLogLevels.apply();
+    }
 
     @Autowired
     private MockMvc mvc;
