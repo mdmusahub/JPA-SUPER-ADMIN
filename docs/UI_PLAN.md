@@ -51,7 +51,7 @@ Defined once, at the contract freeze (section 8). All fields are display-ready s
 | `LoginView` | Login | `title`, `error`, `logoutNotice` |
 | `DashboardView` | Dashboard | `stats` (total records, entities, groups, largest table), `groups` (entities with count and permissions), `chartAvailable`, `chart` (series, range links, entities left out, peak, width, axis labels, stacked bars; present exactly when `chartAvailable`, D-101) |
 | `ChartSeries` (JSON) | Chart endpoint and the chart card | `range`, `days` (date, count per entity), `entities` (name, label, available, total, capped), `notes` (D-101) |
-| `ListView` | List | `entity` (label, plural, icon), `columns` (key, label, type, sortable, sort link, sort state, align, visible, filterable), `rows` (id, cells), `search`, `sort`, `dir`, `filters` (definitions plus active chips, each with its link), `paging` (page, size, total, first, previous, next and last links, sizes each with a link), `actions` (can create, export, bulk delete, export link, bulk-delete link), `empty` (reason, hint) |
+| `ListView` | List | `entity` (label, plural, icon), `columns` (key, label, type, sortable, sort link, sort state, align, visible, filterable), `rows` (id, cells), `search`, `sort`, `dir`, `filters` (definitions plus active chips, each with its link), `paging` (page, size, total, first, previous, next and last links, sizes each with a link), `actions` (can create, export, bulk delete, export link, bulk-delete link), `empty` (reason, hint), `state` (the validated address without a page, the default page size, the "Show all columns" link, the "Clear search" link; Phase 13, D-118) |
 | `Cell` | List, detail | `type` (text, number, boolean, enum, relation, date, image, file, masked, empty), `display`, `tone`, `href`, `title` (hover text) |
 | `DetailView` | Detail | `title`, `entityLabel`, `id`, `fields` (label, cell), `images`, `actions` (can edit, can duplicate, can delete, delete link) |
 | `FormView` | Create, edit | `mode`, `title`, `entityLabel`, `recordId` (`null` on create), `actionHref`, `cancelHref`, `fields` (key, label, input type, value, required, help text, options, error), `formErrors`, `uploadTicket` per upload field |
@@ -72,7 +72,7 @@ The records live in `jpa-admin-core/src/main/java/io/github/mdmusahub/jpaadmin/w
 | `LoginView` | none |
 | `DashboardView` | `Stats`, `LargestTable`, `Group`, `EntityCard`, `Permissions` (create, update, delete, export), `Chart`, `RangeLink`, `Bar`, `Segment` |
 | `ChartSeries` | `Entity` (name, label, available, total, capped), `Day` (ISO date, counts in entity order). `range` is 7, 30 or 90 |
-| `ListView` | `EntityInfo`, `Column` (`Align`, `SortState`), `Row`, `Filters` (`Definition` with `Kind`, `Chip`), `Paging` (`SizeOption`), `Actions`, `Empty` (`Reason`) |
+| `ListView` | `EntityInfo`, `Column` (`Align`, `SortState`), `Row`, `Filters` (`Definition` with `Kind`, `Chip`), `Paging` (`SizeOption`), `Actions`, `Empty` (`Reason`), `State` (Phase 13) |
 | `Cell` | `Type`, `Tone`, constant `MASK` |
 | `DetailView` | `Field`, `Image`, `Actions` |
 | `FormView` | `Mode`, `Field` (`InputType`), `Option` (also used by filter definitions) |
@@ -90,7 +90,8 @@ Conventions the records enforce or assume:
 - A column's `sortState` matches `ListView.sort` and `dir`: the column whose key is `sort` is `ASCENDING` or `DESCENDING`, every other column is `NONE`. `sortHref` is present exactly when the column is sortable. Template: `aria-sort` and the arrow come from `sortState`, the header links to `sortHref`.
 - Paging links: `firstHref` and `prevHref` are present exactly when `page > 0`; `nextHref` and `lastHref` exactly when there is a later page (`page + 1 < totalPages()`). Exactly the `SizeOption` whose size equals `size` has `current` true.
 - `Actions.exportHref` is present exactly when `canExport` is true. It carries the current search, filters, sort and hidden columns (`hide`, since Phase 12).
-- Phase 12 conventions of `ListView`, with no change to a record (D-112, D-115): `Column.visible` is false exactly for a column the request hid with `hide`; the row still has one cell per column and a hidden column's cell is `Cell.empty()` (the column is not queried); every list link, the export link and the bulk-delete and row links carry the hidden set as repeated `hide=` parameters (after the filters, before `sort`); a masked column is never hidden. The saved views script reads the validated state of the page from the `href` of the page-size option marked `current` (it holds `q`, `filter.*`, `hide`, `sort`, `dir` and `size`, never `page`); that ties the script to the record's shape, and a dedicated field is proposed for Phase 13.
+- Phase 12 conventions of `ListView`, with no change to a record (D-112, D-115): `Column.visible` is false exactly for a column the request hid with `hide`; the row still has one cell per column and a hidden column's cell is `Cell.empty()` (the column is not queried); every list link, the export link and the bulk-delete and row links carry the hidden set as repeated `hide=` parameters (after the filters, before `sort`); a masked column is never hidden. The saved views script used to read the validated state of the page from the `href` of the page-size option marked `current`; since Phase 13 it reads `ListView.state` (below).
+- Phase 13 conventions of `ListView.state` (contract change, D-118; before it the record had no field for any of this): `state.href` is the list's address carrying `q`, `filter.*`, `hide`, `sort`, `dir` and `size` as the server accepted them and **never `page`** (it equals the address of the current page-size option, which the script used to read); `state.defaultSize` is the page size an address without `size` uses (`jpa.admin.page-size`), and **every link in every record leaves `size` out exactly when it equals the query's default**, so under a default of 50 the link for 25 rows says `size=25`; `state.showAllColumnsHref` is present **exactly when at least one column is not visible** (the constructor refuses any other combination) and keeps the search, filters, sort and size and drops the hidden set and the page; `state.clearSearchHref` is where "Clear search" and "Clear search and filters" lead: no search, filter, sort or page and the default size, **and the same hidden columns** (D-118). `view.entity.plural` is `@AdminResource(plural)` when the host set it, else the console's guess (D-120); the sidebar and the dashboard cards use it too. An `ENUM` cell's tone is a `Cell.Tone` chosen by `@AdminBadge` or by the word list (D-121); a `RELATION` cell's text is the property `@AdminLookup` names, or the record's number (D-122).
 - `Actions.bulkDeleteHref` is present exactly when `canBulkDelete` is true, and `DetailView.Actions.deleteHref` exactly when `canDelete` is true (D-65). Each is the delete route plus the list state in its query; the controller re-reads that state with the list parser, so the redirect after a delete returns to the same list and is never taken from a request.
 - A `RELATION` cell links to the related record when its column names a target in the console (a hidden target has no link, D-54, D-70). The identifier cell of a row links to the record. A `TEXT` or `NUMBER` cell with an `href` is such a link.
 - `FormView.recordId` is present exactly in `EDIT` mode. The duplicate flow is a `CREATE` form that is pre-filled, so it has no `recordId`.
@@ -142,7 +143,7 @@ The four gaps found at the freeze (sort links, page links and page sizes, export
 
 ```
 src/main/resources/templates/jpa-admin/
-  layout.html                 shell: sidebar, top bar, theme toggle, flash, content slot
+  layout.html                 shell: sidebar, top bar, theme toggle, flash, content slot; skip links ("Skip to content" and, when the page gives a search box id, "Skip to search")
   login.html  dashboard.html  list.html  detail.html  form.html  error.html
   fragments/
     sidebar.html  topbar.html  breadcrumbs.html
@@ -199,7 +200,7 @@ UI tasks use the prefix **U**. A UI task is "done" when it works in the preview 
 | U6 | Uploader component, previews, progress, errors, image cells. **Delivered 2026-11-18, see "U6 status" below** | 9 Uploads | Phase 9 |
 | U7 | Dashboard chart with range switch. **Delivered 2026-11-19, see "U7 status" below** | 10 Charts | Phase 10 |
 | U8 | Export button states, saved views menu, column visibility. **The export part was delivered and connected 2026-11-19 (Phase 11), see "U8 status (export part)"; the saved views menu and column visibility were delivered and connected 2026-11-19 (Phase 12), see "U8 status (saved views and columns)"** | 11 Export, 12 Saved views | Phase 12 (export part: Phase 11) |
-| U9 | Accessibility, responsive and dark theme passes (including the manual phone-width pass of the list), keyboard shortcuts (`/` for the search box), sticky table header, docs screenshots | 13 Polish | Phase 13 |
+| U9 | Accessibility, responsive and dark theme passes (including the manual phone-width pass of the list), keyboard shortcuts (`/` for the search box), sticky table header, docs screenshots. **Delivered and connected 2026-11-20 (Phase 13), see "U9 status"** | 13 Polish | Phase 13 |
 
 Phase 5 (re-scoped, D-60) has no UI task of its own: its four items change data the list templates already read (a relation header gains a sort link and `aria-sort`, the empty-state hint and a notice carry new text), so `list.html`, `table.html` and the stylesheets are expected to stay as they are. If one of them has to change, the change goes in with a note in this section. **Result (2026-11-17): none of them changed**; see "U2 refinements status" below. An automated real-browser test of the list belongs to Phase 14.
 
@@ -303,6 +304,20 @@ Delivered and connected in the sample app (D-112 to D-116). **No contract change
 
 **Checked in a real browser** (headless Chrome, both themes, 1280 and 390 pixels): no sideways page scroll, keyboard (Enter opens a panel, Tab reaches the checkboxes, Space toggles, a visible 2px focus ring), see the Phase 12 report. **Not done:** a manual pass with a real keyboard and screen reader, and the blocking-storage case in a real private window, are manual items; the "Show all columns" link and a dedicated state field need a record change (Phase 13 proposal).
 
+### U9 status (2026-11-20, Phase 13)
+
+Delivered and connected in the sample app (D-118 to D-126), with **one contract change, asked first and approved (D-118): `ListView.state`**. Every other record is unchanged.
+
+**The state field.** `fragments/views-panel.html` hands the script `view.state.href` (`data-views-state`) and `view.state.defaultSize` (`data-views-default-size`); `views.js` no longer reads the page-size link and no longer assumes 25. The Columns panel prints **"Show all columns"** (`view.state.showAllColumnsHref`, only when a column is hidden). "Clear search" and "Clear search and filters" (the toolbar and the empty state) print `view.state.clearSearchHref` and keep the hidden columns.
+
+**Keyboard.** `shortcuts.js`: `/` focuses the list's search box (`data-search-input`, `aria-keyshortcuts="/"`), or the sidebar search on a desktop page with no list search; never while typing, never with a modifier, nothing on a phone. A key-cap hint in the box (`.js-only`, `aria-hidden`, gone with focus and without hover). The layout fragment has a 4th parameter, `searchId`, and a list passes `'list-search'` so a plain **"Skip to search"** link follows "Skip to content" (it needs no script). The drawer keeps Tab and Shift+Tab inside itself while it is open (`nav.js`) and returns focus to its button.
+
+**Look.** Closed Filters, Columns and Saved views panels are plain buttons (no box around a boxed button); from 900px up the table box has a height limit and a **sticky header**; the badge classes are `badge-green`, `badge-amber`, `badge-red`, `badge-grey`; the sidebar and the dashboard name tables in the plural. Dark mode was checked on every page type (screenshots, contrast test). **Accessibility fixes**, each found by a browser test: the dark sidebar placeholder (3.79 to 1, now `--muted`), the sidebar search and date fields without a focus ring, an upload field printing its help and error twice with the same ids, the list's search form without a name.
+
+**Not done / manual:** a screen reader, a physical keyboard and phone, drag and drop of a file, print and a real private window (`docs/logs/phase-13-report.md`); the input border contrast (1.52 to 1 light, 1.67 to 1 dark) is a known limit (D-124). Toasts are not timed (D-124).
+
+**Preview:** list states `page-size-default-50`, `page-size-default-50-asked-25`, `plural-people`, `relation-lookup` and `search-columns-hidden`; `column-hidden`, `columns-hidden-most` and `hidden-middle-page` now show the "Show all columns" link. Tests: `PreviewPolishPagesTest` (88).
+
 ### U5 status (2026-11-18, Phase 8)
 
 Delivered and connected in the sample app (D-75 to D-84). **No record changed** (no contract change): the frozen `FormView` carried everything; the conventions are listed in section 3.
@@ -338,18 +353,20 @@ Per-task flow: read the task, propose a plan (files, fixtures, states), wait for
 
 ## 10. UI acceptance checklist (per page)
 
-- [ ] Renders correctly for every fixture state, including empty and error
-- [ ] Matches the prototype (layout, spacing, badges, floating bars)
-- [ ] Works in light and dark themes without flashing on load
-- [ ] Works at phone width (drawer sidebar, scrollable table) and desktop
-- [ ] Keyboard only: reachable, visible focus, Escape closes dialogs
-- [ ] Icon buttons and inputs have labels, errors are linked to fields
-- [ ] No external requests (CDN, fonts, images) in the network panel
-- [ ] No sensitive value appears in HTML, attributes, or JavaScript data
-- [ ] All user-visible text is escaped (no `th:utext` on stored data)
-- [ ] State (search, filters, sort, page) is in the URL
-- [ ] Works when `localStorage` is unavailable
-- [ ] Screenshot taken for the docs site
+(Phase 13: ticked where the build proves it; the rest is in the manual list of `docs/logs/phase-13-report.md`.)
+
+- [x] Renders correctly for every fixture state, including empty and error (preview tests, 2,300 states)
+- [x] Matches the prototype (layout, spacing, badges, floating bars): compared in screenshots, light and dark; deviations in D-124
+- [x] Works in light and dark themes without flashing on load (`theme.js` is blocking; layout and contrast tests in both themes)
+- [x] Works at phone width (drawer sidebar, scrollable table) and desktop (`PageLayoutBrowserTest`, 1280 and 390 pixels)
+- [ ] Keyboard only: reachable, visible focus, Escape closes dialogs (Tab order, focus ring and the drawer are tested; a physical keyboard pass is manual)
+- [x] Icon buttons and inputs have labels, errors are linked to fields (`AccessibilityBrowserTest`)
+- [x] No external requests (CDN, fonts, images) in the network panel (the policy allows `'self'` only, `CspBrowserTest`)
+- [x] No sensitive value appears in HTML, attributes, or JavaScript data (tests of every phase)
+- [x] All user-visible text is escaped (no `th:utext` on stored data)
+- [x] State (search, filters, sort, page) is in the URL
+- [x] Works when `localStorage` is unavailable (`SavedViewsBrowserTest`)
+- [x] Screenshot taken for the docs site (README)
 
 Once, when the console's asset handler first exists (Phase 1 or task U0), and again if the path or handler changes:
 
