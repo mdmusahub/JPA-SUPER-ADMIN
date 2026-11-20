@@ -1,5 +1,6 @@
 package io.github.mdmusahub.jpaadmin.service;
 
+import io.github.mdmusahub.jpaadmin.metadata.AdminField;
 import io.github.mdmusahub.jpaadmin.web.view.Cell;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -42,7 +43,8 @@ final class CellFormatter {
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.ROOT);
     private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.ROOT);
 
-    // Words in an enum constant that suggest a tone. A stand-in until @AdminBadge (Phase 13) lets the host say so.
+    // Words in an enum constant that suggest a tone. The default for an enum without @AdminBadge (Phase 13, D-120): a
+    // field with the annotation takes its tones from the host and never from this list.
     private static final Set<String> GREEN = Set.of("active", "published", "paid", "shipped", "delivered", "complete",
             "completed", "approved", "done", "success", "succeeded", "enabled", "open", "available", "confirmed");
     private static final Set<String> AMBER = Set.of("pending", "draft", "new", "processing", "review", "waiting",
@@ -67,7 +69,39 @@ final class CellFormatter {
         };
     }
 
-    /** A relation cell: the target's label (or {@code #id} when it has none). The link arrives with Phase 7. */
+    /**
+ * The cell for a value of a field that may carry an {@code @AdminBadge}. Without a usable badge it is
+ * {@link #format(Cell.Type, Object)}. With one, the value is shown as a badge whose tone the host chose: the tone of the
+ * entry that lists the value, else grey (the host has taken charge of the colours, so the word list is not asked). An enum
+ * constant is shown humanized as always; a {@code String} is shown as stored, on one line and cut like any text.
+ */
+static Cell format(Cell.Type type, Object value, AdminField field) {
+    if (value == null || !field.hasBadge() || type != Cell.Type.ENUM) {
+        return format(type, value);
+    }
+    String name = value instanceof Enum<?> constant ? constant.name() : value.toString();
+    Cell.Tone tone = field.badge().toneOf(name).map(CellFormatter::toneNamed).orElse(Cell.Tone.GREY);
+    if (value instanceof Enum<?>) {
+        return new Cell(Cell.Type.ENUM, humanize(name), tone, null, null);
+    }
+    Cell text = text(name);
+    return text.type() == Cell.Type.EMPTY ? text : new Cell(Cell.Type.ENUM, text.display(), tone, null, text.title());
+}
+
+/**
+ * The tone a palette name stands for. A fixed switch over the four names, so nothing the host wrote can become a tone
+ * other than one of the console's own (D-120); any other text, which the metadata already refuses, is grey.
+ */
+static Cell.Tone toneNamed(String name) {
+    return switch (name) {
+        case "green" -> Cell.Tone.GREEN;
+        case "amber" -> Cell.Tone.AMBER;
+        case "red" -> Cell.Tone.RED;
+        default -> Cell.Tone.GREY;
+    };
+}
+
+/** A relation cell: the target's label (or {@code #id} when it has none). The link arrives with Phase 7. */
     static Cell relation(Object label, Object id) {
         if (id == null) {
             return Cell.empty();

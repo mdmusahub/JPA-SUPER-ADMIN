@@ -115,7 +115,7 @@ public class EntityController {
         ListQuery query = lists.parse(found, q, sort, dir, page, size).withParsedFilters(filters.filters())
                 .withParsedHidden(hidden.hidden());
         ListPage listed = lists.list(found, query);
-        ListView.EntityInfo info = new ListView.EntityInfo(found.label(), Plurals.of(found.label()), found.icon());
+        ListView.EntityInfo info = new ListView.EntityInfo(found.label(), found.plural(), found.icon());
         boolean export = exports.offers(found);
         ListView view = ListViewFactory.build(basePath.value(), found.urlName(), info, listed,
                 new ListView.Actions(found.canCreate(), false, false, null, null),

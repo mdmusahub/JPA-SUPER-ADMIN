@@ -2,6 +2,7 @@ package io.github.mdmusahub.jpaadmin.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.mdmusahub.jpaadmin.metadata.AdminEntity;
 import io.github.mdmusahub.jpaadmin.service.ListColumn;
 import io.github.mdmusahub.jpaadmin.service.ListPage;
 import io.github.mdmusahub.jpaadmin.service.ListQuery;
@@ -298,16 +299,16 @@ class ListViewFactoryTest {
 
     @Test
     void thePluralFollowsThePlainEnglishRules() {
-        assertThat(Plurals.of("Invoice")).isEqualTo("Invoices");
-        assertThat(Plurals.of("Box")).isEqualTo("Boxes");
-        assertThat(Plurals.of("Address")).isEqualTo("Addresses");
-        assertThat(Plurals.of("Batch")).isEqualTo("Batches");
-        assertThat(Plurals.of("Dish")).isEqualTo("Dishes");
-        assertThat(Plurals.of("Entry")).isEqualTo("Entries");
-        assertThat(Plurals.of("Key")).as("a vowel before the y").isEqualTo("Keys");
-        assertThat(Plurals.of("Http log entry")).isEqualTo("Http log entries");
-        assertThat(Plurals.of("Y")).isEqualTo("Ys");
-        assertThat(Plurals.of("")).isEmpty();
+        assertThat(AdminEntity.guessPlural("Invoice")).isEqualTo("Invoices");
+        assertThat(AdminEntity.guessPlural("Box")).isEqualTo("Boxes");
+        assertThat(AdminEntity.guessPlural("Address")).isEqualTo("Addresses");
+        assertThat(AdminEntity.guessPlural("Batch")).isEqualTo("Batches");
+        assertThat(AdminEntity.guessPlural("Dish")).isEqualTo("Dishes");
+        assertThat(AdminEntity.guessPlural("Entry")).isEqualTo("Entries");
+        assertThat(AdminEntity.guessPlural("Key")).as("a vowel before the y").isEqualTo("Keys");
+        assertThat(AdminEntity.guessPlural("Http log entry")).isEqualTo("Http log entries");
+        assertThat(AdminEntity.guessPlural("Y")).isEqualTo("Ys");
+        assertThat(AdminEntity.guessPlural("")).isEmpty();
     }
 
     // ---- Phase 5: sortable relations, the search scope and the cut notice (D-60) -------------------------------

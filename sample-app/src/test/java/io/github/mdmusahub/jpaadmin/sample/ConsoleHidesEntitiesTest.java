@@ -32,8 +32,8 @@ class ConsoleHidesEntitiesTest {
     void anExcludedEntityIsInNoSidebarAndOnNoDashboard() throws Exception {
         String html = browser().get("/admin").getContentAsString();
 
-        assertThat(html).doesNotContain("data-nav-item=\"Tag\"", "href=\"/admin/tag\"");
-        assertThat(html).contains("data-nav-item=\"Product\"", "href=\"/admin/product\"");
+        assertThat(html).doesNotContain("data-nav-item=\"Tags\"", "href=\"/admin/tag\"");
+        assertThat(html).contains("data-nav-item=\"Products\"", "href=\"/admin/product\"");
         // Four entities left, and the stat card says so.
         assertThat(html).contains("<p class=\"stat-value\">4</p>", "Across 4 entities");
     }

@@ -3,7 +3,9 @@
  *
  * On narrow screens the sidebar is a drawer that [data-nav-toggle] opens and [data-nav-close] (the close button, the
  * backdrop) closes. Escape closes it, following a link in it closes it, and growing the window to the desktop layout
- * closes it. Focus moves into the drawer when it opens and back to the button that opened it when it closes.
+ * closes it. Focus moves into the drawer when it opens and back to the button that opened it when it closes. While it is
+ * open the Tab key stays inside it (Tab on the last control goes to the first, Shift+Tab on the first goes to the last), so a
+ * keyboard user cannot wander into the page behind the backdrop (Phase 13, D-124).
  *
  * It also scrolls a long breadcrumb trail on a phone to its end, where the current page is, filters the entity
  * list as you type in the sidebar's search box, and remembers which entity groups you closed.
@@ -75,6 +77,40 @@
   document.addEventListener('keydown', function (event) {
     if (event.key === 'Escape' && isOpen()) {
       setOpen(false);
+    }
+  });
+
+  // ---- the focus trap: the drawer is the only thing a keyboard can reach while it is open ------------------------------
+
+  var FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), summary, [tabindex]:not([tabindex="-1"])';
+
+  /** The controls of the drawer that can be reached now: not hidden, and not inside a closed group. */
+  function reachable() {
+    return Array.prototype.filter.call(sidebar.querySelectorAll(FOCUSABLE), function (element) {
+      return !element.hidden && element.offsetParent !== null;
+    });
+  }
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key !== 'Tab' || !isOpen()) {
+      return;
+    }
+    var items = reachable();
+    if (items.length === 0) {
+      return;
+    }
+    var first = items[0];
+    var last = items[items.length - 1];
+    var active = document.activeElement;
+    if (!sidebar.contains(active)) {
+      event.preventDefault();
+      first.focus();
+    } else if (event.shiftKey && active === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
     }
   });
 

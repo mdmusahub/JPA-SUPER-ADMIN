@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +35,11 @@ import org.springframework.transaction.support.TransactionTemplate;
 @AutoConfigureMockMvc
 @ExtendWith(OutputCaptureExtension.class)
 class FormPagesLogTest {
+
+    @BeforeEach
+    void sqlLoggingIsOn() {
+        SqlLogLevels.applyWithoutValues(); // this test writes secrets: it asks for no value logging
+    }
 
     private static final String SECRET = "needle-secret-for-the-log-9182";
     private static final Pattern FORM_ACTION = Pattern.compile("(?s)<form id=\"record-form\"[^>]*?\\saction=\"([^\"]+)\"");

@@ -28,9 +28,37 @@ import java.util.regex.Pattern;
  * @param fields            every attribute the scanner found, hidden ones included; {@link #visibleFields()} is what
  *                          the console may show
  * @param access            what the console may do with the records, from {@code @AdminResource} (SEC-11)
+ * @param plural            the plural of {@code label} for headings and the dashboard: {@code @AdminResource(plural)} when it
+ *                          is set and acceptable (at most {@value #MAX_PLURAL_LENGTH} characters, no control character), else
+ *                          the plain English guess of {@link #guessPlural}. Never blank
  */
 public record AdminEntity(Class<?> type, String entityName, String urlName, String label, String group, String icon,
-                          String idAttribute, String unsupportedReason, List<AdminField> fields, Access access) {
+                          String idAttribute, String unsupportedReason, List<AdminField> fields, Access access,
+                          String plural) {
+
+    /** The longest plural name {@code @AdminResource(plural)} may give, in characters. */
+    public static final int MAX_PLURAL_LENGTH = 60;
+
+    /** An entity whose plural is the guess of {@link #guessPlural}: the shape every entity had before Phase 13. */
+    public AdminEntity(Class<?> type, String entityName, String urlName, String label, String group, String icon,
+                       String idAttribute, String unsupportedReason, List<AdminField> fields, Access access) {
+        this(type, entityName, urlName, label, group, icon, idAttribute, unsupportedReason, fields, access, null);
+    }
+
+    /**
+     * The plural of a label by the plain English rules, until the host says it with {@code @AdminResource(plural)}.
+     * {@code Invoice} becomes {@code Invoices}, {@code Box} becomes {@code Boxes}, a consonant followed by {@code y} becomes
+     * {@code ies}. Irregular plurals ({@code Person}) come out wrong, which is why the host can override it.
+     */
+    public static String guessPlural(String label) {
+        return Names.plural(label);
+    }
+
+    /** Whether {@code plural} is acceptable as a plural name: not blank, within the limit, no control character. */
+    public static boolean acceptablePlural(String plural) {
+        return plural != null && !plural.isBlank() && plural.strip().codePointCount(0, plural.strip().length()) <= MAX_PLURAL_LENGTH
+                && plural.codePoints().noneMatch(Character::isISOControl);
+    }
 
     /**
      * What the console may do with an entity's records. Read once from {@code @AdminResource} at startup and enforced
@@ -103,6 +131,9 @@ public record AdminEntity(Class<?> type, String entityName, String urlName, Stri
         Objects.requireNonNull(label, "label");
         Objects.requireNonNull(group, "group");
         Objects.requireNonNull(icon, "icon");
+        // A plural the host gave that is not acceptable is replaced by the guess here too, so a wrong value can never reach a
+        // page even when the startup check did not run; the check (AnnotationProblems) is what tells the host.
+        plural = acceptablePlural(plural) ? plural.strip() : guessPlural(label);
         if (!URL_NAME.matcher(urlName).matches()) {
             throw new IllegalArgumentException("urlName must hold only a-z, 0-9 and single hyphens between them");
         }

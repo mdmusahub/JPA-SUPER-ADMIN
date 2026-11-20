@@ -13,8 +13,9 @@ import java.util.List;
  *
  * <p>A link is the entity's address plus the parts of the query that differ from the defaults, always in the same
  * order ({@code q}, the {@code filter.*} parameters in column order, one {@code hide} for each hidden column in column order,
- * {@code sort}, {@code dir}, {@code page}, {@code size}). The default page size and page 0 are left
- * out, so the first page of an unsorted list is the plain address. A value is encoded with every character outside
+ * {@code sort}, {@code dir}, {@code page}, {@code size}). The default page size (the query's own
+ * {@link ListQuery#defaultSize()}, {@code jpa.admin.page-size}) and page 0 are left out, so the first page of an unsorted
+ * list is the plain address. A value is encoded with every character outside
  * {@code A-Z a-z 0-9 - _ .} written as {@code %XX} bytes of UTF-8 (a space is {@code %20}, never a raw space or a
  * {@code +}), so a quote, a slash, a {@code #}, an {@code &}, a unicode letter or a pasted {@code http://x} can never
  * end the value, start another parameter, or break out of an HTML attribute.
@@ -46,7 +47,30 @@ final class ListLinks {
      */
     String export(ListQuery state) {
         return link(path + "/export.csv", new ListQuery(state.search(), state.sort(), state.dir(), 0,
-                ListQuery.DEFAULT_SIZE, state.filters(), state.hidden()));
+                state.defaultSize(), state.filters(), state.hidden(), state.defaultSize()));
+    }
+
+    // ---- links of the page state (Phase 13, D-118): same writer, same encoding -------------------------------------------
+
+    /**
+     * The address of this list in the state the server accepted: search, filters, hidden columns, sort and size, and never a
+     * page (the saved views script stores and rebuilds exactly this; a page number would mean other rows).
+     */
+    String state(ListQuery query) {
+        return to(query.withPage(0));
+    }
+
+    /** The address that shows every column again and keeps the rest of the state, from the first page. */
+    String showAllColumns(ListQuery query) {
+        return to(query.withoutHidden());
+    }
+
+    /**
+     * The address "Clear search" and "Clear search and filters" lead to: no search, no filter, no sort and the default page size,
+     * and the same hidden columns (D-118: a visitor who chose the columns did not ask to lose that choice by clearing a search).
+     */
+    String clearSearch(ListQuery query) {
+        return to(ListQuery.defaults(query.defaultSize()).withHidden(query.hidden()));
     }
 
     // ---- links of the detail and delete pages (Phase 7, D-65): same writer, same encoding ---------------------------
@@ -175,7 +199,9 @@ final class ListLinks {
         if (query.page() > 0) {
             parameters.add("page=" + query.page());
         }
-        if (query.size() != ListQuery.DEFAULT_SIZE) {
+        if (query.size() != query.defaultSize()) {
+            // The default is the console's setting (Phase 13, D-119), not the constant 25: with a default of 50, a link for
+            // 25 rows has to say so, and a link for 50 rows needs no size at all.
             parameters.add("size=" + query.size());
         }
         return parameters.isEmpty() ? path : path + "?" + String.join("&", parameters);

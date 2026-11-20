@@ -62,7 +62,8 @@ class ConsoleDiscoversEntitiesTest {
     void theSidebarListsExactlyTheFiveDemoEntitiesWithTheirCounts() throws Exception {
         String html = dashboard();
 
-        assertThat(sidebarEntities(html)).containsExactly("Category", "Customer", "Order", "Product", "Tag");
+        // Since Phase 13 (D-120) the sidebar names the tables in the plural, as the design prototype does and as the list headings do.
+        assertThat(sidebarEntities(html)).containsExactly("Categories", "Customers", "Orders", "Products", "Tags");
         EXPECTED.forEach((entity, count) -> assertThat(html)
                 .as(entity).contains("href=\"/admin/" + entity + "\"")
                 .contains("<span class=\"nav-count\">" + count + "</span>"));
@@ -79,7 +80,7 @@ class ConsoleDiscoversEntitiesTest {
         assertThat(html).contains("<p class=\"stat-value\">" + total + "</p>",
                 "Across " + EXPECTED.size() + " entities",
                 "<p class=\"stat-value\">" + EXPECTED.size() + "</p>",
-                "<p class=\"stat-value stat-value-text\">Order</p>",
+                "<p class=\"stat-value stat-value-text\">Orders</p>",
                 DemoDataLoader.ORDER_COUNT + " records");
         assertThat(html).contains("class=\"card group-card\"", ">Entities</h2>");
     }

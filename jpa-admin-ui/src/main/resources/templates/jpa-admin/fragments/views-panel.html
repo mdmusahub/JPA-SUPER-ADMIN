@@ -9,9 +9,12 @@
 
   What the page hands the script, all taken from the record and printed escaped:
     data-views-base     the list's address under the console path (chrome.basePath and chrome.activeEntity)
-    data-views-state    the state of this page as the server validated it: the address of the current page-size option,
-                        which carries q, filter.*, hide, sort, dir and size, and never page. Saving stores this, never the
-                        raw address the visitor typed, so text the server did not accept cannot get into a view.
+    data-views-state    the state of this page as the server validated it: view.state.href, which carries q, filter.*, hide,
+                        sort, dir and size, and never page (Phase 13, D-118; before that the script read the address of the current
+                        page-size option). Saving stores this, never the raw address the visitor typed, so text the server did
+                        not accept cannot get into a view.
+    data-views-default-size  the page size an address without size uses (view.state.defaultSize, jpa.admin.page-size): a
+                        rebuilt link leaves size out exactly when it equals this.
     data-views-columns  the keys of the columns that can be hidden (the masked ones are not among them, and no sensitive
                         key is printed anywhere)
     data-views-filters  the keys of the filters on offer
@@ -24,9 +27,9 @@
   element with the question and the confirm button (UI-5), like every other destructive action in the console.
 */-->
 <th:block th:fragment="panel"
-          th:with="stateHref=${view.paging.sizes.^[current].href}, columnKeys=${#strings.listJoin(view.columns.?[type.name() != 'MASKED'].![key], ' ')}, filterKeys=${#strings.listJoin(view.filters.definitions.![key], ' ')}">
+          th:with="stateHref=${view.state.href}, columnKeys=${#strings.listJoin(view.columns.?[type.name() != 'MASKED'].![key], ' ')}, filterKeys=${#strings.listJoin(view.filters.definitions.![key], ' ')}">
   <details class="filter-panel views-panel" data-views
-           th:attr="data-views-base=${chrome.basePath} + '/' + ${chrome.activeEntity},data-views-state=${stateHref},data-views-columns=${columnKeys},data-views-filters=${filterKeys}">
+           th:attr="data-views-base=${chrome.basePath} + '/' + ${chrome.activeEntity},data-views-state=${stateHref},data-views-default-size=${view.state.defaultSize},data-views-columns=${columnKeys},data-views-filters=${filterKeys}">
     <summary class="btn filter-summary">
       <span>Saved views</span>
       <span class="filter-count js-only" data-views-count hidden>0</span>

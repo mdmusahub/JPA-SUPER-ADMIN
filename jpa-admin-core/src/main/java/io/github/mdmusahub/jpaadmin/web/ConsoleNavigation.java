@@ -71,7 +71,7 @@ public final class ConsoleNavigation {
         Map<String, List<NavItem>> groups = new LinkedHashMap<>();
         for (AdminEntity entity : registry.all()) {
             groups.computeIfAbsent(entity.group(), group -> new ArrayList<>())
-                    .add(new NavItem(entity.urlName(), entity.label(), entity.icon(),
+                    .add(new NavItem(entity.urlName(), entity.plural(), entity.icon(),
                             number(counted.get(entity.urlName()))));
         }
         return groups.entrySet().stream().map(group -> new NavGroup(group.getKey(), group.getValue())).toList();
@@ -95,13 +95,13 @@ public final class ConsoleNavigation {
         for (AdminEntity entity : registry.all()) {
             OptionalLong count = counted.getOrDefault(entity.urlName(), OptionalLong.empty());
             groups.computeIfAbsent(entity.group(), group -> new ArrayList<>())
-                    .add(new DashboardView.EntityCard(entity.urlName(), entity.label(), entity.icon(),
+                    .add(new DashboardView.EntityCard(entity.urlName(), entity.plural(), entity.icon(),
                             number(count), permissions(entity)));
             if (count.isPresent()) {
                 // An entity whose count could not be read is left out instead of being counted as zero.
                 total += count.getAsLong();
                 if (largest == null || count.getAsLong() > largest.count()) {
-                    largest = new DashboardView.LargestTable(entity.label(), count.getAsLong());
+                    largest = new DashboardView.LargestTable(entity.plural(), count.getAsLong());
                 }
             }
         }

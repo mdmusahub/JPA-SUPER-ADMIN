@@ -235,6 +235,18 @@ public class JpaAdminAutoConfiguration {
     }
 
     /**
+     * Checks the annotations of Phase 13 once at startup (D-120 to D-122): {@code @AdminBadge}, {@code @AdminLookup} and the plural
+     * of {@code @AdminResource}. A wrong one stops startup with one report that names every offending entity and field. Only when
+     * the console has entities. Eager, because nothing injects it (a lazy bean would never run).
+     */
+    @Bean
+    @Lazy(false)
+    @ConditionalOnBean(AdminEntityRegistry.class)
+    JpaAdminAnnotationCheck jpaAdminAnnotationCheck(AdminEntityRegistry registry) {
+        return new JpaAdminAnnotationCheck(registry);
+    }
+
+    /**
      * The upload fields of the console, resolved once against the configured storages (ARCH-1). Empty when the host has no entity
      * manager factory or no upload field. Not replaceable: it is a rule (UPL-8), not a choice.
      */
@@ -296,11 +308,12 @@ UploadFiles jpaAdminUploadFiles(UploadTargets targets, UploadTicketService ticke
     @ConditionalOnMissingBean
     ListQueryService jpaAdminListQueryService(ObjectProvider<EntityManagerFactory> factories,
                                               ObjectProvider<AdminEntityRegistry> registries,
-                                              ObjectProvider<UploadFiles> uploads) {
+                                              ObjectProvider<UploadFiles> uploads, JpaAdminProperties properties) {
         EntityManagerFactory factory = consoleEntityManagerFactory(factories);
         return factory == null ? ListQueryService.unavailable()
                 : ListQueryService.over(SharedEntityManagerCreator.createSharedEntityManager(factory),
-                        registries.getIfAvailable(AdminEntityRegistry::empty), uploads.getIfAvailable(UploadFiles::none));
+                        registries.getIfAvailable(AdminEntityRegistry::empty), uploads.getIfAvailable(UploadFiles::none),
+                        properties.pageSize());
     }
 
     /**

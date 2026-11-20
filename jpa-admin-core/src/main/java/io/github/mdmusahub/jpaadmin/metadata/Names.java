@@ -76,6 +76,26 @@ final class Names {
         return result.toString();
     }
 
+    /**
+     * The plural of a label by the plain English rules (the guess used while the host has not said it with
+     * {@code @AdminResource(plural)}): a word ending in s, x, z, ch or sh takes {@code es}, a consonant followed by {@code y}
+     * becomes {@code ies}, anything else takes {@code s}. Irregular plurals come out wrong, which is why the host can say it.
+     */
+    static String plural(String label) {
+        String lower = label.toLowerCase(Locale.ROOT);
+        if (lower.isEmpty()) {
+            return label;
+        }
+        if (lower.endsWith("s") || lower.endsWith("x") || lower.endsWith("z") || lower.endsWith("ch")
+                || lower.endsWith("sh")) {
+            return label + "es";
+        }
+        if (lower.length() > 1 && lower.endsWith("y") && "aeiou".indexOf(lower.charAt(lower.length() - 2)) < 0) {
+            return label.substring(0, label.length() - 1) + "ies";
+        }
+        return label + "s";
+    }
+
     private static boolean isAcronym(String word) {
         if (word.length() < 2) {
             return false;

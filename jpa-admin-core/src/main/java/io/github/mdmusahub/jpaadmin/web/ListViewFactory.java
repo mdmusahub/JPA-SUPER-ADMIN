@@ -87,9 +87,20 @@ public final class ListViewFactory {
                         actions.canBulkDelete() || addBulk, addExport ? links.export(query) : actions.exportHref(),
                         addBulk ? links.bulkDelete(query) : actions.bulkDeleteHref())
                 : actions;
-        return new ListView(entity, columns(page, query, links), linked(basePath, page, links, query), query.search(),
+        List<ListView.Column> columns = columns(page, query, links);
+        return new ListView(entity, columns, linked(basePath, page, links, query), query.search(),
                 query.sort(), query.dir(), filters(page, query, links), paging(page, query, links), offered,
-                empty(page, entity));
+                empty(page, entity), state(columns, query, links));
+    }
+
+    /**
+     * The validated state of the page (Phase 13, D-118): the address without a page for the saved views script, the default page
+     * size, the "Show all columns" link when a column is hidden and the "Clear search" link that keeps the hidden columns.
+     */
+    private static ListView.State state(List<ListView.Column> columns, ListQuery query, ListLinks links) {
+        boolean someHidden = columns.stream().anyMatch(column -> !column.visible());
+        return new ListView.State(links.state(query), query.defaultSize(), someHidden ? links.showAllColumns(query) : null,
+                links.clearSearch(query));
     }
 
     /** The rows with their links: the identifier cell and the relation cells (see {@code build}). */

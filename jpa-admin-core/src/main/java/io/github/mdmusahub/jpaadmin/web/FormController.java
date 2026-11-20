@@ -232,7 +232,7 @@ private ModelAndView show(HttpServletRequest request, String id, AdminEntity fou
                               List<String> formErrors, List<FlashMessage> notices) {
         FormView view = FormViewFactory.build(basePath.value(), found.urlName(), found.label(), page, formErrors);
         PageChrome chrome = chromeFactory.chrome(request, FormViewFactory.breadcrumbs(basePath.value(), found.urlName(),
-                Plurals.of(found.label()), found.label(), page), found.urlName(), notices);
+                found.plural(), found.label(), page), found.urlName(), notices);
         return views.page(request, FormView.TEMPLATE, chrome, view);
     }
 

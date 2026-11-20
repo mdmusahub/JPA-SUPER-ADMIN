@@ -1,0 +1,32 @@
+# Phase 14 scope: quality and release (written at the end of Phase 13, nothing implemented)
+
+Source: `docs/PLAN.md` (Phase 14 row, section 12, section 14), `docs/DECISIONS.md` (D-60, D-124 to D-126), `docs/logs/phase-13-report.md` (the manual list and the limits), `docs/logs/phase-12-report.md`. This file lists what the phase has to deliver and the questions to settle first. It is a summary, not a plan; the plan is written at the start of the phase and approved.
+
+## What the phase delivers
+
+1. **Real databases (Testcontainers, PostgreSQL and MySQL).** The list tests run on H2, PostgreSQL and MySQL: search with `lower(...) like ... escape '!'` on text and large-text columns, sort, null ordering (nulls last in both directions, then the identifier), the identifier tie-breaker, paging, the filters, the export (read in pages of 500), the chart query, hidden columns (fewer joins) and the creation-date reads. Testcontainers and the two JDBC drivers were approved in D-19; Docker must exist on the build machine, so decide how CI without Docker behaves (skip with a reason, as the browser tests do).
+2. **Measurements and limits for the host to know** (documented, in the docs site): the cost of one `LEFT JOIN` per relation column on a large table (the cost bound or a batch query beyond a cap, with the measured numbers), the full scan of the search and `count(*)` on a large table with index advice, and the 50,000-row export on a real database.
+3. **Orphaned upload files (UPL-9).** Replacing or removing a file keeps the old file on disk. Decide: a report or a cleanup command (an orphan is a file whose address no upload field of any entity holds), or keep the limitation documented.
+4. **CI.** A pipeline that runs `mvn -B clean verify`, installs the reactor and runs `host-check` (the same project, against the installed release candidate), with Docker for the container tests and a Chrome or Edge for the browser tests of Phase 13. A CI machine with no browser skips the browser tests with the reason (they are never reported as passed); decide whether the release job must have one, and whether to fail when none is found.
+5. **Security tests.** One pass over `docs/RULES.md` section 1 (SEC-1 to SEC-15) and section 2 (UPL-1 to UPL-10): every MUST has a negative test; find the ones that only have a positive one. The Phase 13 content-security-policy test (an inline style, style attribute and script are refused in a real browser) is one of them and stays.
+6. **Documentation website.** MkDocs Material from `docs/PROJECT_DOCS.md` (the pages of PLAN section 13), deployed to GitHub Pages by CI, with the screenshots taken in Phase 13 (README) and the accessibility statement of B12. `mkdocs build --strict` in CI.
+7. **Release.** JitPack first, then Maven Central (Sonatype namespace, GPG signing, source and javadoc jars), `LICENSE` Apache 2.0, README quick start timed at five minutes on a clean machine, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY policy, issue and PR templates, the CHANGELOG moved from `[Unreleased]` to `[0.1.0]`, the tag `v0.1.0`. The release candidates of every phase were tagged `v0.1.0-rc.<phase>`.
+8. **The manual passes still open from Phase 13** (a screen reader, a physical keyboard and phone, drag and drop of a file, print, a real private window): the maintainer runs the list in `docs/logs/phase-13-report.md` before the tag.
+
+## Questions to settle before coding (each with a recommendation)
+
+| Question | Options | Recommendation |
+|---|---|---|
+| Do the browser tests run in CI? | skip when there is no browser (today); install Chrome in the CI image and make a missing browser a failure on the release job only | The second: a skipped test is not a passed test, and the release is the one place where "no browser" must not hide a layout defect |
+| Docker in CI for Testcontainers | require it; skip the container tests with a reason when there is none | Require it on the release job, skip with a reason locally, the same rule as the browser tests |
+| Orphaned upload files | a cleanup command; a report only; keep the limitation | A report only (a list of files no record holds) and the documented limitation: deleting a file nobody asked to delete is the dangerous direction |
+| The input border contrast (1.52 to 1 light, 1.67 to 1 dark, D-124) | leave it; darken `--line-strong` for controls only | Decide with the maintainer after the screenshots: it changes the look of every form, and each field already has a visible label |
+| Per-entity page size (`@AdminResource(pageSize)`), the `n` shortcut for "New record", a `blue` tone, `@AdminField` | add before 1.0; keep for 0.2 | Keep for 0.2: none is needed for the v0.1 promise, each is a public API addition |
+| Messages that can be dismissed | add a close button (script); keep them until the next page | Keep (D-124): nothing requires it |
+
+## Carried facts from Phase 13 that matter here
+
+- `ListQuery` has a `defaultSize`; `jpa.admin.page-size` is one of 10, 25, 50, 100; a link leaves `size` out exactly when it equals the default. The database tests should run with a default other than 25 at least once.
+- `@AdminBadge`, `@AdminLookup` and `@AdminResource(plural)` are validated at startup by `AnnotationProblems` (a pure function of the registry) and re-checked where they are used. The label is selected through the same join as before, so the SQL tests on PostgreSQL and MySQL cover a lookup too.
+- The browser tests live in `sample-app` (`ConsoleBrowser`, `PageLayoutBrowserTest`, `ContrastBrowserTest`, `AccessibilityBrowserTest`, `CspBrowserTest`, `ConsoleBehaviourBrowserTest`, plus the Phase 7 and 12 classes) and use only the JDK. They need Chrome or Edge on the machine or `-Dtest.chrome=<path>` / `CHROME_BIN`.
+- Not in scope for Phase 14: server-side views, shared views between administrators, per-user views, XLSX export (all need multiple administrators, v0.4), S3 storage (v0.2), login rate limiting (v0.2), multi-value filters (v0.2).

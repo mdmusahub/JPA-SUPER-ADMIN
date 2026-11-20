@@ -6,6 +6,7 @@ import io.github.mdmusahub.jpaadmin.sample.domain.Customer;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +30,11 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc
 @ExtendWith(OutputCaptureExtension.class)
 class ExportPagesLogTest {
+
+    @BeforeEach
+    void sqlLoggingIsOn() {
+        SqlLogLevels.apply();
+    }
 
     @Autowired
     private MockMvc mvc;
