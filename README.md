@@ -30,7 +30,7 @@ Requirements: Java 17 or newer, a Spring Boot 4.1 application with Spring Data J
    ```xml
    <dependency>
        <groupId>io.github.mdmusahub</groupId>
-       <artifactId>jpa-super-admin-spring-boot-starter</artifactId>
+       <artifactId>springboot-super-admin</artifactId>
        <version>0.1.0-SNAPSHOT</version>
    </dependency>
    ```

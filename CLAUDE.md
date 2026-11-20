@@ -32,7 +32,7 @@ jpa-admin-core/            metadata, services, controllers, view-model records (
 jpa-admin-autoconfigure/   properties, security chain, auto-configuration (backend)
 jpa-admin-ui/              templates, CSS, JavaScript only (UI)
 jpa-admin-ui-preview/      unpublished preview app with fixtures (UI, never a starter dependency)
-jpa-admin-starter/         empty pom, published as jpa-super-admin-spring-boot-starter (the only dependency users add)
+jpa-admin-starter/         empty pom, published as springboot-super-admin (the only dependency users add)
 sample-app/                demo app and integration tests (backend)
 docs/                      PLAN.md, RULES.md, PROJECT_DOCS.md, UI_PLAN.md, MkDocs site
 ```
