@@ -70,6 +70,23 @@
                 value="io.github.mdmusahub.jpaadmin.testsupport.RecordingStatementInspector"/>
     </properties>
   </persistence-unit>
+  <!-- The Phase 13 annotation tests' own unit: badges, lookups and a plural on neutral entities, its own in-memory database. -->
+  <persistence-unit name="tone-test" transaction-type="RESOURCE_LOCAL">
+    <class>io.github.mdmusahub.jpaadmin.testsupport.tonemodel.Gauge</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.tonemodel.Dial</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.tonemodel.Shelf</class>
+    <exclude-unlisted-classes>true</exclude-unlisted-classes>
+    <properties>
+      <property name="jakarta.persistence.jdbc.url" value="jdbc:h2:mem:jpa-admin-core-tone-test;DB_CLOSE_DELAY=-1"/>
+      <property name="jakarta.persistence.jdbc.driver" value="org.h2.Driver"/>
+      <property name="jakarta.persistence.jdbc.user" value="sa"/>
+      <property name="jakarta.persistence.jdbc.password" value=""/>
+      <property name="jakarta.persistence.schema-generation.database.action" value="drop-and-create"/>
+      <property name="hibernate.show_sql" value="false"/>
+      <property name="hibernate.session_factory.statement_inspector"
+                value="io.github.mdmusahub.jpaadmin.testsupport.RecordingStatementInspector"/>
+    </properties>
+  </persistence-unit>
   <!-- The upload tests' own unit: one neutral entity with upload fields, its own in-memory database. -->
   <persistence-unit name="upload-test" transaction-type="RESOURCE_LOCAL">
     <class>io.github.mdmusahub.jpaadmin.testsupport.uploadmodel.Dossier</class>

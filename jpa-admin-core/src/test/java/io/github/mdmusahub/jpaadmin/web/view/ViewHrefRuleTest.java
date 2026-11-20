@@ -69,7 +69,10 @@ class ViewHrefRuleTest {
             place("FormView.cancelHref", h -> new FormView(FormView.Mode.CREATE, "t", "e", null, "/a", h, List.of(),
                     List.of())),
             place("DetailView.Image.url", h -> new DetailView.Image(h, "l")),
-            place("UploadResult.url", h -> UploadResult.success(h, "n", 1)));
+            place("UploadResult.url", h -> UploadResult.success(h, "n", 1)),
+            place("State.href", h -> new ListView.State(h, 25, null, "/a")),
+            place("State.showAllColumnsHref", h -> new ListView.State("/a", 25, h, "/a")),
+            place("State.clearSearchHref", h -> new ListView.State("/a", 25, null, h)));
 
     private static final List<Bad> BAD = List.of(
             new Bad("a javascript: scheme", "javascript:alert(1)"),
@@ -208,7 +211,8 @@ class ViewHrefRuleTest {
 
         assertThat(unchecked).as("link components without a Hrefs check").isEmpty();
         assertThat(found).containsExactlyInAnyOrderEntriesOf(Map.ofEntries(
-                Map.entry("href", 4L), Map.entry("sortHref", 1L), Map.entry("clearAllHref", 1L),
+                Map.entry("href", 5L), Map.entry("sortHref", 1L), Map.entry("clearAllHref", 1L),
+                Map.entry("showAllColumnsHref", 1L), Map.entry("clearSearchHref", 1L),
                 Map.entry("removeHref", 1L), Map.entry("firstHref", 1L), Map.entry("prevHref", 1L),
                 Map.entry("nextHref", 1L), Map.entry("lastHref", 1L), Map.entry("exportHref", 1L),
                 Map.entry("bulkDeleteHref", 1L), Map.entry("deleteHref", 1L),

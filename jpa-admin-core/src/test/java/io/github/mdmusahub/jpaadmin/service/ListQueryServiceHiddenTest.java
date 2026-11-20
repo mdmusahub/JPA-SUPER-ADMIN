@@ -265,9 +265,13 @@ class ListQueryServiceHiddenTest {
         assertThat(count(pageSql(), " left join ")).as("sorted by it: its join stays for the order by").isEqualTo(allJoins);
         assertThat(selectList()).as("but nothing of it is selected").doesNotContain(".name");
         List<Integer> ids = sorted.rows().stream().map(row -> Integer.valueOf(row.id())).toList();
-        assertThat(ids.subList(0, PARCELS / 2)).as("the north hub (even parcels) first, in id order").allMatch(id -> id % 2 == 0)
-                .isSorted();
-        assertThat(ids.subList(PARCELS / 2, PARCELS)).allMatch(id -> id % 2 == 1).isSorted();
+        // The identity counter is shared with other test classes in this JVM, so the first parcel's id is not always 1 and an
+        // odd start would flip the parity of every id. The parcels are saved in turn 1 to PARCELS, so the lowest id is parcel 1
+        // (south hub) and parcel n has the id first + n - 1: the north hub is every parcel with an odd offset from it.
+        int first = ids.stream().mapToInt(Integer::intValue).min().orElseThrow();
+        assertThat(ids.subList(0, PARCELS / 2)).as("the north hub (even parcels) first, in id order")
+                .allMatch(id -> (id - first) % 2 == 1).isSorted();
+        assertThat(ids.subList(PARCELS / 2, PARCELS)).allMatch(id -> (id - first) % 2 == 0).isSorted();
     }
 
     @Test

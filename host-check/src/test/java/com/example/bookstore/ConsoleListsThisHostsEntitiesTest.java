@@ -67,7 +67,8 @@ class ConsoleListsThisHostsEntitiesTest {
     void theSidebarListsExactlyBookAuthorAndPublisherWithThisHostsCounts() throws Exception {
         String html = signInAndOpenDashboard();
 
-        assertThat(sidebarEntities(html)).containsExactlyInAnyOrder("Book", "Author", "Publisher");
+        // Since Phase 13 the sidebar names the tables in the plural (the plural of Book is guessed, no annotation is needed).
+        assertThat(sidebarEntities(html)).containsExactlyInAnyOrder("Books", "Authors", "Publishers");
         assertThat(html).contains("href=\"/admin/book\"", "<span class=\"nav-count\">" + BookstoreData.BOOKS + "</span>")
                 .contains("href=\"/admin/author\"", "<span class=\"nav-count\">" + BookstoreData.AUTHORS + "</span>")
                 .contains("href=\"/admin/publisher\"", "<span class=\"nav-count\">" + BookstoreData.PUBLISHERS + "</span>");
