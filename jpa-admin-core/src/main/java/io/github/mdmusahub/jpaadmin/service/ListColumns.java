@@ -2,6 +2,7 @@ package io.github.mdmusahub.jpaadmin.service;
 
 import io.github.mdmusahub.jpaadmin.metadata.AdminEntity;
 import io.github.mdmusahub.jpaadmin.metadata.AdminEntityRegistry;
+import io.github.mdmusahub.jpaadmin.metadata.AnnotationProblems;
 import io.github.mdmusahub.jpaadmin.metadata.AdminField;
 import io.github.mdmusahub.jpaadmin.web.view.Cell;
 import io.github.mdmusahub.jpaadmin.web.view.ListView;
@@ -68,9 +69,20 @@ final class ListColumns {
         return texts.stream().map(AdminField::name).findFirst();
     }
 
+    /**
+     * The attribute that names a record of {@code target} where the to-one relation {@code relation} shows it (Phase 13, D-121):
+     * the property {@code @AdminLookup} names when it is usable (a visible, non-sensitive text property that is not the
+     * identifier, see {@link AnnotationProblems#usableLabel}), else the rule of {@link #labelAttributeOf}. The check is made here
+     * again, not only at startup, so a lookup that names a sensitive or missing property can never become a label (SEC-1).
+     */
+    static Optional<String> labelAttributeFor(AdminField relation, AdminEntity target) {
+        Optional<String> lookup = AnnotationProblems.usableLabel(target, relation.lookup());
+        return lookup.isPresent() ? lookup : labelAttributeOf(target);
+    }
+
     static boolean targetHasLabel(AdminField field, AdminEntityRegistry registry) {
         return field.targetEntity() != null
-                && registry.find(field.targetEntity()).flatMap(ListColumns::labelAttributeOf).isPresent();
+                && registry.find(field.targetEntity()).flatMap(target -> labelAttributeFor(field, target)).isPresent();
     }
 
     /**
@@ -96,7 +108,9 @@ final class ListColumns {
             return new ListColumn(field.name(), label, Cell.Type.MASKED, false, ListView.Column.Align.START);
         }
         return switch (field.kind()) {
-            case TEXT -> new ListColumn(field.name(), label, Cell.Type.TEXT, true, ListView.Column.Align.START);
+            // A String field with an @AdminBadge is shown as a badge, so its column is an enum column (Phase 13, D-120).
+            case TEXT -> new ListColumn(field.name(), label, field.hasBadge() ? Cell.Type.ENUM : Cell.Type.TEXT, true,
+                    ListView.Column.Align.START);
             case NUMBER -> new ListColumn(field.name(), label, Cell.Type.NUMBER, true, ListView.Column.Align.END);
             case BOOLEAN -> new ListColumn(field.name(), label, Cell.Type.BOOLEAN, true, ListView.Column.Align.START);
             case ENUM -> new ListColumn(field.name(), label, Cell.Type.ENUM, true, ListView.Column.Align.START);

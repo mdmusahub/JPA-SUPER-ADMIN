@@ -41,7 +41,9 @@ record Relation(String idAttribute, String labelAttribute, Class<?> targetType) 
         if (idAttribute == null) {
             return null;
         }
-        String label = registry.find(field.targetEntity()).flatMap(ListColumns::labelAttributeOf).orElse(null);
+        // The label is the property @AdminLookup names when it is usable, else the rule of D-54 (Phase 13, D-121).
+        String label = registry.find(field.targetEntity()).flatMap(found -> ListColumns.labelAttributeFor(field, found))
+                .orElse(null);
         return new Relation(idAttribute, label, target.getJavaType());
     }
 }
