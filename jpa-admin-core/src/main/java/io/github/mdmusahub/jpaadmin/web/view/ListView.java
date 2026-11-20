@@ -24,9 +24,11 @@ import java.util.Objects;
  * @param paging  page position and page sizes
  * @param actions what the list offers
  * @param empty   why the list is empty; {@link Empty.Reason#NONE} exactly when there are rows
+ * @param state   the validated state of the page for the saved-views script and the column and search links
+ *                (Phase 13, D-118)
  */
 public record ListView(EntityInfo entity, List<Column> columns, List<Row> rows, String search, String sort,
-                       String dir, Filters filters, Paging paging, Actions actions, Empty empty) {
+                       String dir, Filters filters, Paging paging, Actions actions, Empty empty, State state) {
 
     /** Template (view) name. */
     public static final String TEMPLATE = "jpa-admin/list";
@@ -40,6 +42,7 @@ public record ListView(EntityInfo entity, List<Column> columns, List<Row> rows, 
         Objects.requireNonNull(paging, "paging");
         Objects.requireNonNull(actions, "actions");
         Objects.requireNonNull(empty, "empty");
+        Objects.requireNonNull(state, "state");
         if ((sort == null) != (dir == null)) {
             throw new IllegalArgumentException("sort and dir must both be set or both be null");
         }
@@ -60,6 +63,41 @@ public record ListView(EntityInfo entity, List<Column> columns, List<Row> rows, 
         }
         if (rows.isEmpty() == (empty.reason() == Empty.Reason.NONE)) {
             throw new IllegalArgumentException("empty.reason must be NONE exactly when there are rows");
+        }
+        boolean someHidden = columns.stream().anyMatch(column -> !column.visible());
+        if (someHidden != (state.showAllColumnsHref() != null)) {
+            throw new IllegalArgumentException("state.showAllColumnsHref is present exactly when a column is hidden");
+        }
+    }
+
+    /**
+     * The state of the page as the server accepted it, for the things that must rebuild or leave it: the saved views script,
+     * the "Show all columns" link and the "Clear search" link (Phase 13, D-118). Before this record the script read the state
+     * from the address of the current page-size option, which tied it to the shape of another record.
+     *
+     * <p>Every link is built by the backend and follows the link rule; the template and the script only print or store it.
+     * None of them carries a page number: applying a stored view or clearing the search starts at the first page.
+     *
+     * <p>Draft, internal, not stable API (ARCH-9 exception). Holds no sensitive values (SEC-1): a hidden column key in an
+     * address is the key of a column that may be hidden, never of a masked one.
+     *
+     * @param href               the list's address carrying the search, the filters, the hidden columns, the sort and the page
+     *                           size the server accepted, and no page. Saving a view stores this state, never the raw address
+     * @param defaultSize        the page size an address without {@code size} uses ({@code jpa.admin.page-size}); a link leaves
+     *                           {@code size} out exactly when it equals this, so the script needs it to rebuild an address
+     * @param showAllColumnsHref link that shows every column and keeps the rest of the state; present exactly when at least one
+     *                           column is hidden
+     * @param clearSearchHref    where "Clear search" and "Clear search and filters" lead: no search, no filter, no sort, the
+     *                           default page size, and the same hidden columns (D-118)
+     */
+    public record State(String href, int defaultSize, String showAllColumnsHref, String clearSearchHref) {
+        public State {
+            Hrefs.require("href", href);
+            if (defaultSize <= 0) {
+                throw new IllegalArgumentException("defaultSize must be positive");
+            }
+            Hrefs.optional("showAllColumnsHref", showAllColumnsHref);
+            Hrefs.require("clearSearchHref", clearSearchHref);
         }
     }
 

@@ -101,7 +101,7 @@ public class RecordController {
         DetailView view = DetailViewFactory.build(basePath.value(), found.urlName(), found.label(), record, state,
                 new DetailViewFactory.Offers(found.canUpdate(), found.canCreate(), found.canDelete()));
         PageChrome chrome = chromeFactory.chrome(request, DetailViewFactory.breadcrumbs(basePath.value(),
-                found.urlName(), Plurals.of(found.label()), view.title(), state), found.urlName(), List.of());
+                found.urlName(), found.plural(), view.title(), state), found.urlName(), List.of());
         return views.page(request, DetailView.TEMPLATE, chrome, view);
     }
 
@@ -143,7 +143,7 @@ public class RecordController {
         AdminEntity found = entity(entity);
         ListQuery state = listState(found, request);
         ListLinks links = new ListLinks(basePath.value(), found.urlName());
-        String plural = Plurals.of(found.label());
+        String plural = found.plural();
         try {
             BulkDeleteIds selected = BulkDeleteIds.parse(ids);
             if (selected.size() == 0) {

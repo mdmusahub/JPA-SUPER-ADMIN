@@ -23,17 +23,38 @@ import java.util.Objects;
  * @param sensitive     whether the value is masked everywhere (SEC-1)
  * @param hidden        whether the field is removed from the console completely (SEC-2)
  * @param upload        what {@code @AdminUpload} says, or {@code null} when the field is not an upload field (Phase 9)
+ * @param badge         what {@code @AdminBadge} says, or {@code null} when the field has none (Phase 13, D-120)
+ * @param lookup        the property {@code @AdminLookup} names as the label of the related record, or {@code null} when the
+ *                      field has none (Phase 13, D-121). Kept as written: whether it names a usable property of the target is
+ *                      decided where the target is known ({@link AnnotationProblems}, and again wherever a label is chosen)
  */
 public record AdminField(String name, String label, Class<?> javaType, Kind kind, List<String> enumValues,
                          String targetEntity, boolean id, boolean version, boolean nullable, boolean required,
-                         boolean sensitive, boolean hidden, UploadSpec upload) {
+                         boolean sensitive, boolean hidden, UploadSpec upload, BadgeSpec badge, String lookup) {
 
     /** A field that is not an upload field: the shape every field had before Phase 9. */
     public AdminField(String name, String label, Class<?> javaType, Kind kind, List<String> enumValues,
                       String targetEntity, boolean id, boolean version, boolean nullable, boolean required,
                       boolean sensitive, boolean hidden) {
         this(name, label, javaType, kind, enumValues, targetEntity, id, version, nullable, required, sensitive, hidden,
-                null);
+                null, null, null);
+    }
+
+    /** A field without a badge or a lookup: the shape every field had before Phase 13. */
+    public AdminField(String name, String label, Class<?> javaType, Kind kind, List<String> enumValues,
+                      String targetEntity, boolean id, boolean version, boolean nullable, boolean required,
+                      boolean sensitive, boolean hidden, UploadSpec upload) {
+        this(name, label, javaType, kind, enumValues, targetEntity, id, version, nullable, required, sensitive, hidden,
+                upload, null, null);
+    }
+
+    /**
+     * Whether a badge decides how a value of this field is shown: the field has usable entries, is not sensitive, and is an
+     * enum or a {@code String}. Any other field ignores {@code @AdminBadge} (the startup check names it).
+     */
+    public boolean hasBadge() {
+        return badge != null && !sensitive && !badge.usable().isEmpty()
+                && (kind == Kind.ENUM || (kind == Kind.TEXT && javaType == String.class));
     }
 
     /** Whether the field holds the address of an uploaded file ({@code @AdminUpload}). */

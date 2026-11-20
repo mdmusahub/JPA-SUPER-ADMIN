@@ -35,8 +35,15 @@ import java.lang.annotation.Target;
  * public class PaymentCard { ... }
  * }</pre>
  *
- * <p>This version of the console reads five options. The others named in the project plan (display names, group, icon,
- * order, default sort, page size) arrive with the phases that use them.
+ * <pre>{@code
+ * @Entity
+ * @AdminResource(plural = "People")      // headings say "People", not the guessed "Persons"
+ * public class Person { ... }
+ * }</pre>
+ *
+ * <p>This version of the console reads six options. The others named in the project plan (display name, group, icon, order,
+ * default sort, page size per entity) arrive with the phases that use them. The page size of every list is the setting
+ * {@code jpa.admin.page-size}.
  *
  * <p>Part of the console's public API (ARCH-9): the options are small, documented and have defaults, so adding the annotation
  * never changes an entity that does not use it.
@@ -83,4 +90,13 @@ public @interface AdminResource {
      * one.
      */
     boolean exportable() default true;
+
+    /**
+     * The plural of the entity's name, used in the list's heading, the breadcrumb, the search box, the empty state and the
+     * dashboard (for example {@code "People"}). Default empty: the console guesses it from the name by the plain English
+     * rules ({@code Entry} becomes {@code Entries}, {@code Box} becomes {@code Boxes}), which is wrong for irregular
+     * nouns ({@code Person} would become {@code Persons}). At most 60 characters and no control character; anything else
+     * stops startup with a message that names the entity.
+     */
+    String plural() default "";
 }
