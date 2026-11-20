@@ -239,7 +239,7 @@ Highlights: every entity found automatically, search, filters and saved views, c
 ```xml
 <dependency>
   <groupId>io.github.mdmusahub</groupId>
-  <artifactId>jpa-super-admin-spring-boot-starter</artifactId>
+  <artifactId>springboot-super-admin</artifactId>
   <version>0.1.0</version>
 </dependency>
 ```
