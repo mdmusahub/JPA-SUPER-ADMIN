@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en"
-      th:replace="~{jpa-admin/layout :: layout(${view.title}, ~{::main}, true)}">
+      th:replace="~{jpa-admin/layout :: layout(${view.title}, ~{::main}, true, null)}">
 <!--/*
   The create and edit form (task U5). One template for both: view.mode says which. It reads only chrome and view (a
   FormView) and prints the links the record gives it (D-28, D-74): the form posts to view.actionHref (the collection for a

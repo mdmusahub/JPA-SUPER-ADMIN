@@ -93,9 +93,11 @@
 
   </th:block>
 
-  <p class="field-help" th:if="${field.help != null and !(field.inputType.name() == 'SELECT' and field.options.isEmpty())}"
+  <!--/* An upload field's help and error are printed by fragments/uploader.html, with these same ids: printing them here as well
+       made every such id appear twice on the page, which breaks aria-describedby (found by AccessibilityBrowserTest, Phase 13). */-->
+  <p class="field-help" th:if="${field.help != null and field.inputType.name() != 'UPLOAD' and !(field.inputType.name() == 'SELECT' and field.options.isEmpty())}"
      th:id="'h-' + ${field.key}" th:text="${field.help}">Help text.</p>
-  <p class="field-error" th:if="${field.error != null}" th:id="'e-' + ${field.key}">
+  <p class="field-error" th:if="${field.error != null and field.inputType.name() != 'UPLOAD'}" th:id="'e-' + ${field.key}">
     <span class="visually-hidden">Error: </span><span th:text="${field.error}">Enter a value.</span>
   </p>
 </div>
