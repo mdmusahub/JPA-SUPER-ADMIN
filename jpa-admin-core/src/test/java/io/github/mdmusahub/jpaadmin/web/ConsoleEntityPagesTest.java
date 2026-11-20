@@ -116,7 +116,7 @@ class ConsoleEntityPagesTest {
                 .containsExactlyElementsOf(registry.all().stream().map(AdminEntity::urlName).toList());
         PageChrome.NavItem widget = group.items().stream().filter(item -> item.entity().equals("widget"))
                 .findFirst().orElseThrow();
-        assertThat(widget.label()).isEqualTo("Widget");
+        assertThat(widget.label()).as("the sidebar names the table in the plural since Phase 13 (D-120)").isEqualTo("Widgets");
         assertThat(widget.icon()).isEqualTo("table");
         assertThat(widget.count()).isNotNull().isNotNegative();
     }
