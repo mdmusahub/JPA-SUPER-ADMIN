@@ -123,6 +123,15 @@ final class ListFixtures {
         FIXTURES.put("hidden-middle-page", fixture("default", base -> FilterFixtures.articlesHidden(base, "", null, null, 1, 10,
                 List.of(), List.of("author", "views"), true)));
         FIXTURES.put("all-cell-types", fixture("default", ListFixtures::allCellTypes));
+        // Phase 13 (D-118 to D-122). Built by the real factory: the state links, the default page size, the plural name from
+        // @AdminResource, the relation label from @AdminLookup (and its fallback to the record's number) and a search that keeps
+        // the hidden columns when it is cleared.
+        FIXTURES.put("page-size-default-50", fixture("default", base -> defaultSizeFifty(base, 50, 2)));
+        FIXTURES.put("page-size-default-50-asked-25", fixture("default", base -> defaultSizeFifty(base, 25, 0)));
+        FIXTURES.put("plural-people", fixture("default", ListFixtures::pluralPeople));
+        FIXTURES.put("relation-lookup", fixture("default", ListFixtures::relationLookup));
+        FIXTURES.put("search-columns-hidden", fixture("default", base -> FilterFixtures.articlesHidden(base, "guide", "title", "asc",
+                0, 25, List.of(), List.of("views"), true)));
         // Task U3, the filters. Each is built by the real factory, so chips and links are the real ones.
         FIXTURES.put("filters-open", fixture("default", base -> FilterFixtures.articles(base, "", null, null, 0, 25, List.of())));
         FIXTURES.put("filter-text", fixture("default", base -> FilterFixtures.articles(base, "", null, null, 0, 25,
@@ -341,6 +350,48 @@ final class ListFixtures {
                     relation(titles[(i + 1) % titles.length], null), status(STATUSES[i % STATUSES.length]),
                     number(String.valueOf(i * 111)), new Cell(Cell.Type.DATE, "2026-11-0" + (i + 1), Cell.Tone.NONE,
                             null, null))));
+        }
+        return build(basePath, "article", ARTICLES, ARTICLE_COLUMNS, rows, rows.size(), ListQuery.defaults(), NO_ACTIONS);
+    }
+
+    /** The entity a host named with {@code @AdminResource(plural = "People")}: the heading, search box and empty state say it. */
+    static final ListView.EntityInfo PEOPLE = new ListView.EntityInfo("Person", "People", "users");
+
+    private static ListView pluralPeople(String basePath) {
+        return build(basePath, "article", PEOPLE, ARTICLE_COLUMNS, List.of(), 0, ListQuery.defaults(), actions(basePath, true));
+    }
+
+    /**
+     * The console's default page size is 50 ({@code jpa.admin.page-size=50}): an address without {@code size} shows 50 rows, so the
+     * link for 50 leaves {@code size} out and the link for 25 says it.
+     *
+     * @param size the page size this address asked for (the default 50 when it asks for none)
+     */
+    private static ListView defaultSizeFifty(String basePath, int size, int page) {
+        List<ListView.Row> rows = new ArrayList<>();
+        List<Article> all = allArticles(false);
+        int last = (all.size() - 1) / size;
+        int shown = Math.min(page, last);
+        for (int i = shown * size; i < Math.min(all.size(), (shown + 1) * size); i++) {
+            Article article = all.get(i);
+            rows.add(new ListView.Row(String.valueOf(article.id()), List.of(number(String.valueOf(article.id())),
+                    Cell.text(article.title()), relation(article.author(), null), status(article.status()),
+                    number(String.format(Locale.ROOT, "%,d", article.views())),
+                    new Cell(Cell.Type.DATE, article.published().toString(), Cell.Tone.NONE, null, null))));
+        }
+        return build(basePath, "article", ARTICLES, ARTICLE_COLUMNS, rows, all.size(),
+                new ListQuery("", null, null, shown, size, List.of(), List.of(), 50), actions(basePath, true));
+    }
+
+    /** The Author column shows a serial the host chose with {@code @AdminLookup}; a record with no serial shows its number. */
+    private static ListView relationLookup(String basePath) {
+        List<ListView.Row> rows = new ArrayList<>();
+        for (int i = 1; i <= 6; i++) {
+            Cell author = i == 3 ? relation("#" + (40 + i), basePath + "/member/" + (40 + i))
+                    : relation(String.format(Locale.ROOT, "MEM-%04d", i * 17), basePath + "/member/" + (40 + i));
+            rows.add(new ListView.Row(String.valueOf(i), List.of(number(String.valueOf(i)), Cell.text("Article " + i), author,
+                    status(STATUSES[i % STATUSES.length]), number(String.valueOf(i * 100)),
+                    new Cell(Cell.Type.DATE, "2026-10-0" + i, Cell.Tone.NONE, null, null))));
         }
         return build(basePath, "article", ARTICLES, ARTICLE_COLUMNS, rows, rows.size(), ListQuery.defaults(), NO_ACTIONS);
     }

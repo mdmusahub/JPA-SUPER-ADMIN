@@ -93,7 +93,7 @@ class PreviewFilterPagesTest {
         String html = render("filters-open");
         String form = between(html, "<form class=\"list-toolbar\"", "</form>");
 
-        assertThat(flat(form)).startsWith("<form class=\"list-toolbar\" method=\"get\" role=\"search\" data-filter-form action=\"/admin-preview/article\">")
+        assertThat(flat(form)).startsWith("<form class=\"list-toolbar\" method=\"get\" role=\"search\" data-filter-form action=\"/admin-preview/article\" aria-label=\"Search and filter articles\">")
                 .contains("name=\"q\"", "name=\"filter.title\"", "name=\"filter.author\"", "name=\"filter.status\"", "name=\"filter.views.min\"",
                         "name=\"filter.views.max\"", "name=\"filter.published.from\"", "name=\"filter.published.to\"", "name=\"filter.featured\"")
                 .contains("<button type=\"submit\" class=\"btn btn-primary\">Apply filters</button>");

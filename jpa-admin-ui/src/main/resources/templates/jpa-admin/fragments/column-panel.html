@@ -13,7 +13,8 @@
   A masked column (a sensitive field) has no checkbox and its key is printed nowhere: it can never be hidden, because it
   is always shown as dots. The backend decides what counts; it ignores any other name, and a request that would hide
   every column is ignored as a whole and the page says so in a notice. The panel is not shown when there is nothing to
-  choose between (fewer than two columns that can be hidden).
+  choose between (fewer than two columns that can be hidden). "Show all columns" is a link to view.state.showAllColumnsHref:
+  present exactly when a column is hidden, it keeps the search, the filters, the sort and the page size.
 
   The panel is a details element, so it opens and closes with the keyboard and the mouse and needs no script. Every
   label is printed with th:text (escaped, SEC-9). Nothing here builds a link.
@@ -41,6 +42,9 @@
 
     <div class="filter-actions">
       <button type="submit" class="btn btn-primary">Apply columns</button>
+      <!--/* "Show all columns" is a plain link built by the backend (view.state.showAllColumnsHref); it is there exactly when a
+             column is hidden, so it is never offered when there is nothing to show (Phase 13, D-118). */-->
+      <a class="btn btn-quiet" th:if="${view.state.showAllColumnsHref != null}" th:href="@{${view.state.showAllColumnsHref}}">Show all columns</a>
     </div>
   </details>
 </th:block>

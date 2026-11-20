@@ -120,6 +120,17 @@
   border-color: var(--muted);
 }
 
+/*
+ * Chrome keeps the focus of a date or date-time field on a part inside it (the month, the hour), and :focus-visible does not reach
+ * the field itself from there, so the field showed no ring at all (found by the Tab order browser test, Phase 13). The whole field
+ * gets the ring while any part of it has focus.
+ */
+.input[type="date"]:focus-within,
+.input[type="datetime-local"]:focus-within {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 .input[aria-invalid="true"] {
   border-color: var(--red);
 }

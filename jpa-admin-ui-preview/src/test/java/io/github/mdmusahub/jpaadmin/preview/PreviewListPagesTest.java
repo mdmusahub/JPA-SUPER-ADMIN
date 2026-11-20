@@ -91,7 +91,7 @@ class PreviewListPagesTest {
     void theSearchIsAGetFormWithALabelThatKeepsTheSortAndTheSize() throws Exception {
         String html = render("sorted-asc");
 
-        assertThat(flat(html)).contains("<form class=\"list-toolbar\" method=\"get\" role=\"search\" data-filter-form action=\"/admin-preview/article\">")
+        assertThat(flat(html)).contains("<form class=\"list-toolbar\" method=\"get\" role=\"search\" data-filter-form action=\"/admin-preview/article\" aria-label=\"Search and filter articles\">")
                 .contains("<label class=\"visually-hidden\" for=\"list-search\">Search articles</label>")
                 .contains("id=\"list-search\"", "type=\"search\"", "name=\"q\"", "maxlength=\"100\"")
                 .contains("<input type=\"hidden\" name=\"sort\" value=\"title\">", "<input type=\"hidden\" name=\"dir\" value=\"asc\">",
@@ -456,7 +456,8 @@ class PreviewListPagesTest {
         int found = 0;
         while (addresses.find()) {
             String address = addresses.group(1);
-            if (address.equals("#main") || address.equals("data:,")) {
+            // The two skip links are in-page fragments (the content, and since Phase 13 the search box); they carry no path to lie under a base.
+            if (address.equals("#main") || address.equals("#list-search") || address.equals("data:,")) {
                 continue;
             }
             found++;

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en"
-      th:replace="~{jpa-admin/layout :: layout(${view.title}, ~{::main}, true)}">
+      th:replace="~{jpa-admin/layout :: layout(${view.title}, ~{::main}, true, null)}">
 <!--/*
   One record's detail page (task U4): the title, the actions, the labelled values, and the delete form. It reads only
   chrome and view (a DetailView). It builds no link that carries state (D-28, D-65): the way back to the list is the
