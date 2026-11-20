@@ -108,7 +108,13 @@ final class Samples {
     static ListView list(List<ListView.Column> columns, List<ListView.Row> rows, String sort, String dir,
                          ListView.Empty empty) {
         return new ListView(new ListView.EntityInfo("Item", "Items", "box"), columns, rows, "", sort, dir, filters(),
-                paging(), actions(), empty);
+                paging(), actions(), empty, state(columns));
+    }
+
+    /** A state that follows the record's rule: "Show all columns" exactly when a column is hidden. */
+    static ListView.State state(List<ListView.Column> columns) {
+        boolean someHidden = columns != null && columns.stream().anyMatch(column -> !column.visible());
+        return new ListView.State("/admin/item", 25, someHidden ? "/admin/item" : null, "/admin/item");
     }
 
     static ListView.Actions actions() {

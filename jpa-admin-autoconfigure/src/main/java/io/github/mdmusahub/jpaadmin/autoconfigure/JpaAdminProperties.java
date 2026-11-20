@@ -2,6 +2,7 @@ package io.github.mdmusahub.jpaadmin.autoconfigure;
 
 import io.github.mdmusahub.jpaadmin.metadata.DiscoverySettings;
 import io.github.mdmusahub.jpaadmin.service.ExportSettings;
+import io.github.mdmusahub.jpaadmin.service.ListQuery;
 import io.github.mdmusahub.jpaadmin.storage.StoragePaths;
 import io.github.mdmusahub.jpaadmin.storage.StorageSettings;
 import io.github.mdmusahub.jpaadmin.storage.UploadLimits;
@@ -97,6 +98,14 @@ public class JpaAdminProperties implements InitializingBean {
      * wrong character set.
      */
     private boolean exportBom = false;
+
+    /**
+     * Rows per page in every list when the address says none (the page-size links of a list still offer 10, 25, 50 and 100). One
+     * of 10, 25, 50 or 100; anything else stops startup. Default 25.
+     */
+    // Long, not int, so an absurd number reaches the plain message below instead of a binding error. A literal, because the
+    // configuration processor reads only literal defaults; a test checks that it equals ListQuery.DEFAULT_SIZE.
+    private long pageSize = 25;
 
     /** Settings of the upload tickets. */
     private final Upload upload = new Upload();
@@ -270,6 +279,19 @@ public class JpaAdminProperties implements InitializingBean {
         return exportBom;
     }
 
+    public long getPageSize() {
+        return pageSize;
+    }
+
+    public void setPageSize(long pageSize) {
+        this.pageSize = pageSize;
+    }
+
+    /** The page size as the list code sees it. Called after {@link #validate()}, so it is one of the sizes on offer. */
+    int pageSize() {
+        return (int) pageSize;
+    }
+
     public void setExportBom(boolean exportBom) {
         this.exportBom = exportBom;
     }
@@ -350,6 +372,12 @@ public class JpaAdminProperties implements InitializingBean {
             problems.add(PREFIX + ".export-max-rows must be a whole number from 1 to " + ExportSettings.CEILING
                     + ". It can lower the number of rows in one CSV file but never raise it: " + ExportSettings.CEILING
                     + " is the fixed ceiling. For example jpa.admin.export-max-rows=10000, or leave the property out.");
+        }
+        if (!ListQuery.PAGE_SIZES.contains(pageSize > Integer.MAX_VALUE || pageSize < Integer.MIN_VALUE ? -1 : (int) pageSize)) {
+            // The value is not repeated: the message says what is allowed, which is all the operator needs.
+            problems.add(PREFIX + ".page-size must be one of " + ListQuery.PAGE_SIZES.stream().map(String::valueOf)
+                    .collect(java.util.stream.Collectors.joining(", ")) + ". It is the number of rows a list shows when the address"
+                    + " says no size, for example jpa.admin.page-size=50, or leave the property out for " + ListQuery.DEFAULT_SIZE + ".");
         }
         if (!problems.isEmpty()) {
             throw new JpaAdminConfigurationException(problems);
@@ -490,6 +518,6 @@ public class JpaAdminProperties implements InitializingBean {
         return "JpaAdminProperties[enabled=" + enabled + ", path=" + path + ", username=" + username
                 + ", password=" + (password == null ? "<not set>" : "<hidden>") + ", title=" + title
                 + ", primaryColor=" + primaryColor + ", excludedEntities=" + excludedEntities
-                + ", sensitiveFields=" + sensitiveFields + "]";
+                + ", sensitiveFields=" + sensitiveFields + ", pageSize=" + pageSize + "]";
     }
 }

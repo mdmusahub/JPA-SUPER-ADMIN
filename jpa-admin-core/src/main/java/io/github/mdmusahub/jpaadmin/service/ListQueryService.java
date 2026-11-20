@@ -80,6 +80,7 @@ public class ListQueryService {
     private final EntityManager entityManager;
     private final AdminEntityRegistry registry;
     private final UploadFiles uploads;
+    private final int defaultPageSize;
     private final Map<String, Plan> plans = new ConcurrentHashMap<>();
 
     /** Not public, for the same reason as {@code CountService}: Spring's transactional proxy subclasses this class. */
@@ -88,9 +89,18 @@ public class ListQueryService {
     }
 
     protected ListQueryService(EntityManager entityManager, AdminEntityRegistry registry, UploadFiles uploads) {
+        this(entityManager, registry, uploads, ListQuery.DEFAULT_SIZE);
+    }
+
+    protected ListQueryService(EntityManager entityManager, AdminEntityRegistry registry, UploadFiles uploads,
+                               int defaultPageSize) {
         this.entityManager = entityManager;
         this.registry = Objects.requireNonNull(registry, "registry");
         this.uploads = Objects.requireNonNull(uploads, "uploads");
+        if (!ListQuery.PAGE_SIZES.contains(defaultPageSize)) {
+            throw new IllegalArgumentException("defaultPageSize must be one of " + ListQuery.PAGE_SIZES);
+        }
+        this.defaultPageSize = defaultPageSize;
     }
 
     /**
@@ -110,6 +120,24 @@ public class ListQueryService {
      */
     public static ListQueryService over(EntityManager entityManager, AdminEntityRegistry registry, UploadFiles uploads) {
         return new ListQueryService(Objects.requireNonNull(entityManager, "entityManager"), registry, uploads);
+    }
+
+    /**
+     * The service with upload support and a page size of the host's choosing (Phase 13, D-119): the size a list has when the
+     * address says none, or says one that is not on offer.
+     *
+     * @param defaultPageSize one of {@link ListQuery#PAGE_SIZES}; the auto-configuration has already checked the property
+     * @throws IllegalArgumentException if it is not one of them
+     */
+    public static ListQueryService over(EntityManager entityManager, AdminEntityRegistry registry, UploadFiles uploads,
+                                        int defaultPageSize) {
+        return new ListQueryService(Objects.requireNonNull(entityManager, "entityManager"), registry, uploads,
+                defaultPageSize);
+    }
+
+    /** The page size a list has when the address says none: {@code jpa.admin.page-size}, 25 unless the host set it. */
+    public int defaultPageSize() {
+        return defaultPageSize;
     }
 
     /** A service for a console that has no entity manager factory. It lists nothing; no entity can be asked for. */
@@ -154,7 +182,7 @@ public class ListQueryService {
      * @param entity an entity from the registry
      */
     public ListQuery parse(AdminEntity entity, String q, String sort, String dir, String page, String size) {
-        return ListQuery.parse(entity, registry, q, sort, dir, page, size);
+        return ListQuery.parse(entity, registry, q, sort, dir, page, size, defaultPageSize);
     }
 
     /**
@@ -420,7 +448,7 @@ public class ListQueryService {
                 return shown.get();
             }
         }
-        return CellFormatter.format(column.column().type(), value);
+        return CellFormatter.format(column.column().type(), value, column.field());
     }
 
     /**
@@ -549,7 +577,7 @@ public class ListQueryService {
             }
         }
         ListQuery effective = new ListQuery(query.search(), query.sort(), query.dir(), query.page(), query.size(), kept,
-                query.hidden());
+                query.hidden(), query.defaultSize());
         return new Filtering(effective, specs, controls, notes);
     }
 
@@ -576,7 +604,8 @@ public class ListQueryService {
                         column.targetEntity(), column.identifier());
             }
             columns.add(new PlannedColumn(column, field, relation));
-            if (column.type() == Cell.Type.TEXT && field.kind() == AdminField.Kind.TEXT
+            // A String shown as a badge (@AdminBadge) is an enum column but is still text that a search looks in.
+            if ((column.type() == Cell.Type.TEXT || column.type() == Cell.Type.ENUM) && field.kind() == AdminField.Kind.TEXT
                     && field.javaType() == String.class && !field.sensitive()) {
                 searchable.add(field.name());
                 searchedLabels.add(column.label());
@@ -638,7 +667,8 @@ public class ListQueryService {
                 }
             }
             return new ListQuery(query.search(), sortable ? query.sort() : null, sortable ? query.dir() : null,
-                    query.page(), query.size(), allowed, HiddenColumns.checked(listColumns(), query.hidden()));
+                    query.page(), query.size(), allowed, HiddenColumns.checked(listColumns(), query.hidden()),
+                    query.defaultSize());
         }
     }
 }

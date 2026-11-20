@@ -191,7 +191,7 @@ public class DetailQueryService {
         }
         Cell cell = planned.column().type() == Cell.Type.TEXT && value instanceof CharSequence text
                 ? CellFormatter.detailText(text.toString())
-                : CellFormatter.format(planned.column().type(), value);
+                : CellFormatter.format(planned.column().type(), value, field);
         return DetailRecord.Item.of(label, cell);
     }
 

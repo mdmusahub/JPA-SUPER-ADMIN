@@ -109,7 +109,17 @@ class ViewsScriptTest {
     @Test
     void theLimitsAreTheDocumentedOnes() {
         assertThat(CODE).contains("var MAX_VIEWS = 20;", "var MAX_NAME = 60;", "var MAX_TEXT = 100;", "var MAX_FILTERS = 10;",
-                "var DEFAULT_SIZE = 25;", "var PAGE_SIZES = [10, 25, 50, 100];");
+                "var FALLBACK_SIZE = 25;", "var PAGE_SIZES = [10, 25, 50, 100];");
+    }
+
+    @Test
+    void theDefaultPageSizeComesFromThePageAndIsNeverAssumed() {
+        // jpa.admin.page-size can be 10, 25, 50 or 100 (Phase 13, D-119): the page hands the script its default in
+        // data-views-default-size, and the only 25 in the file is the fallback for a value that is not on offer.
+        assertThat(CODE).contains("data-views-default-size", "var defaultSize = FALLBACK_SIZE;", "defaultSize = offered;",
+                "view.pageSize !== defaultSize", "? parseInt(params.get('size'), 10) : defaultSize");
+        assertThat(CODE).doesNotContain("DEFAULT_SIZE").doesNotContain("!== 25").doesNotContain("=== 25");
+        assertThat(CODE.split("FALLBACK_SIZE", -1).length - 1).as("the fallback is named twice: declared and used").isEqualTo(2);
     }
 
     @Test

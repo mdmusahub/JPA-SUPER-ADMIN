@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en"
-      th:replace="~{jpa-admin/layout :: layout(${view.entity.plural}, ~{::main}, true)}">
+      th:replace="~{jpa-admin/layout :: layout(${view.entity.plural}, ~{::main}, true, 'list-search')}">
 <!--/*
   One entity's list page (task U2): the heading with the record count, a search form, the table, the paging and the
   empty state. It reads only chrome and view (a ListView), and it prints the links the record gives it: it builds none
@@ -23,6 +23,11 @@
   false. The Saved views panel (fragments/views-panel.html) is script-only: views live in this browser (views.js) and are plain
   links to this list's address; it sits in the same form without a form of its own. The panels share one row and the open one
   takes the whole row.
+
+  "Clear search" and "Clear search and filters" lead to view.state.clearSearchHref, built by the backend: no search, no filter, no sort
+  and the default page size, and the same hidden columns, because a visitor who chose the columns did not ask to lose them
+  (Phase 13, D-118). "Show all columns" is in the Columns panel. The "/" key focuses the search box (shortcuts.js, an enhancement
+  that needs script; the page offers the "Skip to search" link without it).
 
   Actions the console does not offer are simply not in the record: nothing here is a disabled button (D-57). "New record" and
   the export button appear only when view.actions says so.
@@ -60,6 +65,7 @@
   </header>
 
   <form class="list-toolbar" method="get" role="search" data-filter-form
+        th:attr="aria-label='Search and filter ' + ${#strings.toLowerCase(view.entity.plural)}"
         th:action="@{${chrome.basePath} + '/' + ${chrome.activeEntity}}">
     <div class="toolbar-row">
     <div class="search-field">
@@ -67,14 +73,18 @@
              th:text="'Search ' + ${#strings.toLowerCase(view.entity.plural)}">Search articles</label>
       <th:block th:replace="~{jpa-admin/fragments/icons :: search}"></th:block>
       <input id="list-search" class="search-input" type="search" name="q" maxlength="100" autocomplete="off"
+             aria-keyshortcuts="/" data-search-input
              th:value="${view.search}" th:placeholder="'Search ' + ${#strings.toLowerCase(view.entity.plural)}">
+      <!--/* The keyboard hint: shown only when script runs, because the "/" key is shortcuts.js (Phase 13, D-123). The input
+             names the shortcut for assistive technology with aria-keyshortcuts; the hint is decoration, so it is hidden from it. */-->
+      <kbd class="search-hint js-only" aria-hidden="true">/</kbd>
     </div>
     <input type="hidden" name="sort" th:if="${view.sort != null}" th:value="${view.sort}">
     <input type="hidden" name="dir" th:if="${view.sort != null}" th:value="${view.dir}">
     <input type="hidden" name="size" th:value="${view.paging.size}">
     <button type="submit" class="btn">Search</button>
     <a class="btn btn-quiet" th:if="${!view.search.isEmpty()}"
-       th:href="@{${chrome.basePath} + '/' + ${chrome.activeEntity}}"
+       th:href="@{${view.state.clearSearchHref}}"
        th:text="${view.filters.chips.isEmpty()} ? 'Clear search' : 'Clear search and filters'">Clear search</a>
     </div>
     <div class="toolbar-panels">
@@ -110,7 +120,7 @@
     <a class="btn" th:if="${view.empty.reason.name() == 'NO_MATCHES' and view.filters.clearAllHref != null}"
        th:href="@{${view.filters.clearAllHref}}">Clear all filters</a>
     <a class="btn" th:if="${view.empty.reason.name() == 'NO_MATCHES' and !view.search.isEmpty()}"
-       th:href="@{${chrome.basePath} + '/' + ${chrome.activeEntity}}"
+       th:href="@{${view.state.clearSearchHref}}"
        th:text="${view.filters.chips.isEmpty()} ? 'Clear search' : 'Clear search and filters'">Clear search</a>
     <a class="btn btn-primary" th:if="${view.empty.reason.name() == 'NO_RECORDS' and view.actions.canCreate}"
        th:href="@{${chrome.basePath} + '/' + ${chrome.activeEntity} + '/new'}">Create the first one</a>

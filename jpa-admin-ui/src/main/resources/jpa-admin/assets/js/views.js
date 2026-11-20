@@ -11,7 +11,7 @@
  *     offers, and quietly drops any that does not fit (not valid JSON, not an object, a name that is missing or too long, a
  *     column or filter this page does not have, a page size that is not on offer, a 21st view). It never fails or shows an
  *     error page because of what it found in storage;
- *   - saves the state of the page as the server validated it (the address of the current page-size link, handed over in
+ *   - saves the state of the page as the server validated it (the list address in view.state.href, handed over in
  *     data-views-state), not the raw address, with a name of 1 to 60 characters; saving under an existing name replaces that
  *     view; at most 20 views are kept;
  *   - lists the views as plain links to the list's address, with the same percent-encoding as the server's link writer, and
@@ -29,8 +29,11 @@
   var MAX_NAME = 60;
   var MAX_TEXT = 100;
   var MAX_FILTERS = 10;
-  var DEFAULT_SIZE = 25;
+  var FALLBACK_SIZE = 25;
   var PAGE_SIZES = [10, 25, 50, 100];
+  // The page size an address without size uses is the console's setting (jpa.admin.page-size); the page hands it over in
+  // data-views-default-size and this file never assumes a number. A value that is not on offer means the usual 25.
+  var defaultSize = FALLBACK_SIZE;
 
   var panel = document.querySelector('[data-views]');
   if (!panel) {
@@ -59,6 +62,10 @@
 
   var base = panel.getAttribute('data-views-base') || '';
   var stateHref = panel.getAttribute('data-views-state') || '';
+  var offered = parseInt(panel.getAttribute('data-views-default-size') || '', 10);
+  if (PAGE_SIZES.indexOf(offered) >= 0) {
+    defaultSize = offered;
+  }
   var columns = words('data-views-columns');
   var filterKeys = words('data-views-filters');
 
@@ -179,7 +186,7 @@
     var q = item.q === undefined || item.q === null ? '' : item.q;
     var filters = cleanFilters(item.filters);
     var hidden = cleanHidden(item.hiddenColumns);
-    var size = item.pageSize === undefined || item.pageSize === null ? DEFAULT_SIZE : item.pageSize;
+    var size = item.pageSize === undefined || item.pageSize === null ? defaultSize : item.pageSize;
     var sort = item.sort === undefined ? null : item.sort;
     var dir = item.dir === undefined ? null : item.dir;
     if (name === null || filters === null || hidden === null || (q !== '' && !plainText(q, MAX_TEXT))) {
@@ -272,7 +279,7 @@
       parts.push('sort=' + enc(view.sort));
       parts.push('dir=' + enc(view.dir));
     }
-    if (view.pageSize !== DEFAULT_SIZE) {
+    if (view.pageSize !== defaultSize) {
       parts.push('size=' + view.pageSize);
     }
     return parts.length === 0 ? base : base + '?' + parts.join('&');
@@ -283,7 +290,7 @@
     var at = stateHref.indexOf('?');
     var filters = {};
     var hidden = [];
-    var item = { name: name, q: '', filters: filters, sort: null, dir: null, pageSize: DEFAULT_SIZE, hiddenColumns: hidden };
+    var item = { name: name, q: '', filters: filters, sort: null, dir: null, pageSize: defaultSize, hiddenColumns: hidden };
     if (at >= 0 && typeof URLSearchParams === 'function') {
       var params = new URLSearchParams(stateHref.slice(at + 1));
       item.q = params.get('q') || '';
@@ -295,7 +302,7 @@
       hidden.push.apply(hidden, params.getAll('hide'));
       item.sort = params.get('sort');
       item.dir = params.get('dir');
-      item.pageSize = params.has('size') ? parseInt(params.get('size'), 10) : DEFAULT_SIZE;
+      item.pageSize = params.has('size') ? parseInt(params.get('size'), 10) : defaultSize;
     }
     return clean(item);
   }

@@ -1,6 +1,8 @@
 package io.github.mdmusahub.jpaadmin.metadata;
 
+import io.github.mdmusahub.jpaadmin.annotation.AdminBadge;
 import io.github.mdmusahub.jpaadmin.annotation.AdminHidden;
+import io.github.mdmusahub.jpaadmin.annotation.AdminLookup;
 import io.github.mdmusahub.jpaadmin.annotation.AdminResource;
 import io.github.mdmusahub.jpaadmin.annotation.AdminSensitive;
 import io.github.mdmusahub.jpaadmin.annotation.AdminUpload;
@@ -216,7 +218,16 @@ public final class EntityScanner {
                 address = "entity";
             }
             return new AdminEntity(type, entityType.getName(), address, Names.label(type.getSimpleName()),
-                    AdminEntity.DEFAULT_GROUP, AdminEntity.DEFAULT_ICON, idAttribute, reason, fields, access());
+                    AdminEntity.DEFAULT_GROUP, AdminEntity.DEFAULT_ICON, idAttribute, reason, fields, access(), plural());
+        }
+
+        /**
+         * The plural the host gave with {@code @AdminResource(plural)}, as written, or {@code null} when it gave none. The
+         * entity keeps it only when it is acceptable; the startup check reports the one that is not (D-120).
+         */
+        private String plural() {
+            AdminResource resource = type.getAnnotation(AdminResource.class);
+            return resource == null || resource.plural().isBlank() ? null : resource.plural();
         }
 
         /** What {@code @AdminResource} allows, read once here (ARCH-1); no annotation means full access. */
@@ -263,7 +274,20 @@ public final class EntityScanner {
                     || Names.looksSensitive(name, settings.sensitiveFields());
             boolean required = !nullable && !id && !version && kind != AdminField.Kind.TO_MANY;
             return new AdminField(name, Names.label(name), attribute.getJavaType(), kind, enumValues, target, id,
-                    version, nullable, required, sensitive, hidden, uploadSpec(attribute));
+                    version, nullable, required, sensitive, hidden, uploadSpec(attribute), badgeSpec(attribute),
+                    lookup(attribute));
+        }
+
+        /** What {@code @AdminBadge} says about the attribute, or {@code null} when it has none (Phase 13). */
+        private BadgeSpec badgeSpec(Attribute<?, ?> attribute) {
+            AdminBadge badge = findAnnotation(attribute, AdminBadge.class);
+            return badge == null ? null : new BadgeSpec(List.of(badge.value()));
+        }
+
+        /** The property {@code @AdminLookup} names, as written, or {@code null} when the attribute has none (Phase 13). */
+        private String lookup(Attribute<?, ?> attribute) {
+            AdminLookup lookup = findAnnotation(attribute, AdminLookup.class);
+            return lookup == null ? null : lookup.value();
         }
 
         private static boolean isId(Attribute<?, ?> attribute) {
