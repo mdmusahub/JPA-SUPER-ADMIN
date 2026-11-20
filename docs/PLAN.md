@@ -72,13 +72,13 @@ jpa-super-admin/             parent pom: groupId io.github.mdmusahub, artifactId
   jpa-admin-autoconfigure/   properties, security chain, auto-configuration, asset resource handler
   jpa-admin-ui/              Thymeleaf templates, CSS, JavaScript (resource jar, no Java logic)
   jpa-admin-ui-preview/      unpublished preview app with fixtures (never a dependency of the starter)
-  jpa-admin-starter/         empty pom, published as jpa-super-admin-spring-boot-starter
+  jpa-admin-starter/         empty pom, published as springboot-super-admin
   sample-app/                demo shop, integration tests
   docs/                      PLAN.md, RULES.md, PROJECT_DOCS.md, MkDocs site
   CLAUDE.md
 ```
 
-Maven `groupId`: `io.github.mdmusahub`. Package root: `io.github.mdmusahub.jpaadmin`. The only artifact users add is `jpa-super-admin-spring-boot-starter`, which depends on `jpa-admin-autoconfigure`, `jpa-admin-core` and `jpa-admin-ui`. Those modules are published; `jpa-admin-ui-preview` and `sample-app` are not.
+Maven `groupId`: `io.github.mdmusahub`. Package root: `io.github.mdmusahub.jpaadmin`. The only artifact users add is `springboot-super-admin`, which depends on `jpa-admin-autoconfigure`, `jpa-admin-core` and `jpa-admin-ui`. Those modules are published; `jpa-admin-ui-preview` and `sample-app` are not.
 
 ## 5. Configuration reference
 
@@ -486,7 +486,7 @@ v0.2 login rate limiting, S3 storage provider, multi-value filters. v0.3 audit l
 
 All earlier open decisions are resolved. See `docs/DECISIONS.md` for date and reason.
 
-1. `groupId` is `io.github.mdmusahub`. Starter artifactId is `jpa-super-admin-spring-boot-starter`. Parent artifactId is `jpa-super-admin`.
+1. `groupId` is `io.github.mdmusahub`. Starter artifactId is `springboot-super-admin` (renamed from `jpa-super-admin-spring-boot-starter`, D-127). Parent artifactId is `jpa-super-admin`.
 2. v0.1 targets Spring Boot 4.1.x with Java 17 minimum, pinned to **4.1.2** (D-16, D-19). Spring Boot 3.x is not supported in v0.1.
 3. S3 provider is in v0.2.
 4. Uploads are private by default (authenticated only).
