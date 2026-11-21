@@ -58,26 +58,29 @@
     </dependency>
   </dependencies>
 
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-maven-plugin</artifactId>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <configuration>
-          <!--
-            Phase 9a: the sample has an upload field, so the console creates its storage folder at startup. Some tests start the app
-            without the test properties file (spring.config.name=...), where the default ./uploads would be created in the source
-            tree. A system property reaches every test JVM, whatever files it reads, and puts the folder under target.
-          -->
-          <systemPropertyVariables>
-            <jpa.admin.storage.default.directory>target/test-uploads</jpa.admin.storage.default.directory>
-          </systemPropertyVariables>
-        </configuration>
-      </plugin>
-    </plugins>
-  </build>
-</project>
+<build>
+  <plugins>
+    <plugin>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-maven-plugin</artifactId>
+    </plugin>
+    <plugin>
+      <groupId>org.apache.maven.plugins</groupId>
+      <artifactId>maven-surefire-plugin</artifactId>
+      <configuration>
+        <!--
+          Phase 9a: the sample has an upload field, so the console creates its storage folder at startup. Some tests start the app
+          without the test properties file (spring.config.name=...), where the default ./uploads would be created in the source
+          tree. A system property reaches every test JVM, whatever files it reads, and puts the folder under target.
+        -->
+        <systemPropertyVariables>
+          <jpa.admin.storage.default.directory>target/test-uploads</jpa.admin.storage.default.directory>
+        </systemPropertyVariables>
+        <!-- Each test class runs in its own JVM, so logging levels cannot leak from one class to the next. -->
+        <reuseForks>false</reuseForks>
+        <!-- Test output goes to target/surefire-reports, so the public CI log does not show row values. -->
+        <redirectTestOutputToFile>true</redirectTestOutputToFile>
+      </configuration>
+    </plugin>
+  </plugins>
+</build>
