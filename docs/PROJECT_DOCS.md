@@ -215,7 +215,7 @@ See `docs/PLAN.md` section 15. Main items: exposed admin panel, upload attack su
 
 # Part B: User documentation (outline and draft content)
 
-These pages become the MkDocs site. Keep them accurate with the code. Anything accepted but not implemented must be marked "not yet".
+These pages became the MkDocs site in Phase 14b (D-141). **The published pages are now the files in `docs/` that `mkdocs.yml` lists** (`index.md`, `installation.md`, `configuration.md`, and so on), and they are the ones to edit: the text below is the draft they were made from, and it is not kept in step any more (several of its limits were written in early phases and have since been lifted; the site pages were corrected). Keep the site pages accurate with the code. Anything accepted but not implemented must be marked "not yet".
 
 ## B1. Site map
 
@@ -241,8 +241,11 @@ Highlights: every entity found automatically, search, filters and saved views, c
   <groupId>io.github.mdmusahub</groupId>
   <artifactId>springboot-super-admin</artifactId>
   <version>0.1.0</version>
+  <type>pom</type>
 </dependency>
 ```
+
+The starter is a pom-only artifact (packaging `pom`), so the dependency needs `<type>pom</type>`: without it Maven looks for a jar that does not exist (found and checked in Phase 14b, D-144).
 
 Requirements: Java 17+, Spring Boot 4.1.x (Spring Boot 3.x is not supported), Spring Data JPA, a servlet web application.
 
