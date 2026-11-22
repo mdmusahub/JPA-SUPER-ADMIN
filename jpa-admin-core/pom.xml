@@ -93,5 +93,94 @@
       <artifactId>assertj-core</artifactId>
       <scope>test</scope>
     </dependency>
+
+    <!--
+      Test scope only (Phase 14a, approved by the maintainer; D-19 named them): the same list, search, sort, filter, export,
+      detail, write, delete and chart tests run on a real PostgreSQL and a real MySQL, started in a container. The versions come
+      from the Spring Boot 4.1.2 BOM (Testcontainers 2.0.5, PostgreSQL JDBC 42.7.14, MySQL Connector/J 9.7.0). The JUnit extension
+      (testcontainers-junit-jupiter) is not used: the shared test base starts the container itself so that a missing Docker
+      fails on CI and skips with a reason elsewhere.
+    -->
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-mysql</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.mysql</groupId>
+      <artifactId>mysql-connector-j</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!--
+            Phase 14a (D-131): the performance measurements (everything under .../perf) are NOT part of a normal build. They load
+            200,000 rows and run for minutes; they are switched on only by the profile "perf" below, and every one of them also
+            refuses to run without the system property that profile sets. Surefire's own default exclusion of nested classes is kept.
+          -->
+          <excludes>
+            <exclude>**/*$*</exclude>
+            <exclude>**/perf/**</exclude>
+          </excludes>
+          <!--
+            Phase 14a (D-130): test output goes to target/surefire-reports, so the public CI log never shows what a test logs. Three tests
+            of this module raise the log level to TRACE on purpose, to prove that a ticket is never logged; without this setting their
+            output, with the values Hibernate binds to a (made-up) record, reached the CI console (found by searching a full CI-style log).
+            BuildSettingsGuardTest in sample-app and TestOutputGoesToFilesTest here fail the build if the setting is lost.
+          -->
+          <redirectTestOutputToFile>true</redirectTestOutputToFile>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+  <profiles>
+    <!--
+      The performance measurements (Phase 14a, D-131):   mvn -B -pl jpa-admin-core -Pperf test
+      Never active by default: it has no <activation>, and PerfProfileIsOffByDefaultTest fails the normal build if that changes, if
+      the default build stops excluding the measurements, or if a measurement class loses its own switch. Needs Docker for the
+      PostgreSQL measurements (skipped with the reason where there is none). The report lands in target/perf-report-*.md.
+    -->
+    <profile>
+      <id>perf</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <excludes combine.self="override">
+                <exclude>**/*$*</exclude>
+              </excludes>
+              <includes combine.self="override">
+                <include>**/perf/*PerfTest.java</include>
+              </includes>
+              <systemPropertyVariables>
+                <jpa.admin.perf>true</jpa.admin.perf>
+              </systemPropertyVariables>
+              <argLine>-Xmx3g</argLine>
+              <redirectTestOutputToFile>true</redirectTestOutputToFile>
+              <forkedProcessTimeoutInSeconds>3600</forkedProcessTimeoutInSeconds>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

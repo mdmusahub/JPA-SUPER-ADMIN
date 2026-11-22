@@ -1,7 +1,6 @@
 package io.github.mdmusahub.jpaadmin.sample;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
@@ -37,9 +36,7 @@ class SavedViewsBrowserTest {
     private int port;
 
     private HeadlessChrome signedIn(boolean spy, boolean blocked) throws Exception {
-        Path browser = HeadlessChrome.find().orElse(null);
-        assumeTrue(browser != null, "SKIPPED, not passed: no Chrome or Edge was found on this machine "
-                + "(set -Dtest.chrome=<path> or CHROME_BIN to run the saved views browser test)");
+        Path browser = BrowserPolicy.require(); // a skip with the reason, or a failure when CI requires a browser
         HeadlessChrome chrome = HeadlessChrome.start(browser);
         try {
             chrome.setViewport(1280, 900, false);

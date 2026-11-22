@@ -1,7 +1,5 @@
 package io.github.mdmusahub.jpaadmin.sample;
 
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
-
 import java.nio.file.Path;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -15,12 +13,13 @@ import java.util.regex.Pattern;
  * <p>Nothing here turns the content security policy off: the policy is the packaged application's own (a test that needs to
  * show it works in {@link CspBrowserTest} asks the page to break it and expects the browser to refuse).
  *
- * <p>When the machine has no Chrome or Edge, {@link #open} <b>skips</b> the calling test with the reason (never a pass).
+ * <p>When the machine has no Chrome or Edge, {@link #open} <b>skips</b> the calling test with the reason (never a pass), or fails it
+ * when {@code JPA_ADMIN_REQUIRE_BROWSER} is true, as on CI ({@link BrowserPolicy}, Phase 14a).
  */
 final class ConsoleBrowser implements AutoCloseable {
 
-    static final String SKIP_REASON = "SKIPPED, not passed: no Chrome or Edge was found on this machine "
-            + "(set -Dtest.chrome=<path> or CHROME_BIN to run the browser tests)";
+    /** The sentence of a skipped browser test (one rule for every browser test: {@link BrowserPolicy}). */
+    static final String SKIP_REASON = BrowserPolicy.SKIP_REASON;
 
     private final HeadlessChrome chrome;
     private final String base;
@@ -32,13 +31,12 @@ final class ConsoleBrowser implements AutoCloseable {
 
     /** Whether a browser exists on this machine. */
     static boolean available() {
-        return HeadlessChrome.find().isPresent();
+        return BrowserPolicy.find().isPresent();
     }
 
     /** Starts the browser and signs in. Skips the test (with the reason) when there is no browser. */
     static ConsoleBrowser open(int port) throws Exception {
-        Path browser = HeadlessChrome.find().orElse(null);
-        assumeTrue(browser != null, SKIP_REASON);
+        Path browser = BrowserPolicy.require(); // a skip with the reason, or a failure when CI requires a browser
         HeadlessChrome chrome = HeadlessChrome.start(browser);
         try {
             String base = "http://localhost:" + port + "/admin";
