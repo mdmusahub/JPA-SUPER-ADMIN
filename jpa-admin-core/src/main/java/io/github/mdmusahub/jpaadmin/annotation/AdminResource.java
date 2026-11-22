@@ -59,6 +59,8 @@ public @interface AdminResource {
     /**
      * Whether the console only shows this entity's records: no create, no edit and no delete. Default {@code false}. A
      * read-only entity is never creatable, updatable or deletable, whatever the other options say.
+     *
+     * @return {@code true} when the entity is only shown
      */
     boolean readOnly() default false;
 
@@ -66,6 +68,8 @@ public @interface AdminResource {
      * Whether new records of this entity can be created in the console (the "New record" button, the create form and
      * "Duplicate"). Default {@code true}. Ignored when {@link #readOnly()} is {@code true}. A request that creates a record
      * of an entity that is not creatable is refused by the service even when the page never offered the button (SEC-11).
+     *
+     * @return {@code true} when records can be created
      */
     boolean creatable() default true;
 
@@ -73,12 +77,16 @@ public @interface AdminResource {
      * Whether existing records of this entity can be changed in the console (the "Edit record" button and the edit form).
      * Default {@code true}. Ignored when {@link #readOnly()} is {@code true}. A request that changes a record of an entity
      * that is not updatable is refused by the service even when the page never offered the button (SEC-11).
+     *
+     * @return {@code true} when records can be changed
      */
     boolean updatable() default true;
 
     /**
      * Whether records of this entity can be deleted in the console. Default {@code true}. Ignored when
      * {@link #readOnly()} is {@code true}.
+     *
+     * @return {@code true} when records can be deleted
      */
     boolean deletable() default true;
 
@@ -88,6 +96,8 @@ public @interface AdminResource {
      * makes the export address answer 403 even when the page never offered it (SEC-11). The global switch
      * {@code jpa.admin.export-enabled=false} turns the export off for every entity; this option can only turn it off for
      * one.
+     *
+     * @return {@code true} when the entity can be exported
      */
     boolean exportable() default true;
 
@@ -97,6 +107,8 @@ public @interface AdminResource {
      * rules ({@code Entry} becomes {@code Entries}, {@code Box} becomes {@code Boxes}), which is wrong for irregular
      * nouns ({@code Person} would become {@code Persons}). At most 60 characters and no control character; anything else
      * stops startup with a message that names the entity.
+     *
+     * @return the plural, or an empty text to let the console guess it
      */
     String plural() default "";
 }

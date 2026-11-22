@@ -15,6 +15,7 @@ import java.util.Objects;
  */
 public record StoredContent(InputStream stream, long size) implements Closeable {
 
+    /** Refuses a missing stream and a negative size. */
     public StoredContent {
         Objects.requireNonNull(stream, "stream");
         if (size < 0) {

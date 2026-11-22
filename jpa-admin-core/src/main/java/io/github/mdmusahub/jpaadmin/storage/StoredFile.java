@@ -14,6 +14,7 @@ import java.util.Objects;
  */
 public record StoredFile(String storage, String key) {
 
+    /** Refuses a storage name or a key of any other shape than the provider makes. */
     public StoredFile {
         Objects.requireNonNull(storage, "storage");
         Objects.requireNonNull(key, "key");

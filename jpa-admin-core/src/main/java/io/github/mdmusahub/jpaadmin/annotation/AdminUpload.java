@@ -39,13 +39,19 @@ import java.lang.annotation.Target;
 @Target({ElementType.FIELD, ElementType.METHOD})
 public @interface AdminUpload {
 
-    /** Name of the storage. Default {@code "default"}, which always exists. */
+    /**
+     * Name of the storage. Default {@code "default"}, which always exists.
+     *
+     * @return the storage name
+     */
     String storage() default "default";
 
     /**
      * Sub-folder inside the storage, for example {@code "avatars"} or {@code "docs/invoices"}. Default empty (the storage's
      * root). Each part is letters, digits, {@code -} and {@code _}, starting with a letter or digit; at most 4 parts. Anything
      * else stops startup. Files go to {@code folder/yyyy/MM/}.
+     *
+     * @return the sub-folder, or an empty text for the storage's root
      */
     String folder() default "";
 
@@ -54,12 +60,16 @@ public @interface AdminUpload {
      * {@code image/webp} and {@code application/pdf}. The console knows how to recognise these five by their content and
      * no others: a type it cannot recognise (including {@code image/svg+xml} and {@code text/html}, which are never
      * accepted) stops startup with a message that names the field.
+     *
+     * @return the accepted MIME types
      */
     String[] accept() default {"image/png", "image/jpeg", "image/gif", "image/webp", "application/pdf"};
 
     /**
      * Largest file for this field, written like {@code "512KB"} or {@code "2MB"}. Default empty: the storage's
      * {@code max-size}. A field may lower the limit of its storage, never raise it.
+     *
+     * @return the largest file size, or an empty text for the storage's limit
      */
     String maxSize() default "";
 }
