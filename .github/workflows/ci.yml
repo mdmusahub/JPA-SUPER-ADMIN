@@ -63,3 +63,10 @@ jobs:
         run: |
           mvn -B -DskipTests install
           mvn -B -f host-check/pom.xml verify
+
+      # The release profile is never part of a normal build, so a Javadoc error or a missing file would first show on the day of a
+      # release. This step builds it WITHOUT signing (gpg.skip: no key exists on a pull request) and without tests (they just ran),
+      # and stops at `verify`, before any upload (D-137, D-140). One Java version is enough: the release runs on 17.
+      - name: Check that the release profile still builds (no signing, no upload)
+        if: matrix.java == 17
+        run: mvn -B -Prelease -DskipTests -Dgpg.skip=true verify
