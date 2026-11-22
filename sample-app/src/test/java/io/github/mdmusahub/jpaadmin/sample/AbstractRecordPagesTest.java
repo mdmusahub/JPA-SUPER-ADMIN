@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.mdmusahub.jpaadmin.sample.domain.Category;
 import io.github.mdmusahub.jpaadmin.sample.domain.Customer;
 import io.github.mdmusahub.jpaadmin.sample.domain.Product;
+import io.github.mdmusahub.jpaadmin.service.CountService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import java.math.BigDecimal;
@@ -53,6 +54,9 @@ abstract class AbstractRecordPagesTest {
 
     @Autowired
     private PlatformTransactionManager transactionManager;
+
+    @Autowired
+    private CountService counts;
 
     private MockBrowser browser;
 
@@ -200,6 +204,12 @@ abstract class AbstractRecordPagesTest {
         statistics.setStatisticsEnabled(true);
         for (String path : List.of("/admin/product/" + firstId("Product"), "/admin/order/" + firstId("Order"),
                 "/admin/customer/" + firstId("Customer"), "/admin/category/" + firstId("Category"))) {
+            // The sidebar's counts are cached, one entry per entity, for 5 seconds on the real clock, and that cache is shared by every
+            // test of this class. The request below only refreshes the entries that have already expired, so an entry that is almost
+            // old enough can expire between the two requests and the measured one pays one extra count for it (1 + 5 = 6 was seen).
+            // Forget them first: the request after this fills every entry fresh, and the measured request follows at once.
+            // The cache is NOT cleared before the measured request: its counts must still come from the cache, that is what is measured.
+            counts.clear();
             page(path); // the first request fills the sidebar's count cache
             statistics.clear();
 
