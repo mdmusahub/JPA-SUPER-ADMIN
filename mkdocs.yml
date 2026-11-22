@@ -1,0 +1,93 @@
+# The documentation site (Phase 14b, D-141). Build it with `mkdocs build --strict` (a broken link or a page that is not in the
+# navigation fails the build). Published only by hand: Actions, Docs, Run workflow (.github/workflows/docs.yml).
+# The tools are pinned, with hashes, in docs/requirements.txt; they are not a Maven dependency.
+
+site_name: JPA Super Admin
+site_description: A Django-Admin-style console for any Spring Boot and JPA application. One dependency, two properties, open /admin.
+site_url: https://mdmusahub.github.io/JPA-SUPER-ADMIN/
+site_author: Musa Malik
+repo_url: https://github.com/mdmusahub/JPA-SUPER-ADMIN
+repo_name: mdmusahub/JPA-SUPER-ADMIN
+edit_uri: edit/main/docs/
+copyright: Copyright &copy; 2026 Musa Malik. Released under the Apache License 2.0.
+
+docs_dir: docs
+site_dir: site
+
+# The project's own papers live in the same folder as the pages of the site. They are for the people who build the project, they
+# link to files of the repository that the site does not have, and they are not part of the documentation.
+exclude_docs: |
+  /PLAN.md
+  /RULES.md
+  /DECISIONS.md
+  /UI_PLAN.md
+  /PROJECT_DOCS.md
+  /FIXTURES.md
+  /logs/
+  /prototype/
+  /name-check-allow-list.txt
+  /requirements.txt
+
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - content.code.copy
+    - search.highlight
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+
+nav:
+  - Home: index.md
+  - Get started:
+      - Installation: installation.md
+      - Run the sample: run-the-sample.md
+      - Configuration: configuration.md
+  - Guides:
+      - Using the console: using-the-console.md
+      - Customizing entities: customizing-entities.md
+      - File uploads: file-uploads.md
+      - Security: security.md
+  - Reference:
+      - Annotations: annotations.md
+      - Endpoints: endpoints.md
+  - Operations:
+      - Deployment: deployment.md
+      - Troubleshooting: troubleshooting.md
+      - Limitations and roadmap: limitations-and-roadmap.md
+  - Contributing:
+      - Architecture: architecture.md
+      - Development: development.md
+      - Release guide: release-guide.md
