@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability (private)
+    url: https://github.com/mdmusahub/JPA-SUPER-ADMIN/security/advisories/new
+    about: Do not open a public issue for a security problem. Use GitHub's private vulnerability reporting.
+  - name: Documentation
+    url: https://mdmusahub.github.io/JPA-SUPER-ADMIN/
+    about: Installation, configuration, annotations, deployment and troubleshooting.
