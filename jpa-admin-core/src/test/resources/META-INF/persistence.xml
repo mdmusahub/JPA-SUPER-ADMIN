@@ -125,4 +125,55 @@
                 value="io.github.mdmusahub.jpaadmin.testsupport.RecordingStatementInspector"/>
     </properties>
   </persistence-unit>
+  <!--
+    The engine tests' unit (Phase 14a): the list model's entities plus Essay, on whichever database the test starts. The
+    connection properties below are only a default (H2); the engine tests replace the URL, user, password and driver at run time
+    (EnginePersistence), so the same entities and the same console code run on H2, PostgreSQL and MySQL.
+  -->
+  <persistence-unit name="engine-test" transaction-type="RESOURCE_LOCAL">
+    <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Parcel</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.ParcelItem</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Depot</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Courier</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Crate</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Vault</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Dimensions</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Anchor</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Ticket</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Ledger</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.listmodel.Folio</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.enginemodel.Essay</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.enginemodel.Tome</class>
+    <exclude-unlisted-classes>true</exclude-unlisted-classes>
+    <properties>
+      <property name="jakarta.persistence.jdbc.url" value="jdbc:h2:mem:jpa-admin-core-engine-test;DB_CLOSE_DELAY=-1"/>
+      <property name="jakarta.persistence.jdbc.driver" value="org.h2.Driver"/>
+      <property name="jakarta.persistence.jdbc.user" value="sa"/>
+      <property name="jakarta.persistence.jdbc.password" value=""/>
+      <property name="jakarta.persistence.schema-generation.database.action" value="create"/>
+      <property name="hibernate.show_sql" value="false"/>
+      <property name="hibernate.session_factory.statement_inspector"
+                value="io.github.mdmusahub.jpaadmin.testsupport.RecordingStatementInspector"/>
+    </properties>
+  </persistence-unit>
+  <!--
+    The performance measurements' unit (Phase 14a, D-131): one big table and three small ones. Never opened by a normal build: only
+    the classes under .../perf, which the default surefire configuration excludes and which refuse to run without -Pperf. The URL
+    below is a default (H2); the measurements replace it with the engine they run on.
+  -->
+  <persistence-unit name="perf-test" transaction-type="RESOURCE_LOCAL">
+    <class>io.github.mdmusahub.jpaadmin.testsupport.perfmodel.PerfItem</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.perfmodel.PerfOwner</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.perfmodel.PerfGroup</class>
+    <class>io.github.mdmusahub.jpaadmin.testsupport.perfmodel.PerfPlace</class>
+    <exclude-unlisted-classes>true</exclude-unlisted-classes>
+    <properties>
+      <property name="jakarta.persistence.jdbc.url" value="jdbc:h2:mem:jpa-admin-core-perf-test;DB_CLOSE_DELAY=-1"/>
+      <property name="jakarta.persistence.jdbc.driver" value="org.h2.Driver"/>
+      <property name="jakarta.persistence.jdbc.user" value="sa"/>
+      <property name="jakarta.persistence.jdbc.password" value=""/>
+      <property name="jakarta.persistence.schema-generation.database.action" value="create"/>
+      <property name="hibernate.show_sql" value="false"/>
+    </properties>
+  </persistence-unit>
 </persistence>
