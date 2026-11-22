@@ -18,7 +18,10 @@ jobs:
   build:
     name: Build (Java ${{ matrix.java }})
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # The build runs the Testcontainers tests (PostgreSQL and MySQL) and every sample-app test class in its own JVM (D-128, D-130):
+    # 19 minutes on a 12-core laptop for `verify` alone, plus the install and host-check, and a hosted runner has 4 cores. 20 minutes
+    # was the limit before those were added.
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -37,8 +40,20 @@ jobs:
           java-version: ${{ matrix.java }}
           cache: maven
 
+      # A skipped test is not a passed test. This runner already has Docker (the Testcontainers tests on PostgreSQL and MySQL) and
+      # Google Chrome (the real-browser tests), so a missing one must fail the build here and not skip silently. On a laptop the
+      # same tests are skipped with their reason (D-128, D-129). No browser is downloaded: the runner's own Chrome is used.
       - name: Build and test
+        env:
+          JPA_ADMIN_REQUIRE_ENGINES: "true"
+          JPA_ADMIN_REQUIRE_BROWSER: "true"
         run: mvn -B clean verify
+
+      # What ran, what was skipped and why, read from the surefire reports (the script prints counts and skip reasons only, which hold
+      # no data; the test output itself goes to files in sample-app, so the public log never holds a row value, D-130).
+      - name: Report what ran and what was skipped
+        if: always()
+        run: bash .github/scripts/report-tests.sh
 
       # The host-check project is outside the reactor (D-26): it depends on the published starter, so the snapshot
       # has to be in the local Maven repository before it can build. `verify` above does not install, so install the
