@@ -14,6 +14,7 @@ import io.github.mdmusahub.jpaadmin.service.ExportSettings;
 import io.github.mdmusahub.jpaadmin.service.ListPage;
 import io.github.mdmusahub.jpaadmin.service.ListQuery;
 import io.github.mdmusahub.jpaadmin.service.ListQueryService;
+import io.github.mdmusahub.jpaadmin.testsupport.PinnedTestZone;
 import io.github.mdmusahub.jpaadmin.testsupport.perfmodel.PerfItem;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
@@ -91,7 +92,6 @@ abstract class AbstractPerfMeasurement {
     private EngineDatabase database;
     private EngineGate.Decision gate = new EngineGate.Decision(EngineGate.Verdict.RUN, "");
     private String engineLabel;
-    private String zoneBefore;
     protected EntityManagerFactory factory;
     protected AdminEntityRegistry registry;
     protected AdminEntity item;
@@ -125,8 +125,7 @@ abstract class AbstractPerfMeasurement {
             System.err.println(gate.reason());
             return;
         }
-        zoneBefore = java.util.TimeZone.getDefault().getID();
-        java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("Asia/Kolkata")); // see EngineTestBase.ZONE
+        PinnedTestZone.requirePinned(); // pinned once for the whole run, never changed here (see PinnedTestZone and EngineTestBase.ZONE)
         rows = Integer.getInteger("jpa.admin.perf.rows", 200_000);
         database.start();
         engineLabel = database.version();
@@ -165,9 +164,6 @@ abstract class AbstractPerfMeasurement {
             } finally {
                 if (database != null) {
                     database.close();
-                }
-                if (zoneBefore != null) {
-                    java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone(zoneBefore));
                 }
             }
         }

@@ -7,6 +7,7 @@ import io.github.mdmusahub.jpaadmin.metadata.EntityScanner;
 import io.github.mdmusahub.jpaadmin.service.ListPage;
 import io.github.mdmusahub.jpaadmin.service.ListQuery;
 import io.github.mdmusahub.jpaadmin.service.ListQueryService;
+import io.github.mdmusahub.jpaadmin.testsupport.PinnedTestZone;
 import io.github.mdmusahub.jpaadmin.testsupport.RecordingStatementInspector;
 import io.github.mdmusahub.jpaadmin.testsupport.listmodel.Courier;
 import io.github.mdmusahub.jpaadmin.testsupport.listmodel.Crate;
@@ -54,18 +55,18 @@ public abstract class EngineTestBase {
     protected static final String SECRET_WORD = "hunter2-searchword";
 
     /**
-     * The zone every engine test runs in. A fixed, modern, non-UTC zone: the same on a laptop and on CI, and one that exposes a
-     * zone mistake (a JVM in UTC hides it). It is also what the PostgreSQL driver sends as the session's time zone, and the
-     * Debian 13 based official image no longer knows the legacy name some JVMs report for the same zone ({@code Asia/Calcutta}),
-     * so a connection would be refused (found by the first run of this class, Phase 14a).
+     * The zone every test of this module runs in, pinned once for the whole run by {@link PinnedTestZone} (which says why it is not
+     * set here, class by class: H2 keeps the zone it first saw). A fixed, modern, non-UTC zone: the same on a laptop and on CI, and
+     * one that exposes a zone mistake (a JVM in UTC hides it). It is also what the PostgreSQL driver sends as the session's time
+     * zone, and the Debian 13 based official image no longer knows the legacy name some JVMs report for the same zone
+     * ({@code Asia/Calcutta}), so a connection would be refused (found by the first run of this class, Phase 14a).
      */
-    protected static final String ZONE = "Asia/Kolkata";
+    protected static final String ZONE = PinnedTestZone.ID;
 
     private EngineDatabase database;
     private EngineGate.Decision gate = new EngineGate.Decision(EngineGate.Verdict.RUN, "");
     private final java.util.List<String> aborted = new java.util.concurrent.CopyOnWriteArrayList<>();
     private String version;
-    private java.util.TimeZone previousZone;
     protected EntityManagerFactory factory;
     protected AdminEntityRegistry registry;
 
@@ -91,8 +92,7 @@ public abstract class EngineTestBase {
 
     @BeforeAll
     void startEngine() {
-        previousZone = java.util.TimeZone.getDefault();
-        java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone(ZONE));
+        PinnedTestZone.requirePinned(); // the zone is pinned for the whole run, never changed here (see PinnedTestZone)
         database = newDatabase();
         gate = database.needsDocker()
                 ? EngineGate.decide(database.name(), database.testClass(), EngineGate.dockerAvailable(), EngineGate.required())
@@ -135,14 +135,8 @@ public abstract class EngineTestBase {
                 factory.close();
             }
         } finally {
-            try {
-                if (database != null) {
-                    database.close();
-                }
-            } finally {
-                if (previousZone != null) {
-                    java.util.TimeZone.setDefault(previousZone);
-                }
+            if (database != null) {
+                database.close();
             }
         }
     }
