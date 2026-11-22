@@ -13,18 +13,48 @@
 
   <groupId>io.github.mdmusahub</groupId>
   <artifactId>jpa-super-admin</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
+  <version>0.1.0</version>
   <packaging>pom</packaging>
 
   <name>JPA Super Admin</name>
   <description>Spring Boot starter that adds a Django-Admin-style console to any Spring Boot + JPA application.</description>
+  <!--
+    Release metadata (Phase 14b, D-137). Maven Central needs the name, description, url, license, developer and scm of every
+    published pom. The modules inherit them; the attributes stop Maven from appending the module's name to the inherited
+    addresses (without them the url of jpa-admin-core would be .../JPA-SUPER-ADMIN/jpa-admin-core, a page that does not exist).
+  -->
+  <url child.project.url.inherit.append.path="false">https://github.com/mdmusahub/JPA-SUPER-ADMIN</url>
+  <inceptionYear>2026</inceptionYear>
 
   <licenses>
     <license>
       <name>Apache License, Version 2.0</name>
       <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
     </license>
   </licenses>
+
+  <developers>
+    <developer>
+      <id>mdmusahub</id>
+      <name>Musa Malik</name>
+      <email>mdmusaalam98019@gmail.com</email>
+      <url>https://github.com/mdmusahub</url>
+    </developer>
+  </developers>
+
+  <scm child.scm.connection.inherit.append.path="false" child.scm.developerConnection.inherit.append.path="false"
+       child.scm.url.inherit.append.path="false">
+    <connection>scm:git:https://github.com/mdmusahub/JPA-SUPER-ADMIN.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com/mdmusahub/JPA-SUPER-ADMIN.git</developerConnection>
+    <url>https://github.com/mdmusahub/JPA-SUPER-ADMIN</url>
+    <tag>HEAD</tag>
+  </scm>
+
+  <issueManagement>
+    <system>GitHub Issues</system>
+    <url>https://github.com/mdmusahub/JPA-SUPER-ADMIN/issues</url>
+  </issueManagement>
 
   <modules>
     <module>jpa-admin-core</module>
@@ -94,4 +124,112 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <!--
+      The release profile (Phase 14b, D-137 to D-141). It has no <activation>: a normal `mvn clean verify` never signs, never builds a
+      source or javadoc jar and never publishes (a test reads this file and fails if that changes). The release workflow runs
+      `mvn -B -Prelease deploy`; the dry run is `mvn -B -Prelease verify` with a throwaway key, which stops before any upload.
+
+      Order in one build: package (source jar, javadoc jar), verify (signatures), deploy (the Central plugin builds one bundle of
+      every published module and uploads it). Nothing else is added to the build: these are the four plugins of the approved list.
+      Versions: central-publishing 0.12.0 and gpg 3.2.8 are not managed by the Spring Boot 4.1.2 BOM and are pinned here; source
+      (3.4.0) and javadoc (3.12.0) come from the BOM.
+    -->
+    <profile>
+      <id>release</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-source-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>attach-sources</id>
+                <goals>
+                  <goal>jar-no-fork</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+
+          <!--
+            Doclint stays on (the JDK default checks: malformed HTML, bad references, bad tags); a Javadoc error fails the build and is
+            fixed in the comment. detectJavaApiLink is off so the build does not fetch a page from docs.oracle.com. The footer is set
+            here because the plugin's own one would read "Copyright 2026-1980": the Boot parent's output timestamp is a fixed 1980 date.
+          -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <configuration>
+              <detectJavaApiLink>false</detectJavaApiLink>
+              <!-- &amp;#169; reaches Javadoc as the HTML text "&#169;" (a copyright sign): a real non-ASCII character here breaks the
+                   plugin's own up-to-date check on a machine whose default character set is not UTF-8 (found on Windows). -->
+              <bottom>Copyright &amp;#169; 2026 Musa Malik. Licensed under the Apache License, Version 2.0.</bottom>
+            </configuration>
+            <executions>
+              <execution>
+                <id>attach-javadocs</id>
+                <goals>
+                  <goal>jar</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+
+          <!--
+            Signing. The passphrase is read from the environment variable GPG_PASSPHRASE (never from a file or a property), and
+            bestPractices makes the build fail if a passphrase is ever given in a way that leaks it. Loopback pinentry lets gpg take the
+            passphrase without a window. The key itself is imported by the workflow into a temporary keyring; nothing here names it.
+          -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <version>3.2.8</version>
+            <configuration>
+              <bestPractices>true</bestPractices>
+              <passphraseEnvName>GPG_PASSPHRASE</passphraseEnvName>
+              <gpgArguments>
+                <arg>--pinentry-mode</arg>
+                <arg>loopback</arg>
+              </gpgArguments>
+            </configuration>
+            <executions>
+              <execution>
+                <id>sign-artifacts</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>sign</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+
+          <!--
+            Publishing to Maven Central. The token is read from the server "central" of settings.xml, which the release workflow writes
+            with ${env.CENTRAL_TOKEN_USERNAME} and ${env.CENTRAL_TOKEN_PASSWORD} (placeholders, never the values).
+            autoPublish=false: the upload is validated by Central and then WAITS, staged, until the maintainer presses Publish on the
+            portal. waitUntil=VALIDATED makes the build fail if Central rejects the bundle.
+            excludeArtifacts: the two unpublished modules of the reactor (host-check is outside the reactor and cannot be reached).
+          -->
+          <plugin>
+            <groupId>org.sonatype.central</groupId>
+            <artifactId>central-publishing-maven-plugin</artifactId>
+            <version>0.12.0</version>
+            <extensions>true</extensions>
+            <configuration>
+              <publishingServerId>central</publishingServerId>
+              <autoPublish>false</autoPublish>
+              <waitUntil>VALIDATED</waitUntil>
+              <deploymentName>JPA Super Admin ${project.version}</deploymentName>
+              <excludeArtifacts>
+                <artifact>sample-app</artifact>
+                <artifact>jpa-admin-ui-preview</artifact>
+              </excludeArtifacts>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

@@ -7,7 +7,7 @@
   <parent>
     <groupId>io.github.mdmusahub</groupId>
     <artifactId>jpa-super-admin</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
   </parent>
 
   <artifactId>jpa-admin-ui</artifactId>
@@ -15,4 +15,14 @@
 
   <name>JPA Admin UI</name>
   <description>Thymeleaf templates, CSS and JavaScript for the console (resources only).</description>
+
+  <properties>
+    <!--
+      Release profile only matters (Phase 14b, D-142): this module has no public class, and the Javadoc tool refuses a module
+      with nothing public to document ("No public or protected classes found to document"). Maven Central asks for a Javadoc jar
+      with every jar, so the Javadoc plugin is told to show package-private members here, which documents the one package-private
+      class (ResourceFolders) and the package page. The property is the plugin's own user property "show".
+    -->
+    <show>package</show>
+  </properties>
 </project>

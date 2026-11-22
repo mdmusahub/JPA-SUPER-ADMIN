@@ -7,7 +7,7 @@ this project would not show the right sidebar.
 
 It is **outside the reactor build** on purpose: it is not in the root `pom.xml`'s `<modules>`, and its parent is
 `spring-boot-starter-parent`, not this project's parent. It depends on the published artifact
-`springboot-super-admin:0.1.0-SNAPSHOT`, which must be in your local Maven repository first.
+`springboot-super-admin:0.1.0`, which must be in your local Maven repository first.
 
 ## Build and test it (PowerShell)
 

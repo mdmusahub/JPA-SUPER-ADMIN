@@ -38,7 +38,7 @@
     <dependency>
       <groupId>io.github.mdmusahub</groupId>
       <artifactId>springboot-super-admin</artifactId>
-      <version>0.1.0-SNAPSHOT</version>
+      <version>0.1.0</version>
       <type>pom</type>
     </dependency>
 
