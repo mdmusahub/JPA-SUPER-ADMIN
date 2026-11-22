@@ -1,7 +1,6 @@
 package io.github.mdmusahub.jpaadmin.sample;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -116,9 +115,7 @@ class ListLayoutBrowserTest {
 
     @Test
     void everyListFitsItsScreenHasNoStrayScrollbarOrEmptyTailAndTheBarCoversNothing() throws Exception {
-        Path browser = HeadlessChrome.find().orElse(null);
-        assumeTrue(browser != null, "SKIPPED, not passed: no Chrome or Edge was found on this machine "
-                + "(set -Dtest.chrome=<path> or CHROME_BIN to run the browser layout test)");
+        Path browser = BrowserPolicy.require(); // a skip with the reason, or a failure when CI requires a browser
         List<String> problems = new ArrayList<>();
         try (HeadlessChrome chrome = HeadlessChrome.start(browser)) {
             String base = "http://localhost:" + port + "/admin";
