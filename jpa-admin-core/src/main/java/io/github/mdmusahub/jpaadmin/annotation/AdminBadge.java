@@ -48,6 +48,8 @@ public @interface AdminBadge {
     /**
      * The entries, each written {@code VALUE=tone} (for example {@code "PUBLISHED=green"}). The tone is the part after the
      * last {@code =}. At least one entry is expected; none at all does nothing.
+     *
+     * @return the {@code VALUE=tone} entries
      */
     String[] value();
 }

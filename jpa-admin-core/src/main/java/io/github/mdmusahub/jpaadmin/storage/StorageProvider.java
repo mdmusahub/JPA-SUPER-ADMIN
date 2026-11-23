@@ -22,20 +22,31 @@ import java.util.Optional;
  */
 public interface StorageProvider {
 
-    /** Whether this provider serves the storage called {@code storage} (as configured). */
+    /**
+     * Whether this provider serves the storage called {@code storage} (as configured).
+     *
+     * @param storage the storage's name
+     * @return {@code true} when this provider serves it
+     */
     boolean supports(String storage);
 
     /**
      * Checks at startup that the storage can be used, and prepares it (a local provider creates its folder and writes a probe
      * file). Called only for storages that an {@code @AdminUpload} field names.
      *
+     * @param storage the storage's name
      * @return one full sentence per problem, empty when the storage is ready
      */
     default List<String> verify(String storage) {
         return List.of();
     }
 
-    /** Where the storage keeps its files, for the startup log (a local provider returns the absolute folder), or {@code null}. */
+    /**
+     * Where the storage keeps its files, for the startup log (a local provider returns the absolute folder), or {@code null}.
+     *
+     * @param storage the storage's name
+     * @return the place, or {@code null} when there is nothing to show
+     */
     default String location(String storage) {
         return null;
     }
@@ -54,7 +65,12 @@ public interface StorageProvider {
     StoredFile store(String storage, String folder, String extension, InputStream content, long maxBytes)
             throws IOException;
 
-    /** Removes a stored file. A file that is not there is not an error. */
+    /**
+     * Removes a stored file. A file that is not there is not an error.
+     *
+     * @param file the file to remove
+     * @throws IOException if the file exists and cannot be removed
+     */
     void delete(StoredFile file) throws IOException;
 
     /**
@@ -63,10 +79,16 @@ public interface StorageProvider {
      * @param storage the storage's name, from an address (untrusted)
      * @param key     the key, from an address (untrusted)
      * @return the content, or empty when the storage or the key is unknown or invalid, or there is no such file
+     * @throws IOException if the file exists and cannot be read
      */
     Optional<StoredContent> open(String storage, String key) throws IOException;
 
-    /** The address under which the file is served: under the console, or under the storage's public path when it has one. */
+    /**
+     * The address under which the file is served: under the console, or under the storage's public path when it has one.
+     *
+     * @param file the stored file
+     * @return its address
+     */
     String url(StoredFile file);
 
     /**
@@ -79,6 +101,7 @@ public interface StorageProvider {
      * address a form posts for it (fail closed).
      *
      * @param url an address, from a form or a database; untrusted
+     * @return the stored file the address names, or empty when it is not one of this provider's addresses
      */
     default Optional<StoredFile> parse(String url) {
         return Optional.empty();
@@ -90,6 +113,7 @@ public interface StorageProvider {
      * that can ask its storage whether the file exists should say so, as the local provider does.
      *
      * @param url an address, from a form or a database; untrusted
+     * @return {@code true} when this provider made the address and the file is still stored
      */
     default boolean owns(String url) {
         return parse(url).isPresent();

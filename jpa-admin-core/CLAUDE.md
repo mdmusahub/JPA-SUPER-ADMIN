@@ -46,7 +46,7 @@ PowerShell:
 mvn -pl sample-app -am package -DskipTests
 $env:JPA_ADMIN_USERNAME = 'admin'
 $env:JPA_ADMIN_PASSWORD = '<12 or more characters>'    # this PowerShell session only
-java -jar sample-app/target/sample-app-0.1.0-SNAPSHOT.jar
+java -jar sample-app/target/sample-app-0.1.0.jar
 ```
 
 bash:
@@ -55,7 +55,7 @@ bash:
 mvn -pl sample-app -am package -DskipTests
 export JPA_ADMIN_USERNAME=admin
 export JPA_ADMIN_PASSWORD='<12 or more characters>'
-java -jar sample-app/target/sample-app-0.1.0-SNAPSHOT.jar
+java -jar sample-app/target/sample-app-0.1.0.jar
 ```
 
 Do not use `mvn -pl sample-app spring-boot:run`: without `-am` Maven takes the other modules from `~/.m2`, where an older `mvn install` can leave stale jars, so it can run old code.

@@ -7,7 +7,7 @@
   <parent>
     <groupId>io.github.mdmusahub</groupId>
     <artifactId>jpa-super-admin</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
   </parent>
 
   <artifactId>sample-app</artifactId>
@@ -15,6 +15,19 @@
 
   <name>JPA Admin Sample App</name>
   <description>Demo shop used for manual checks and integration tests. Not published.</description>
+
+  <!--
+    Not published (Phase 14b, D-138). These apply to every build, not only the release profile, so this module never gets a source jar,
+    a javadoc jar, a signature or a deployment, whatever profile or command is used. The release profile also lists it in the Central
+    plugin's excludeArtifacts, and a test reads both.
+  -->
+  <properties>
+    <maven.source.skip>true</maven.source.skip>
+    <maven.javadoc.skip>true</maven.javadoc.skip>
+    <gpg.skip>true</gpg.skip>
+    <maven.deploy.skip>true</maven.deploy.skip>
+    <skipPublishing>true</skipPublishing>
+  </properties>
 
   <dependencies>
     <dependency>

@@ -1,0 +1,111 @@
+name: Release
+
+# Runs ONLY when a tag that starts with "v" is pushed (for example v0.1.0): the maintainer's own decision. Never on a branch push, a
+# pull request, a schedule or a button. What it does (Phase 14b, D-137 to D-141):
+#   1. builds and tests the tagged commit with no secret in the environment (the same command as CI);
+#   2. imports the signing key into a TEMPORARY keyring, signs every published module and checks that every file Maven Central asks
+#      for exists and that every signature verifies;
+#   3. uploads one bundle to Maven Central. autoPublish is false: Central validates the bundle and WAITS, staged, until the
+#      maintainer presses "Publish" on the portal (central.sonatype.com). Nothing becomes public without that press.
+# The secrets are GPG_PRIVATE_KEY, GPG_PASSPHRASE, CENTRAL_TOKEN_USERNAME and CENTRAL_TOKEN_PASSWORD (repository secrets, set by the
+# maintainer in the GitHub settings, never in a file). Each is passed as an environment variable to the one step that needs it, and
+# none is ever printed or written to a file of the repository.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+# Least privilege: the workflow can only read the repository contents. Publishing uses the Central token, not GitHub's.
+permissions:
+  contents: read
+
+# Two tags pushed together must not publish at the same time, and a running release is never cancelled half way.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build, sign and stage the release
+    runs-on: ubuntu-latest
+    # The tests take 19 minutes on a 12-core laptop (D-128); the signing and the upload take a few more.
+    timeout-minutes: 90
+    steps:
+      # Actions are pinned to full commit SHAs. The comment shows the release each SHA belongs to.
+      - name: Check out the tagged commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # No Maven cache in a release job: a cache written by another run must not be able to change what is published.
+      # server-id central writes ~/.m2/settings.xml with ${env.CENTRAL_TOKEN_USERNAME} and ${env.CENTRAL_TOKEN_PASSWORD} as
+      # placeholders (read from actions/setup-java src/auth.ts at this commit), never with the values.
+      - name: Set up Java 17 and the Central server entry
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: 17
+          server-id: central
+          server-username-env-var: CENTRAL_TOKEN_USERNAME
+          server-password-env-var: CENTRAL_TOKEN_PASSWORD
+
+      # A tag v0.1.0 must be the version of the pom, and a snapshot is never a release.
+      - name: Check that the tag is the version of the project
+        run: |
+          set -eu
+          version="$(sed -n 's|^  <version>\(.*\)</version>.*|\1|p' pom.xml | head -1)"
+          case "${version}" in
+            ''|*-SNAPSHOT) echo "The version of pom.xml is '${version}': a release needs a fixed version."; exit 1 ;;
+          esac
+          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "The tag is ${GITHUB_REF_NAME} but pom.xml says ${version}: they must match (tag v${version})."
+            exit 1
+          fi
+
+      # The same command and the same requirements as ci.yml, and no secret: the tests run first, on their own. A skipped test is
+      # not a passed test, so a missing Docker or Chrome fails the release here.
+      - name: Build and test
+        env:
+          JPA_ADMIN_REQUIRE_ENGINES: "true"
+          JPA_ADMIN_REQUIRE_BROWSER: "true"
+        run: mvn -B clean verify
+
+      # The key goes into a keyring of its own, in a new folder under the runner's temporary directory, and only into that one.
+      # printf, not echo, and into a pipe: the key is never written to a file or to the log.
+      - name: Import the signing key into a temporary keyring
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          gnupg_home="$(mktemp -d "${RUNNER_TEMP}/gnupg.XXXXXXXX")"
+          chmod 700 "${gnupg_home}"
+          echo "GNUPGHOME=${gnupg_home}" >> "${GITHUB_ENV}"
+          printf '%s' "${GPG_PRIVATE_KEY}" | gpg --homedir "${gnupg_home}" --batch --quiet --import
+          test "$(gpg --homedir "${gnupg_home}" --list-secret-keys --with-colons | grep -c '^sec')" -ge 1
+
+      # Signing with the passphrase from the environment (GPG_PASSPHRASE) and loopback pinentry (set in the pom). Then the check:
+      # every published module has its jar, sources jar, javadoc jar and POM, each with a signature that verifies.
+      - name: Sign, then check the files that Maven Central asks for
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          mvn -B -Prelease -DskipTests verify
+          bash scripts/check-central-bundle.sh --verify
+
+      # The upload. autoPublish=false (pom): Central validates the bundle and holds it until "Publish" is pressed on the portal.
+      - name: Upload the bundle to Maven Central (staged, not published)
+        env:
+          CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
+          CENTRAL_TOKEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: mvn -B -Prelease -DskipTests deploy
+
+      # Always, even when a step failed: stop the agent that served the keyring and delete the keyring.
+      - name: Remove the temporary keyring
+        if: always()
+        run: |
+          if [ -n "${GNUPGHOME:-}" ] && [ -d "${GNUPGHOME}" ]; then
+            gpgconf --homedir "${GNUPGHOME}" --kill gpg-agent || true
+            rm -rf "${GNUPGHOME}"
+          fi

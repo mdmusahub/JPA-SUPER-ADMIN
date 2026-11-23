@@ -1,0 +1,67 @@
+name: Bug report
+description: Something in the console does not work as the documentation says.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for the report. **If this is a security problem** (a sensitive value shown somewhere, a way past the sign-in, an unsafe upload), please do not file it here: use [private vulnerability reporting](https://github.com/mdmusahub/JPA-SUPER-ADMIN/security/advisories/new) or see [SECURITY.md](https://github.com/mdmusahub/JPA-SUPER-ADMIN/blob/main/SECURITY.md).
+
+        **Never paste a real password, a key, a token or a customer record.** A made-up example is enough.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you saw instead. A screenshot helps for a page problem.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The smallest entity and the smallest request that show it. An entity class of ten lines is better than a description.
+      placeholder: |
+        1. An entity with ...
+        2. Open /admin/...
+        3. Click ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Starter version
+      description: The version of `io.github.mdmusahub:springboot-super-admin`.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: boot
+    attributes:
+      label: Spring Boot and Java version
+      placeholder: "Spring Boot 4.1.2, Java 17"
+    validations:
+      required: true
+  - type: dropdown
+    id: database
+    attributes:
+      label: Database
+      options:
+        - H2
+        - PostgreSQL
+        - MySQL
+        - Another database (say which below)
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and operating system
+      description: Only for a problem that you see on a page.
+      placeholder: "Firefox 130 on Windows 11"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log lines or stack trace
+      description: Check it first for passwords, keys and data you do not want to share.
+      render: text

@@ -1,8 +1,12 @@
 # JPA Super Admin
 
+[![CI](https://github.com/mdmusahub/JPA-SUPER-ADMIN/actions/workflows/ci.yml/badge.svg)](https://github.com/mdmusahub/JPA-SUPER-ADMIN/actions/workflows/ci.yml)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.mdmusahub/springboot-super-admin?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.mdmusahub/springboot-super-admin)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+
 An open-source admin console for Spring Boot. Add one dependency, set two properties, open `/admin`, and manage every JPA entity of your application, much like Django Admin. Entities are discovered automatically; there is nothing to register and no front-end build.
 
-**Status: in development (v0.1).** The features below are built phase by phase (release candidates are tagged `v0.1.0-rc.<phase>`); the first release and its Maven coordinates come with Phase 14.
+**Version 0.1.0.** Spring Boot 4.1 and Java 17 or newer. Documentation: <https://mdmusahub.github.io/JPA-SUPER-ADMIN/>. What changed: [CHANGELOG.md](CHANGELOG.md).
 
 ![The product list in the light theme](docs/images/list-light.png)
 
@@ -25,13 +29,14 @@ An open-source admin console for Spring Boot. Add one dependency, set two proper
 
 Requirements: Java 17 or newer, a Spring Boot 4.1 application with Spring Data JPA.
 
-1. **Add the starter.** Until the first release is published, install it from this repository (`mvn -DskipTests install`) and use the version `0.1.0-SNAPSHOT`:
+1. **Add the starter** from Maven Central. It is a pom-only artifact (it carries the dependencies and no code), so the dependency needs `<type>pom</type>`; without that line Maven looks for a jar that does not exist:
 
    ```xml
    <dependency>
        <groupId>io.github.mdmusahub</groupId>
        <artifactId>springboot-super-admin</artifactId>
-       <version>0.1.0-SNAPSHOT</version>
+       <version>0.1.0</version>
+       <type>pom</type>
    </dependency>
    ```
 
@@ -52,7 +57,7 @@ To see it with demo data first, build and run the sample application (do not use
 mvn -pl sample-app -am package -DskipTests
 $env:JPA_ADMIN_USERNAME = 'admin'
 $env:JPA_ADMIN_PASSWORD = '<12 or more characters>'
-java -jar sample-app/target/sample-app-0.1.0-SNAPSHOT.jar
+java -jar sample-app/target/sample-app-0.1.0.jar
 ```
 
 ## Configuration at a glance
@@ -100,17 +105,24 @@ public class Person {
 
 ## Documentation
 
-- `docs/PLAN.md`: scope, architecture, routes and phases. `docs/RULES.md`: the engineering and security rules. `docs/PROJECT_DOCS.md`: requirements and user documentation. `docs/UI_PLAN.md`: how the interface is built. `docs/DECISIONS.md`: every design decision with its reason. `CHANGELOG.md`: what changed.
-- Build everything and run all tests: `mvn clean verify`. The real-browser tests use a Chrome or Edge on the machine (or `-Dtest.chrome=<path>`) and are skipped, with the reason, when there is none.
+- **The documentation site:** <https://mdmusahub.github.io/JPA-SUPER-ADMIN/> (installation, configuration, using the console, annotations, file uploads, security, deployment, troubleshooting, limitations and roadmap).
+- **Project papers, in this repository:** [docs/PLAN.md](docs/PLAN.md) (scope, architecture, routes, phases), [docs/RULES.md](docs/RULES.md) (the engineering and security rules), [docs/PROJECT_DOCS.md](docs/PROJECT_DOCS.md) (requirements and the drafts of the user documentation), [docs/UI_PLAN.md](docs/UI_PLAN.md) (how the interface is built), [docs/DECISIONS.md](docs/DECISIONS.md) (every design decision with its reason) and [CHANGELOG.md](CHANGELOG.md).
+- **Build everything and run all tests:** `mvn clean verify` (about 20 minutes). The real-browser tests use a Chrome or Edge on the machine (or `-Dtest.chrome=<path>`) and the PostgreSQL and MySQL tests use Docker; each is skipped, with the reason, when it is missing. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Security notes
 
 The console is a high-value target: serve it over HTTPS, set `Secure` and `SameSite` on your session cookie yourself (the console never changes global cookie settings), and put it behind a VPN or an IP allow-list when it faces the internet. Login rate limiting is planned for v0.2.
 
+To report a vulnerability, **do not open a public issue**: see [SECURITY.md](SECURITY.md) (GitHub private vulnerability reporting, or email).
+
+## Contributing and licence
+
+Bug reports, ideas and patches are welcome: read [CONTRIBUTING.md](CONTRIBUTING.md) first, and please follow the [Code of Conduct](CODE_OF_CONDUCT.md). JPA Super Admin is released under the [Apache License 2.0](LICENSE).
+
 ## About the author
 
-I'm Muhammad Musa, a Java and Spring Boot developer who likes building tools that save other developers time.
+I'm Musa Malik, a Java and Spring Boot developer who likes building tools that save other developers time.
 
 **Tech I work with:** Java · Spring Boot · Spring Security · JPA/Hibernate · Maven · PostgreSQL · MySQL
 
-**Get in touch:** <your email or LinkedIn>
+**Get in touch:** [github.com/mdmusahub](https://github.com/mdmusahub), or by email at [mdmusaalam98019@gmail.com](mailto:mdmusaalam98019@gmail.com). For a bug or an idea, an [issue](https://github.com/mdmusahub/JPA-SUPER-ADMIN/issues) is best.

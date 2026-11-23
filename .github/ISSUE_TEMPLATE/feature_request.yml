@@ -1,0 +1,35 @@
+name: Feature request or question
+description: Suggest something the console should do, or ask how to do something.
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Version 0.1 has a fixed scope: one administrator, no audit log, no S3 storage, no inline child rows (see **Limitations and roadmap** in the documentation). Those are planned for later versions, so a request for one of them is welcome as a vote and not as a surprise. For anything else, the more you say about the problem you have, the better the answer.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem you want to solve
+      description: What are you trying to do in the console, and what stops you? Start from the task, not from the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you would like to see
+      description: A button, an annotation option, a property. If it would change the public API (an annotation or a property name), say so.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do today instead
+      description: A workaround, another tool, or a different way of doing it.
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Checked
+      options:
+        - label: I read the Limitations and roadmap page and this is not already planned for a later version.
+          required: false
+        - label: This is a question and not a request, and I read the documentation first.
+          required: false

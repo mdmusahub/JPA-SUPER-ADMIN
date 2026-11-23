@@ -40,6 +40,10 @@ import java.lang.annotation.Target;
 @Target({ElementType.FIELD, ElementType.METHOD})
 public @interface AdminLookup {
 
-    /** The name of the property of the related entity that labels its records, exactly as it is written in the class. */
+    /**
+     * The name of the property of the related entity that labels its records, exactly as it is written in the class.
+     *
+     * @return the property name
+     */
     String value();
 }

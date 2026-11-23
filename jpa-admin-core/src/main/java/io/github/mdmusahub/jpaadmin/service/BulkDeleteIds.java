@@ -13,8 +13,8 @@ import java.util.Objects;
  *
  * <p>Internal, not stable API.
  *
- * @param ids the ids as sent, in order; duplicates and texts that are not ids are allowed here (the service counts them)
- * @throws TooManyRecordsException if there are more than {@value DeleteService#MAX_BULK_DELETE}
+ * @param ids the ids as sent, in order; duplicates and texts that are not ids are allowed here (the service counts them);
+ *     more than {@value DeleteService#MAX_BULK_DELETE} of them is refused with a {@link TooManyRecordsException}
  */
 public record BulkDeleteIds(List<String> ids) {
 
