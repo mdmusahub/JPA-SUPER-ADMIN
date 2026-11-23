@@ -5,13 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
-<!--
-PREPARED FOR THE RELEASE (Phase 14b). Nothing in this comment is a heading yet. When you tag v0.1.0:
-  1. rename the heading "## [Unreleased]" below to "## [0.1.0] - YYYY-MM-DD";
-  2. add a new, empty "## [Unreleased]" section above it;
-  3. paste the summary below at the top of the 0.1.0 section, under its heading.
+## [0.1.0] - 2026-11-23
 
-Summary of 0.1.0
 First public release of JPA Super Admin: an admin console for Spring Boot 4.1 applications that use Spring Data JPA. Add
 io.github.mdmusahub:springboot-super-admin:0.1.0 (with <type>pom</type>), set jpa.admin.username and jpa.admin.password, and open
 /admin. Every entity is found automatically. The console has a dashboard with a "Records created" chart; lists with search,
@@ -19,9 +14,10 @@ sorting, paging, filters, column visibility, saved views and CSV export; detail,
 validation messages; file and image uploads with a local storage provider and a storage interface; sensitive fields masked
 everywhere; a separate sign-in with CSRF protection and a security chain that never changes the host's own rules; light and dark
 themes, a phone layout and keyboard use. Tested on H2, PostgreSQL 17 and MySQL 8.4, with Java 17 and 21, and in a real browser.
+
 Known limits (see "Limitations and roadmap" in the documentation): one administrator, no login rate limiting, no audit log, no S3
 storage; an entity with a @Lob String attribute cannot be searched; the console's routes are not a stable API.
--->
+
 
 ### Added
 - **The release configuration** (Phase 14b, D-137 to D-144; **no change to the console, no new property, annotation or route**; nothing is published, tagged or signed by a normal build). The root pom has a profile `release` that cannot switch itself on and holds exactly four plugins: `central-publishing-maven-plugin` 0.12.0, `maven-gpg-plugin` 3.2.8, `maven-source-plugin` 3.4.0 and `maven-javadoc-plugin` 3.12.0, checked against Maven Central and the Spring Boot 4.1.2 BOM. Five modules are published (the parent, `jpa-admin-core`, `jpa-admin-ui`, `jpa-admin-autoconfigure` and the starter `springboot-super-admin`); `sample-app`, `jpa-admin-ui-preview` and `host-check` are not, kept out in three independent ways. `autoPublish` is `false`: a release is validated by Maven Central and **waits until the maintainer presses Publish** on the portal. Every pom is on version 0.1.0, with the metadata Central requires.
